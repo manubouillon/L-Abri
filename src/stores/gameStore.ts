@@ -35,6 +35,7 @@ export interface Affectation {
 export interface Habitant {
   id: string
   nom: string
+  genre: 'H' | 'F'
   affectation: Affectation
   competences: Competences
 }
@@ -212,10 +213,13 @@ const NOMS = [
   'Durand', 'Leroy', 'Moreau', 'Simon', 'Laurent', 'Lefebvre', 'Michel'
 ]
 
-function generateRandomName(): string {
-  const prenom = PRENOMS[Math.floor(Math.random() * PRENOMS.length)]
+function generateRandomName(): { nom: string, genre: 'H' | 'F' } {
+  const genre = Math.random() > 0.5 ? 'H' : 'F'
+  const prenom = genre === 'H' 
+    ? PRENOMS.filter((_, i) => i < PRENOMS.length / 2)[Math.floor(Math.random() * (PRENOMS.length / 2))]
+    : PRENOMS.filter((_, i) => i >= PRENOMS.length / 2)[Math.floor(Math.random() * (PRENOMS.length / 2))]
   const nom = NOMS[Math.floor(Math.random() * NOMS.length)]
-  return `${prenom} ${nom}`
+  return { nom: `${prenom} ${nom}`, genre }
 }
 
 function generateRandomCompetences(): Competences {
@@ -377,12 +381,16 @@ export const useGameStore = defineStore('game', () => {
     })
 
     // Initialiser les habitants
-    habitants.value = Array.from({ length: 5 }, (_, i) => ({
-      id: `habitant-${i}`,
-      nom: generateRandomName(),
-      affectation: { type: null },
-      competences: generateRandomCompetences()
-    }))
+    habitants.value = Array.from({ length: 5 }, (_, i) => {
+      const { nom, genre } = generateRandomName()
+      return {
+        id: `habitant-${i}`,
+        nom,
+        genre,
+        affectation: { type: null },
+        competences: generateRandomCompetences()
+      }
+    })
 
     // Initialiser les ressources avec les nouvelles valeurs
     resources.value = {
@@ -910,6 +918,8 @@ export const useGameStore = defineStore('game', () => {
     affecterHabitantSalle,
     retirerHabitantSalle,
     ROOM_CONFIGS,
+    ROOM_MERGE_CONFIG,
+    GAME_CONFIG,
     addStairs
   }
 }) 

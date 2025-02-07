@@ -28,8 +28,13 @@
                 <span class="room-type">{{ room.type }}</span>
                 <span class="room-size" v-if="room.gridSize && room.gridSize > 1">x{{ room.gridSize }}</span>
                 <div class="room-occupants">
-                  <div class="occupant" v-for="occupant in room.occupants" :key="occupant">
-                    {{ getHabitantName(occupant) }}
+                  <div class="occupant" v-for="occupantId in room.occupants" :key="occupantId">
+                    {{ getHabitantGenre(occupantId) === 'H' ? '👨' : '👩' }}
+                  </div>
+                </div>
+                <div class="room-production" v-if="getRoomProduction(room)">
+                  <div class="production-detail">
+                    {{ getRoomProductionSimple(room) }}
                   </div>
                 </div>
               </div>
@@ -115,8 +120,13 @@
                 <span class="room-type">{{ room.type }}</span>
                 <span class="room-size" v-if="room.gridSize && room.gridSize > 1">x{{ room.gridSize }}</span>
                 <div class="room-occupants">
-                  <div class="occupant" v-for="occupant in room.occupants" :key="occupant">
-                    {{ getHabitantName(occupant) }}
+                  <div class="occupant" v-for="occupantId in room.occupants" :key="occupantId">
+                    {{ getHabitantGenre(occupantId) === 'H' ? '👨' : '👩' }}
+                  </div>
+                </div>
+                <div class="room-production" v-if="getRoomProduction(room)">
+                  <div class="production-detail">
+                    {{ getRoomProductionSimple(room) }}
                   </div>
                 </div>
               </div>
@@ -320,9 +330,50 @@ function getRemainingConstructionTime(room: Room): number {
   return Math.max(0, room.constructionDuration - elapsedTime)
 }
 
-function getHabitantName(habitantId: string): string {
+function getHabitantGenre(habitantId: string): 'H' | 'F' {
   const habitant = store.habitants.find(h => h.id === habitantId)
-  return habitant ? habitant.nom : 'Inconnu'
+  return habitant ? habitant.genre : 'H'
+}
+
+function getRoomProduction(room: Room): string {
+  const config = store.ROOM_CONFIGS[room.type]
+  if (!config || !('productionPerWorker' in config)) return ''
+
+  const nbWorkers = room.occupants.length
+  const gridSize = room.gridSize || 1
+  const mergeConfig = store.ROOM_MERGE_CONFIG[room.type]
+  const mergeMultiplier = mergeConfig?.useMultiplier 
+    ? store.GAME_CONFIG.MERGE_MULTIPLIERS[Math.min(gridSize, 6) as keyof typeof store.GAME_CONFIG.MERGE_MULTIPLIERS] || 1
+    : 1
+
+  const productions = []
+  for (const [resource, amount] of Object.entries(config.productionPerWorker)) {
+    const total = amount * nbWorkers * gridSize * mergeMultiplier
+    productions.push(`${resource}: ${total.toFixed(1)}/s`)
+  }
+
+  return `${nbWorkers}👥 × ${gridSize}📦 × ${mergeMultiplier}✨ = ${productions.join(', ')}`
+}
+
+function getRoomProductionSimple(room: Room): string {
+  const config = store.ROOM_CONFIGS[room.type]
+  if (!config || !('productionPerWorker' in config)) return ''
+
+  const nbWorkers = room.occupants.length
+  if (nbWorkers === 0) return ''
+
+  const productions = []
+  for (const [resource, amount] of Object.entries(config.productionPerWorker)) {
+    const gridSize = room.gridSize || 1
+    const mergeConfig = store.ROOM_MERGE_CONFIG[room.type]
+    const mergeMultiplier = mergeConfig?.useMultiplier 
+      ? store.GAME_CONFIG.MERGE_MULTIPLIERS[Math.min(gridSize, 6) as keyof typeof store.GAME_CONFIG.MERGE_MULTIPLIERS] || 1
+      : 1
+    const total = amount * nbWorkers * gridSize * mergeMultiplier
+    productions.push(`${resource}: ${total.toFixed(1)}/s`)
+  }
+
+  return productions.join(', ')
 }
 
 function openRoomInfo(room: Room) {
@@ -472,6 +523,21 @@ onMounted(() => {
     color: #95a5a6;
     margin-bottom: 0.25rem;
   }
+
+  .room-production {
+    margin-top: auto;
+    padding-top: 0.25rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 0.6rem;
+    color: #2ecc71;
+    text-align: center;
+
+    .production-detail {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
 }
 
 .room-occupants {
@@ -479,13 +545,11 @@ onMounted(() => {
   display: flex;
   gap: 0.25rem;
   flex-wrap: wrap;
-  align-items: flex-start;
+  align-items: center;
+  justify-content: center;
   
   .occupant {
-    background-color: rgba(255, 255, 255, 0.1);
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-    font-size: 0.7rem;
+    font-size: 1rem;
   }
 }
 

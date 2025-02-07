@@ -3,6 +3,34 @@
     <div class="modal-content" @click.stop>
       <h2>{{ room.type }}</h2>
       
+      <div class="production-details" v-if="isProductionRoom">
+        <h3>Détails de la production</h3>
+        <div class="production-formula">
+          <div class="formula-row">
+            <span class="label">Production de base par travailleur:</span>
+            <span v-for="(amount, resource) in baseProduction" :key="resource">
+              {{ resource }}: {{ amount }}/s
+            </span>
+          </div>
+          <div class="formula-row">
+            <span class="label">Nombre de travailleurs:</span>
+            <span>{{ room.occupants.length }}👥</span>
+          </div>
+          <div class="formula-row">
+            <span class="label">Taille de la salle:</span>
+            <span>{{ room.gridSize || 1 }}📦</span>
+          </div>
+          <div class="formula-row">
+            <span class="label">Multiplicateur de fusion:</span>
+            <span>{{ getMergeMultiplier }}✨</span>
+          </div>
+          <div class="formula-row total">
+            <span class="label">Production totale:</span>
+            <span>{{ getTotalProduction }}</span>
+          </div>
+        </div>
+      </div>
+
       <div class="room-info">
         <div class="production" v-if="roomConfig.productionPerWorker">
           <h3>Production par travailleur</h3>
@@ -95,6 +123,42 @@ const roomConfig = computed(() =>
 const habitantsDisponibles = computed(() => 
   habitants.value.filter(h => h.affectation.type === null)
 )
+
+const isProductionRoom = computed(() => {
+  const config = store.ROOM_CONFIGS[props.room.type]
+  return config && 'productionPerWorker' in config
+})
+
+const baseProduction = computed(() => {
+  const config = store.ROOM_CONFIGS[props.room.type]
+  if (!config || !('productionPerWorker' in config)) return {}
+  return config.productionPerWorker
+})
+
+const getMergeMultiplier = computed(() => {
+  const gridSize = props.room.gridSize || 1
+  const mergeConfig = store.ROOM_MERGE_CONFIG[props.room.type]
+  return mergeConfig?.useMultiplier 
+    ? store.GAME_CONFIG.MERGE_MULTIPLIERS[Math.min(gridSize, 6) as keyof typeof store.GAME_CONFIG.MERGE_MULTIPLIERS] || 1
+    : 1
+})
+
+const getTotalProduction = computed(() => {
+  const config = store.ROOM_CONFIGS[props.room.type]
+  if (!config || !('productionPerWorker' in config)) return ''
+
+  const nbWorkers = props.room.occupants.length
+  const gridSize = props.room.gridSize || 1
+  const mergeMultiplier = getMergeMultiplier.value
+
+  const productions = []
+  for (const [resource, amount] of Object.entries(config.productionPerWorker)) {
+    const total = amount * nbWorkers * gridSize * mergeMultiplier
+    productions.push(`${resource}: ${total.toFixed(1)}/s`)
+  }
+
+  return productions.join(', ')
+})
 
 function getHabitantName(habitantId: string): string {
   const habitant = habitants.value.find(h => h.id === habitantId)
@@ -247,6 +311,48 @@ function ajouterHabitant() {
 
     &:hover {
       background-color: #2980b9;
+    }
+  }
+}
+
+.production-details {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 1rem 0;
+
+  h3 {
+    margin-top: 0;
+    color: #2ecc71;
+  }
+
+  .production-formula {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+
+    .formula-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.25rem 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+
+      &:last-child {
+        border-bottom: none;
+      }
+
+      &.total {
+        margin-top: 0.5rem;
+        padding-top: 0.5rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.2);
+        font-weight: bold;
+        color: #2ecc71;
+      }
+
+      .label {
+        color: rgba(255, 255, 255, 0.7);
+      }
     }
   }
 }
