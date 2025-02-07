@@ -108,11 +108,11 @@
       </div>
 
       <div v-else-if="activeTab === 'equipment'" class="equipment-tab">
-        <div class="available-equipment">
+        <div class="available-equipment" v-if="canAddMoreEquipment">
           <h3>Équipements disponibles</h3>
           <div class="equipment-list">
             <div 
-              v-for="(config, type) in availableEquipment" 
+              v-for="(config, type) in availableEquipments" 
               :key="type"
               class="equipment-item"
             >
@@ -127,14 +127,14 @@
                 @click="addEquipment(type)"
                 :disabled="hasEquipment(type)"
               >
-                {{ hasEquipment(type) ? 'Installé' : 'Installer' }}
+                Installer
               </button>
             </div>
           </div>
         </div>
 
         <div class="installed-equipment">
-          <h3>Équipements installés</h3>
+          <h3>Équipements installés ({{ room.equipments?.length || 0 }}/{{ maxEquipments }})</h3>
           <div class="equipment-list">
             <div 
               v-for="equipment in (room.equipments || [])" 
@@ -156,6 +156,15 @@
                 </template>
                 <template v-else>
                   <span class="status">Opérationnel</span>
+                  <div v-if="equipment.type === 'nurserie'" class="nurserie-controls">
+                    <button 
+                      @click="createNewHabitant"
+                      :disabled="isIncubating"
+                      class="incubate-button"
+                    >
+                      {{ isIncubating ? `Incubation en cours: ${remainingIncubationTime} semaines` : 'Incuber un embryon' }}
+                    </button>
+                  </div>
                 </template>
               </div>
             </div>
@@ -235,9 +244,33 @@ const getTotalProduction = computed(() => {
 
 const activeTab = ref('info')
 
-const availableEquipment = computed(() => 
-  store.EQUIPMENT_CONFIG[props.room.type] || {}
+const isIncubating = ref(false)
+const incubationStartTime = ref(0)
+
+const maxEquipments = computed(() => props.room.gridSize || 1)
+
+const canAddMoreEquipment = computed(() => 
+  (props.room.equipments?.length || 0) < maxEquipments.value
 )
+
+const availableEquipments = computed(() => {
+  const allEquipments = store.EQUIPMENT_CONFIG[props.room.type] || {}
+  const installedTypes = new Set(props.room.equipments?.map(e => e.type) || [])
+  
+  return Object.entries(allEquipments).reduce((acc, [type, config]) => {
+    if (!installedTypes.has(type)) {
+      acc[type] = config
+    }
+    return acc
+  }, {} as typeof allEquipments)
+})
+
+const remainingIncubationTime = computed(() => {
+  if (!isIncubating.value) return 0
+  const nurseryConfig = store.EQUIPMENT_CONFIG.medical.nurserie
+  const elapsedTime = store.gameTime - incubationStartTime.value
+  return Math.max(0, nurseryConfig.incubationTime! - elapsedTime)
+})
 
 function getHabitantName(habitantId: string): string {
   const habitant = habitants.value.find(h => h.id === habitantId)
@@ -288,6 +321,28 @@ function getRemainingConstructionTime(equipment: Equipment): number {
   const elapsedTime = store.gameTime - equipment.constructionStartTime
   return Math.max(0, equipment.constructionDuration - elapsedTime)
 }
+
+function createNewHabitant() {
+  if (isIncubating.value) return
+
+  isIncubating.value = true
+  incubationStartTime.value = store.gameTime
+
+  // Créer un intervalle pour vérifier la fin de l'incubation
+  const checkInterval = setInterval(() => {
+    if (remainingIncubationTime.value <= 0) {
+      isIncubating.value = false
+      clearInterval(checkInterval)
+      
+      // Créer le nouvel habitant
+      store.createNewHabitant(
+        props.levelId,
+        props.room.position,
+        props.room.index
+      )
+    }
+  }, 1000)
+}
 </script>
 
 <style lang="scss" scoped>
@@ -307,9 +362,12 @@ function getRemainingConstructionTime(equipment: Equipment): number {
   padding: 1.5rem;
   max-width: 500px;
   width: 90%;
-  max-height: 90vh;
+  max-height: 80vh;
   overflow-y: auto;
-  position: relative;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 
   h2 {
     margin: 0 0 1rem;
@@ -570,6 +628,24 @@ function getRemainingConstructionTime(equipment: Equipment): number {
     font-size: 0.8rem;
     color: #95a5a6;
     margin-top: 0.25rem;
+  }
+}
+
+.nurserie-controls {
+  margin-top: 1rem;
+
+  .incubate-button {
+    width: 100%;
+    background-color: #e67e22;
+    
+    &:hover:not(:disabled) {
+      background-color: #d35400;
+    }
+    
+    &:disabled {
+      background-color: #95a5a6;
+      cursor: not-allowed;
+    }
   }
 }
 </style> 

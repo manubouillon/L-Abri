@@ -50,21 +50,19 @@
                 </div>
               </template>
               <template v-else>
-                <span class="empty-room-text" v-if="habitantsLibres.length > 0">Cliquez pour construire</span>
-                <span class="empty-room-text error" v-else>Pas d'habitant disponible</span>
+                <span class="empty-room-text" v-if="habitantsLibres.length > 0 && hasAdultAvailable">Cliquez pour construire</span>
+                <span class="error-icon" v-else>❌</span>
               </template>
             </div>
             <div class="room-overlay" v-else>
               <template v-if="canExcavateRoom('left', room.index)">
                 <button 
-                  v-if="!isExcavating('left', room.index) && habitantsLibres.length > 0"
+                  v-if="!isExcavating('left', room.index) && habitantsLibres.length > 0 && hasAdultAvailable"
                   @click.stop="excavateRoom('left', room.index)"
                 >
                   Excaver
                 </button>
-                <span class="empty-room-text error" v-else-if="!isExcavating('left', room.index)">
-                  Pas d'habitant disponible
-                </span>
+                <span class="error-icon" v-else-if="!isExcavating('left', room.index)">❌</span>
                 <div v-else class="excavation-progress">
                   <div 
                     class="progress-bar"
@@ -83,12 +81,10 @@
             <span class="level-number">{{ level.id + 1 }}</span>
           </div>
           <div class="stairs-overlay" v-if="!level.isStairsExcavated && canExcavateStairs">
-            <template v-if="!isExcavatingStairs && habitantsLibres.length > 0">
+            <template v-if="!isExcavatingStairs && habitantsLibres.length > 0 && hasAdultAvailable">
               <button @click="excavateStairs">Excaver</button>
             </template>
-            <span class="empty-room-text error" v-else-if="!isExcavatingStairs">
-              Pas d'habitant disponible
-            </span>
+            <span class="error-icon" v-else-if="!isExcavatingStairs">❌</span>
             <div v-else class="excavation-progress">
               <div 
                 class="progress-bar"
@@ -142,21 +138,19 @@
                 </div>
               </template>
               <template v-else>
-                <span class="empty-room-text" v-if="habitantsLibres.length > 0">Cliquez pour construire</span>
-                <span class="empty-room-text error" v-else>Pas d'habitant disponible</span>
+                <span class="empty-room-text" v-if="habitantsLibres.length > 0 && hasAdultAvailable">Cliquez pour construire</span>
+                <span class="error-icon" v-else>❌</span>
               </template>
             </div>
             <div class="room-overlay" v-else>
               <template v-if="canExcavateRoom('right', room.index)">
                 <button 
-                  v-if="!isExcavating('right', room.index) && habitantsLibres.length > 0"
+                  v-if="!isExcavating('right', room.index) && habitantsLibres.length > 0 && hasAdultAvailable"
                   @click.stop="excavateRoom('right', room.index)"
                 >
                   Excaver
                 </button>
-                <span class="empty-room-text error" v-else-if="!isExcavating('right', room.index)">
-                  Pas d'habitant disponible
-                </span>
+                <span class="error-icon" v-else-if="!isExcavating('right', room.index)">❌</span>
                 <div v-else class="excavation-progress">
                   <div 
                     class="progress-bar"
@@ -173,7 +167,13 @@
     
     <div class="level-overlay" v-else>
       <template v-if="canExcavateStairs">
-        <button v-if="!isExcavatingStairs" @click="excavateStairs">Excaver</button>
+        <button 
+          v-if="!isExcavatingStairs && habitantsLibres.length > 0 && hasAdultAvailable" 
+          @click="excavateStairs"
+        >
+          Excaver
+        </button>
+        <span class="error-icon" v-else-if="!isExcavatingStairs">❌</span>
         <div v-else class="excavation-progress">
           <div 
             class="progress-bar"
@@ -242,6 +242,10 @@ const stairsExcavationInfo = computed(() =>
   store.getExcavationInfo(props.level.id, 'stairs')
 )
 
+const hasAdultAvailable = computed(() => 
+  habitantsLibres.value.some(h => h.age >= 7)
+)
+
 function canExcavateRoom(position: 'left' | 'right', index: number): boolean {
   if (!props.level.isStairsExcavated) return false
   
@@ -280,7 +284,9 @@ function shouldShowLeftBorder(room: Room, position: 'left' | 'right'): boolean {
 
 function handleRoomClick(position: 'left' | 'right', room: Room) {
   if (room.isExcavated && !room.isBuilt) {
-    openRoomTypeModal(position, room.index)
+    if (habitantsLibres.value.length > 0 && hasAdultAvailable.value) {
+      openRoomTypeModal(position, room.index)
+    }
   }
 }
 
@@ -711,5 +717,11 @@ onMounted(() => {
   inset: 0;
   background-color: rgba(0, 0, 0, 0.5);
   z-index: 999;
+}
+
+.error-icon {
+  font-size: 0.8rem;
+  opacity: 0.5;
+  color: #e74c3c;
 }
 </style> 

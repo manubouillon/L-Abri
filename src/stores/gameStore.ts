@@ -311,6 +311,10 @@ export const useGameStore = defineStore('game', () => {
     habitants.value.filter(h => h.affectation.type !== null)
   )
 
+  const enfants = computed(() =>
+    habitants.value.filter(h => h.age < 7)
+  )
+
   function createInitialRooms(side: 'left' | 'right', levelId: number, isFirstLevel: boolean): Room[] {
     return Array.from({ length: ROOMS_PER_SIDE }, (_, index) => ({
       id: `${levelId}-${side}-${index}`,
@@ -578,7 +582,7 @@ export const useGameStore = defineStore('game', () => {
     })
   }
 
-  function excavateStairs(levelId: number) {
+  function excavateStairs(levelId: number): boolean {
     const level = levels.value.find(l => l.id === levelId)
     const previousLevel = levels.value.find(l => l.id === levelId - 1)
 
@@ -590,7 +594,8 @@ export const useGameStore = defineStore('game', () => {
     if (level && !level.isStairsExcavated && !isExcavationInProgress(levelId, 'stairs')) {
       // Vérifier que le niveau précédent a ses escaliers excavés
       if (previousLevel && previousLevel.isStairsExcavated) {
-        const habitantLibre = habitants.value.find(h => h.affectation.type === null)
+        // Trouver un habitant libre qui a plus de 7 ans
+        const habitantLibre = habitants.value.find(h => h.affectation.type === null && h.age >= 7)
         if (habitantLibre) {
           // Affecter l'habitant à l'excavation
           affecterHabitant(habitantLibre.id, {
@@ -606,19 +611,22 @@ export const useGameStore = defineStore('game', () => {
             habitantId: habitantLibre.id,
             duration: getExcavationTime(levelId)
           })
+          return true
         }
       }
     }
+    return false
   }
 
-  function excavateRoom(levelId: number, position: 'left' | 'right', roomIndex: number) {
+  function excavateRoom(levelId: number, position: 'left' | 'right', roomIndex: number): boolean {
     const level = levels.value.find(l => l.id === levelId)
     if (level && level.isStairsExcavated && !isExcavationInProgress(levelId, position, roomIndex)) {
       const rooms = position === 'left' ? level.leftRooms : level.rightRooms
       const room = rooms[roomIndex]
 
       if (room && !room.isBuilt) {
-        const habitantLibre = habitantsLibres.value[0]
+        // Trouver un habitant libre qui a plus de 7 ans
+        const habitantLibre = habitants.value.find(h => h.affectation.type === null && h.age >= 7)
         if (habitantLibre) {
           // Affecter l'habitant à l'excavation
           affecterHabitant(habitantLibre.id, {
@@ -636,9 +644,11 @@ export const useGameStore = defineStore('game', () => {
             habitantId: habitantLibre.id,
             duration: getExcavationTime(levelId)
           })
+          return true
         }
       }
     }
+    return false
   }
 
   function buildRoom(levelId: number, position: 'left' | 'right', roomIndex: number, roomType: string) {
@@ -647,7 +657,12 @@ export const useGameStore = defineStore('game', () => {
       const rooms = position === 'left' ? level.leftRooms : level.rightRooms
       const room = rooms[roomIndex]
       if (room && room.isExcavated && !room.isBuilt && !room.isUnderConstruction) {
-        const habitantLibre = habitantsLibres.value[0]
+        // Vérifier qu'il y a au moins un adulte disponible
+        const adultAvailable = habitantsLibres.value.some(h => h.age >= 7)
+        if (!adultAvailable) return
+
+        // Trouver un habitant libre qui a plus de 7 ans
+        const habitantLibre = habitantsLibres.value.find(h => h.age >= 7)
         if (habitantLibre) {
           room.isUnderConstruction = true
           room.constructionStartTime = gameTime.value
@@ -760,11 +775,12 @@ export const useGameStore = defineStore('game', () => {
   }
 
   // Configuration des équipements disponibles par type de salle
-  const EQUIPMENT_CONFIG: { [key: string]: { [key: string]: { constructionTime: number, description: string } } } = {
+  const EQUIPMENT_CONFIG: { [key: string]: { [key: string]: { constructionTime: number, description: string, incubationTime?: number } } } = {
     medical: {
       nurserie: {
         constructionTime: 2, // 2 semaines pour construire
-        description: "Permet de créer de nouveaux habitants. Les enfants de moins de 7 ans ne peuvent pas travailler."
+        description: "Permet de créer de nouveaux habitants. Les enfants de moins de 7 ans ne peuvent pas travailler.",
+        incubationTime: 36 // 9 mois = 36 semaines
       }
     }
   }
@@ -1013,6 +1029,7 @@ export const useGameStore = defineStore('game', () => {
     habitants,
     habitantsLibres,
     habitantsOccupes,
+    enfants,
     
     // Getters
     resourcesList,

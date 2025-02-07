@@ -46,6 +46,10 @@
         <span class="stat-value">{{ habitantsOccupes.length }}</span>
       </div>
       <div class="stat-item">
+        <span class="stat-label">Enfants:</span>
+        <span class="stat-value">{{ enfants.length }}</span>
+      </div>
+      <div class="stat-item">
         <span class="stat-label">Bonheur:</span>
         <span class="stat-value">{{ happiness }}%</span>
       </div>
@@ -67,7 +71,7 @@ import { storeToRefs } from 'pinia'
 import { useGameStore } from '../stores/gameStore'
 
 const store = useGameStore()
-const { resourcesList, population, happiness, formattedTime, habitantsLibres, habitantsOccupes } = storeToRefs(store)
+const { resourcesList, population, happiness, formattedTime, habitantsLibres, habitantsOccupes, enfants } = storeToRefs(store)
 </script>
 
 <style lang="scss" scoped>
