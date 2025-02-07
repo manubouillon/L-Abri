@@ -214,8 +214,8 @@ const ROOM_CONFIGS: { [key: string]: RoomConfig } = {
 }
 
 const PRENOMS = [
-  'Jean', 'Pierre', 'Marie', 'Sophie', 'Luc', 'Emma', 'Louis', 'Julie',
-  'Thomas', 'Claire', 'Paul', 'Alice', 'Nicolas', 'Laura', 'Antoine', 'Léa'
+  'Jean', 'Pierre', 'Luc', 'Louis', 'Thomas', 'Paul', 'Nicolas', 'Antoine', // Prénoms masculins
+  'Marie', 'Sophie', 'Emma', 'Julie', 'Claire', 'Alice', 'Laura', 'Léa' // Prénoms féminins
 ]
 
 const NOMS = [

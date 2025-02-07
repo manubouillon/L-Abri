@@ -11,7 +11,10 @@
           :key="habitant.id"
           class="habitant-card"
         >
-          <h3>{{ habitant.nom }}</h3>
+          <h3>
+            {{ habitant.nom }}
+            <span class="genre-icon">{{ habitant.genre === 'H' ? '👨' : '👩' }}</span>
+          </h3>
           <div class="competences">
             <div class="competence">
               <span class="label">Force:</span>
@@ -188,6 +191,13 @@ function getRoomInfo(affectation: Habitant['affectation']): string {
     margin: 0 0 1rem;
     color: #ecf0f1;
     font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+
+    .genre-icon {
+      font-size: 1rem;
+    }
   }
 }
 
