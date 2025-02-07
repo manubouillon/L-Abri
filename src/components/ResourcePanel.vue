@@ -22,10 +22,10 @@
         </div>
         
         <div class="resource-details">
-          <div class="production" :class="{ positive: resource.production > 0 }">
+          <div class="production">
             +{{ resource.production }}/s
           </div>
-          <div class="consumption" :class="{ negative: resource.consumption > 0 }">
+          <div class="consumption">
             -{{ resource.consumption * population }}/s
           </div>
         </div>
@@ -133,22 +133,10 @@ const { resourcesList, population, happiness, formattedTime, habitantsLibres, ha
   
   .production {
     color: #2ecc71;
-    
-    &.positive {
-      &::before {
-        content: '+';
-      }
-    }
   }
   
   .consumption {
     color: #e74c3c;
-    
-    &.negative {
-      &::before {
-        content: '-';
-      }
-    }
   }
 }
 
