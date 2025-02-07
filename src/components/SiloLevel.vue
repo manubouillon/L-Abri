@@ -50,7 +50,7 @@
                 </div>
               </template>
               <template v-else>
-                <span class="empty-room-text" v-if="habitantsLibres.length > 0 && hasAdultAvailable">Cliquez pour construire</span>
+                <span class="empty-room-text" v-if="habitantsLibres.length > 0 && hasAdultAvailable">🔨</span>
                 <span class="error-icon" v-else>❌</span>
               </template>
             </div>
@@ -59,8 +59,9 @@
                 <button 
                   v-if="!isExcavating('left', room.index) && habitantsLibres.length > 0 && hasAdultAvailable"
                   @click.stop="excavateRoom('left', room.index)"
+                  class="excavate-button"
                 >
-                  Excaver
+                  ⛏️
                 </button>
                 <span class="error-icon" v-else-if="!isExcavating('left', room.index)">❌</span>
                 <div v-else class="excavation-progress">
@@ -82,7 +83,7 @@
           </div>
           <div class="stairs-overlay" v-if="!level.isStairsExcavated && canExcavateStairs">
             <template v-if="!isExcavatingStairs && habitantsLibres.length > 0 && hasAdultAvailable">
-              <button @click="excavateStairs">Excaver</button>
+              <button @click="excavateStairs" class="excavate-button">⛏️</button>
             </template>
             <span class="error-icon" v-else-if="!isExcavatingStairs">❌</span>
             <div v-else class="excavation-progress">
@@ -138,7 +139,7 @@
                 </div>
               </template>
               <template v-else>
-                <span class="empty-room-text" v-if="habitantsLibres.length > 0 && hasAdultAvailable">Cliquez pour construire</span>
+                <span class="empty-room-text" v-if="habitantsLibres.length > 0 && hasAdultAvailable">🔨</span>
                 <span class="error-icon" v-else>❌</span>
               </template>
             </div>
@@ -147,8 +148,9 @@
                 <button 
                   v-if="!isExcavating('right', room.index) && habitantsLibres.length > 0 && hasAdultAvailable"
                   @click.stop="excavateRoom('right', room.index)"
+                  class="excavate-button"
                 >
-                  Excaver
+                  ⛏️
                 </button>
                 <span class="error-icon" v-else-if="!isExcavating('right', room.index)">❌</span>
                 <div v-else class="excavation-progress">
@@ -170,8 +172,9 @@
         <button 
           v-if="!isExcavatingStairs && habitantsLibres.length > 0 && hasAdultAvailable" 
           @click="excavateStairs"
+          class="excavate-button"
         >
-          Excaver
+          ⛏️
         </button>
         <span class="error-icon" v-else-if="!isExcavatingStairs">❌</span>
         <div v-else class="excavation-progress">
@@ -723,5 +726,31 @@ onMounted(() => {
   font-size: 0.8rem;
   opacity: 0.5;
   color: #e74c3c;
+}
+
+.excavate-button {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  padding: 0.5rem;
+  opacity: 0.8;
+  cursor: pointer;
+  transition: opacity 0.3s ease;
+
+  &:hover {
+    opacity: 1;
+    background: none;
+  }
+}
+
+.empty-room-text {
+  font-size: 1.2rem;
+  opacity: 0.8;
+  cursor: pointer;
+  transition: opacity 0.3s ease;
+
+  &:hover {
+    opacity: 1;
+  }
 }
 </style> 
