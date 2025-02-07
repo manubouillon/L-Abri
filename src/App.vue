@@ -8,7 +8,7 @@
         <div class="game-speed">
           <button @click="decreaseSpeed" :disabled="gameSpeed === 1">-</button>
           <span>x{{ gameSpeed }}</span>
-          <button @click="increaseSpeed" :disabled="gameSpeed === 3">+</button>
+          <button @click="increaseSpeed" :disabled="gameSpeed === 50">+</button>
         </div>
         <button @click="showHabitantsList = true">Habitants</button>
       </div>
@@ -69,7 +69,7 @@ const togglePause = () => {
 }
 
 const increaseSpeed = () => {
-  if (gameSpeed.value < 3) gameSpeed.value++
+  if (gameSpeed.value < 50) gameSpeed.value++
 }
 
 const decreaseSpeed = () => {

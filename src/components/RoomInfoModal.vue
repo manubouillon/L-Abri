@@ -19,6 +19,8 @@
       </div>
 
       <div v-if="activeTab === 'info'">
+        <div class="error-message" v-if="errorMessage">{{ errorMessage }}</div>
+        
         <div class="production-details" v-if="isProductionRoom">
           <h3>Détails de la production</h3>
           <div class="production-formula">
@@ -159,10 +161,10 @@
                   <div v-if="equipment.type === 'nurserie'" class="nurserie-controls">
                     <button 
                       @click="createNewHabitant"
-                      :disabled="isIncubating"
+                      :disabled="!canIncubate"
                       class="incubate-button"
                     >
-                      {{ isIncubating ? `Incubation en cours: ${remainingIncubationTime} semaines` : 'Incuber un embryon' }}
+                      {{ isIncubating ? `Incubation en cours: ${remainingIncubationTime} semaines` : props.room.occupants.length === 0 ? 'Pas de travailleur disponible' : 'Incuber un embryon' }}
                     </button>
                   </div>
                 </template>
@@ -272,12 +274,26 @@ const remainingIncubationTime = computed(() => {
   return Math.max(0, nurseryConfig.incubationTime! - elapsedTime)
 })
 
+const canIncubate = computed(() => {
+  return !isIncubating.value && props.room.occupants.length > 0
+})
+
+const errorMessage = ref('')
+
 function getHabitantName(habitantId: string): string {
   const habitant = habitants.value.find(h => h.id === habitantId)
   return habitant ? habitant.nom : 'Inconnu'
 }
 
 function retirerHabitant(habitantId: string) {
+  errorMessage.value = ''
+
+  if (props.room.type === 'medical' && isIncubating.value) {
+    if (props.room.occupants.length <= 1) {
+      errorMessage.value = "Impossible de retirer le dernier travailleur pendant une incubation"
+      return
+    }
+  }
   store.retirerHabitantSalle(habitantId)
 }
 
@@ -324,17 +340,17 @@ function getRemainingConstructionTime(equipment: Equipment): number {
 
 function createNewHabitant() {
   if (isIncubating.value) return
+  
+  if (props.room.occupants.length === 0) return
 
   isIncubating.value = true
   incubationStartTime.value = store.gameTime
 
-  // Créer un intervalle pour vérifier la fin de l'incubation
   const checkInterval = setInterval(() => {
     if (remainingIncubationTime.value <= 0) {
       isIncubating.value = false
       clearInterval(checkInterval)
       
-      // Créer le nouvel habitant
       store.createNewHabitant(
         props.levelId,
         props.room.position,
@@ -647,5 +663,14 @@ function createNewHabitant() {
       cursor: not-allowed;
     }
   }
+}
+
+.error-message {
+  background-color: rgba(231, 76, 60, 0.2);
+  color: #e74c3c;
+  padding: 0.5rem;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+  text-align: center;
 }
 </style> 
