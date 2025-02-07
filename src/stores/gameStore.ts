@@ -61,10 +61,36 @@ export interface Level {
   rightRooms: Room[]
 }
 
-export const INITIAL_LEVELS = 5 // Nombre de niveaux au départ
-export const ROOMS_PER_SIDE = 5 // 5 salles de chaque côté = 10 salles par étage
-const BASE_EXCAVATION_TIME = 4 // 4 semaines de base
-const DEPTH_TIME_MULTIPLIER = 0.5 // +0.5 semaine par niveau de profondeur
+// Configuration du jeu
+export const GAME_CONFIG = {
+  INITIAL_LEVELS: 5,
+  ROOMS_PER_SIDE: 7,
+  BASE_EXCAVATION_TIME: 4,
+  DEPTH_TIME_MULTIPLIER: 0.5,
+  MERGE_MULTIPLIERS: {
+    2: 2.5, // 2 salles fusionnées
+    3: 4.0, // 3 salles fusionnées
+    4: 6.0, // 4 salles fusionnées
+    5: 8.0, // 5 salles fusionnées
+    6: 10.0, // 6+ salles fusionnées
+  }
+} as const
+
+// Configuration des multiplicateurs de fusion par type de salle
+export const ROOM_MERGE_CONFIG: { [key: string]: { useMultiplier: boolean } } = {
+  stockage: { useMultiplier: true },
+  dortoir: { useMultiplier: false }, // Le dortoir ne bénéficie pas des multiplicateurs
+  cuisine: { useMultiplier: true },
+  eau: { useMultiplier: true },
+  energie: { useMultiplier: true },
+  medical: { useMultiplier: true },
+  serre: { useMultiplier: true }
+}
+
+export const INITIAL_LEVELS = GAME_CONFIG.INITIAL_LEVELS // Nombre de niveaux au départ
+export const ROOMS_PER_SIDE = GAME_CONFIG.ROOMS_PER_SIDE // Nombre de salles de chaque côté
+const BASE_EXCAVATION_TIME = GAME_CONFIG.BASE_EXCAVATION_TIME // 4 semaines de base
+const DEPTH_TIME_MULTIPLIER = GAME_CONFIG.DEPTH_TIME_MULTIPLIER // +0.5 semaine par niveau de profondeur
 
 interface Resources {
   energie: {
@@ -651,23 +677,27 @@ export const useGameStore = defineStore('game', () => {
           const config = ROOM_CONFIGS[room.type]
           if (!config) return
 
+          const gridSize = room.gridSize || 1
+          const mergeConfig = ROOM_MERGE_CONFIG[room.type]
+          const mergeMultiplier = mergeConfig?.useMultiplier 
+            ? GAME_CONFIG.MERGE_MULTIPLIERS[Math.min(gridSize, 6) as keyof typeof GAME_CONFIG.MERGE_MULTIPLIERS] || 1
+            : 1
+
           // Gestion du stockage
           if ('capacityPerWorker' in config) {
             const nbWorkers = room.occupants.length
-            const multiplier = room.gridSize || 1
             Object.entries(config.capacityPerWorker).forEach(([resource, amount]) => {
               if (amount && resource in resources.value) {
-                resources.value[resource as ResourceKey].capacity += amount * nbWorkers * multiplier
+                resources.value[resource as ResourceKey].capacity += amount * nbWorkers * gridSize * mergeMultiplier
               }
             })
           }
           // Gestion de la production
           else if ('productionPerWorker' in config) {
             const nbWorkers = room.occupants.length
-            const multiplier = room.gridSize || 1
             Object.entries(config.productionPerWorker).forEach(([resource, amount]) => {
               if (amount && resource in resources.value) {
-                resources.value[resource as ResourceKey].production += amount * nbWorkers * multiplier
+                resources.value[resource as ResourceKey].production += amount * nbWorkers * gridSize * mergeMultiplier
               }
             })
           }

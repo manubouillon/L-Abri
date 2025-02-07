@@ -190,7 +190,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useGameStore, ROOMS_PER_SIDE } from '../stores/gameStore'
 import type { Level, Room } from '../stores/gameStore'
 import RoomTypeModal from './RoomTypeModal.vue'
@@ -239,9 +239,11 @@ function canExcavateRoom(position: 'left' | 'right', index: number): boolean {
   const room = rooms[index]
   if (!room || room.isExcavated) return false
 
-  return position === 'left'
-    ? (index === ROOMS_PER_SIDE - 1 || rooms[index + 1].isExcavated)
-    : (index === 0 || rooms[index - 1].isExcavated)
+  if (position === 'left') {
+    return index === ROOMS_PER_SIDE - 1 || (rooms[index + 1] && rooms[index + 1].isExcavated)
+  }
+  
+  return index === 0 || (rooms[index - 1] && rooms[index - 1].isExcavated)
 }
 
 function isExcavating(position: 'left' | 'right', index: number): boolean {
@@ -343,6 +345,10 @@ function getRoomStyle(room: Room) {
     marginRight: gridSize > 1 ? '0' : undefined
   }
 }
+
+onMounted(() => {
+  document.documentElement.style.setProperty('--rooms-per-side', ROOMS_PER_SIDE.toString())
+})
 </script>
 
 <style lang="scss" scoped>
@@ -373,7 +379,7 @@ function getRoomStyle(room: Room) {
 
 .rooms-side {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(var(--rooms-per-side), 1fr);
   gap: 0.5rem;
   position: relative;
   
