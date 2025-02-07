@@ -3,89 +3,162 @@
     <div class="modal-content" @click.stop>
       <h2>{{ room.type }}</h2>
       
-      <div class="production-details" v-if="isProductionRoom">
-        <h3>Détails de la production</h3>
-        <div class="production-formula">
-          <div class="formula-row">
-            <span class="label">Production de base par travailleur:</span>
-            <span v-for="(amount, resource) in baseProduction" :key="resource">
-              {{ resource }}: {{ amount }}/s
-            </span>
+      <div class="modal-tabs">
+        <button 
+          :class="{ active: activeTab === 'info' }" 
+          @click="activeTab = 'info'"
+        >
+          Informations
+        </button>
+        <button 
+          :class="{ active: activeTab === 'equipment' }" 
+          @click="activeTab = 'equipment'"
+        >
+          Équipements
+        </button>
+      </div>
+
+      <div v-if="activeTab === 'info'">
+        <div class="production-details" v-if="isProductionRoom">
+          <h3>Détails de la production</h3>
+          <div class="production-formula">
+            <div class="formula-row">
+              <span class="label">Production de base par travailleur:</span>
+              <span v-for="(amount, resource) in baseProduction" :key="resource">
+                {{ resource }}: {{ amount }}/s
+              </span>
+            </div>
+            <div class="formula-row">
+              <span class="label">Nombre de travailleurs:</span>
+              <span>{{ room.occupants.length }}👥</span>
+            </div>
+            <div class="formula-row">
+              <span class="label">Taille de la salle:</span>
+              <span>{{ room.gridSize || 1 }}��</span>
+            </div>
+            <div class="formula-row">
+              <span class="label">Multiplicateur de fusion:</span>
+              <span>{{ getMergeMultiplier }}✨</span>
+            </div>
+            <div class="formula-row total">
+              <span class="label">Production totale:</span>
+              <span>{{ getTotalProduction }}</span>
+            </div>
           </div>
-          <div class="formula-row">
-            <span class="label">Nombre de travailleurs:</span>
-            <span>{{ room.occupants.length }}👥</span>
+        </div>
+
+        <div class="room-info">
+          <div class="production" v-if="roomConfig.productionPerWorker">
+            <h3>Production par travailleur</h3>
+            <div 
+              v-for="(amount, resource) in roomConfig.productionPerWorker" 
+              :key="resource"
+              class="production-item"
+            >
+              <span class="resource">{{ resource }}:</span>
+              <span class="amount">+{{ amount }}/s</span>
+            </div>
           </div>
-          <div class="formula-row">
-            <span class="label">Taille de la salle:</span>
-            <span>{{ room.gridSize || 1 }}📦</span>
+
+          <div class="storage" v-if="roomConfig.capacityPerWorker">
+            <h3>Capacité de stockage par travailleur</h3>
+            <div 
+              v-for="(amount, resource) in roomConfig.capacityPerWorker" 
+              :key="resource"
+              class="storage-item"
+            >
+              <span class="resource">{{ resource }}:</span>
+              <span class="amount">+{{ amount }}</span>
+            </div>
           </div>
-          <div class="formula-row">
-            <span class="label">Multiplicateur de fusion:</span>
-            <span>{{ getMergeMultiplier }}✨</span>
-          </div>
-          <div class="formula-row total">
-            <span class="label">Production totale:</span>
-            <span>{{ getTotalProduction }}</span>
+
+          <div class="workers">
+            <h3>Travailleurs ({{ room.occupants.length }}/{{ roomConfig.maxWorkers }})</h3>
+            <div class="workers-list">
+              <div 
+                v-for="habitantId in room.occupants" 
+                :key="habitantId"
+                class="worker"
+              >
+                <span class="name">{{ getHabitantName(habitantId) }}</span>
+                <button class="remove" @click="retirerHabitant(habitantId)">Retirer</button>
+              </div>
+            </div>
+
+            <div class="add-worker" v-if="room.occupants.length < roomConfig.maxWorkers">
+              <select v-model="selectedHabitant">
+                <option value="">Sélectionner un habitant</option>
+                <option 
+                  v-for="habitant in habitantsDisponibles" 
+                  :key="habitant.id"
+                  :value="habitant.id"
+                >
+                  {{ habitant.nom }}
+                </option>
+              </select>
+              <button 
+                @click="ajouterHabitant"
+                :disabled="!selectedHabitant"
+              >
+                Ajouter
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      <div class="room-info">
-        <div class="production" v-if="roomConfig.productionPerWorker">
-          <h3>Production par travailleur</h3>
-          <div 
-            v-for="(amount, resource) in roomConfig.productionPerWorker" 
-            :key="resource"
-            class="production-item"
-          >
-            <span class="resource">{{ resource }}:</span>
-            <span class="amount">+{{ amount }}/s</span>
-          </div>
-        </div>
-
-        <div class="storage" v-if="roomConfig.capacityPerWorker">
-          <h3>Capacité de stockage par travailleur</h3>
-          <div 
-            v-for="(amount, resource) in roomConfig.capacityPerWorker" 
-            :key="resource"
-            class="storage-item"
-          >
-            <span class="resource">{{ resource }}:</span>
-            <span class="amount">+{{ amount }}</span>
-          </div>
-        </div>
-
-        <div class="workers">
-          <h3>Travailleurs ({{ room.occupants.length }}/{{ roomConfig.maxWorkers }})</h3>
-          <div class="workers-list">
+      <div v-else-if="activeTab === 'equipment'" class="equipment-tab">
+        <div class="available-equipment">
+          <h3>Équipements disponibles</h3>
+          <div class="equipment-list">
             <div 
-              v-for="habitantId in room.occupants" 
-              :key="habitantId"
-              class="worker"
+              v-for="(config, type) in availableEquipment" 
+              :key="type"
+              class="equipment-item"
             >
-              <span class="name">{{ getHabitantName(habitantId) }}</span>
-              <button class="remove" @click="retirerHabitant(habitantId)">Retirer</button>
+              <div class="equipment-info">
+                <h4>{{ type }}</h4>
+                <p>{{ config.description }}</p>
+                <p class="construction-time">
+                  Temps de construction: {{ config.constructionTime }} semaines
+                </p>
+              </div>
+              <button 
+                @click="addEquipment(type)"
+                :disabled="hasEquipment(type)"
+              >
+                {{ hasEquipment(type) ? 'Installé' : 'Installer' }}
+              </button>
             </div>
           </div>
+        </div>
 
-          <div class="add-worker" v-if="room.occupants.length < roomConfig.maxWorkers">
-            <select v-model="selectedHabitant">
-              <option value="">Sélectionner un habitant</option>
-              <option 
-                v-for="habitant in habitantsDisponibles" 
-                :key="habitant.id"
-                :value="habitant.id"
-              >
-                {{ habitant.nom }}
-              </option>
-            </select>
-            <button 
-              @click="ajouterHabitant"
-              :disabled="!selectedHabitant"
+        <div class="installed-equipment">
+          <h3>Équipements installés</h3>
+          <div class="equipment-list">
+            <div 
+              v-for="equipment in (room.equipments || [])" 
+              :key="equipment.id"
+              class="equipment-item"
             >
-              Ajouter
-            </button>
+              <div class="equipment-info">
+                <h4>{{ equipment.type }}</h4>
+                <template v-if="equipment.isUnderConstruction">
+                  <div class="construction-progress">
+                    <div 
+                      class="progress-bar"
+                      :style="{ width: `${getEquipmentProgress(equipment)}%` }"
+                    ></div>
+                    <span class="progress-text">
+                      Construction: {{ getRemainingConstructionTime(equipment) }} semaines
+                    </span>
+                  </div>
+                </template>
+                <template v-else>
+                  <span class="status">Opérationnel</span>
+                </template>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -101,7 +174,7 @@
 import { ref, computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useGameStore } from '../stores/gameStore'
-import type { Room } from '../stores/gameStore'
+import type { Room, Equipment } from '../stores/gameStore'
 
 const props = defineProps<{
   room: Room
@@ -160,6 +233,12 @@ const getTotalProduction = computed(() => {
   return productions.join(', ')
 })
 
+const activeTab = ref('info')
+
+const availableEquipment = computed(() => 
+  store.EQUIPMENT_CONFIG[props.room.type] || {}
+)
+
 function getHabitantName(habitantId: string): string {
   const habitant = habitants.value.find(h => h.id === habitantId)
   return habitant ? habitant.nom : 'Inconnu'
@@ -179,6 +258,35 @@ function ajouterHabitant() {
     )
     selectedHabitant.value = ''
   }
+}
+
+function hasEquipment(type: string): boolean {
+  return props.room.equipments?.some(e => e.type === type) || false
+}
+
+function addEquipment(type: string) {
+  store.addEquipment(
+    props.levelId,
+    props.room.position,
+    props.room.index,
+    type
+  )
+}
+
+function getEquipmentProgress(equipment: Equipment): number {
+  if (!equipment.isUnderConstruction || equipment.constructionStartTime === undefined || equipment.constructionDuration === undefined) {
+    return 100
+  }
+  const elapsedTime = store.gameTime - equipment.constructionStartTime
+  return Math.min(100, (elapsedTime / equipment.constructionDuration) * 100)
+}
+
+function getRemainingConstructionTime(equipment: Equipment): number {
+  if (!equipment.isUnderConstruction || equipment.constructionStartTime === undefined || equipment.constructionDuration === undefined) {
+    return 0
+  }
+  const elapsedTime = store.gameTime - equipment.constructionStartTime
+  return Math.max(0, equipment.constructionDuration - elapsedTime)
 }
 </script>
 
@@ -354,6 +462,114 @@ function ajouterHabitant() {
         color: rgba(255, 255, 255, 0.7);
       }
     }
+  }
+}
+
+.modal-tabs {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 0.5rem;
+
+  button {
+    background: none;
+    border: none;
+    color: #95a5a6;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+
+    &.active {
+      color: #3498db;
+      border-bottom: 2px solid #3498db;
+    }
+
+    &:hover {
+      color: #3498db;
+    }
+  }
+}
+
+.equipment-tab {
+  display: grid;
+  gap: 2rem;
+}
+
+.equipment-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.equipment-item {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  padding: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+
+  .equipment-info {
+    flex: 1;
+
+    h4 {
+      margin: 0 0 0.5rem;
+      color: #ecf0f1;
+      text-transform: capitalize;
+    }
+
+    p {
+      margin: 0;
+      font-size: 0.9rem;
+      color: #bdc3c7;
+
+      &.construction-time {
+        font-size: 0.8rem;
+        color: #95a5a6;
+        margin-top: 0.25rem;
+      }
+    }
+
+    .status {
+      color: #2ecc71;
+      font-size: 0.9rem;
+    }
+  }
+
+  button {
+    &:disabled {
+      background-color: #27ae60;
+    }
+  }
+}
+
+.construction-progress {
+  margin-top: 0.5rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  height: 0.5rem;
+  position: relative;
+  overflow: hidden;
+
+  .progress-bar {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    background-color: #3498db;
+    transition: width 0.3s ease;
+  }
+
+  .progress-text {
+    position: absolute;
+    left: 0;
+    top: 100%;
+    width: 100%;
+    text-align: center;
+    font-size: 0.8rem;
+    color: #95a5a6;
+    margin-top: 0.25rem;
   }
 }
 </style> 

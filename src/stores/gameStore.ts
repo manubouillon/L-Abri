@@ -8,6 +8,8 @@ export interface Resource {
   consumption: number
 }
 
+type ResourceKey = 'energie' | 'eau' | 'nourriture' | 'vetements' | 'medicaments'
+
 export interface ExcavationProgress {
   startTime: number // Semaine de début
   duration: number // Durée en semaines
@@ -36,8 +38,17 @@ export interface Habitant {
   id: string
   nom: string
   genre: 'H' | 'F'
+  age: number // Âge en années
   affectation: Affectation
   competences: Competences
+}
+
+export interface Equipment {
+  id: string
+  type: string
+  isUnderConstruction: boolean
+  constructionStartTime?: number
+  constructionDuration?: number
 }
 
 export interface Room {
@@ -53,6 +64,7 @@ export interface Room {
   isExcavated: boolean
   gridSize?: number // Nombre de cellules occupées par la salle
   stairsPosition?: 'left' | 'right'
+  equipments: Equipment[]
 }
 
 export interface Level {
@@ -134,8 +146,6 @@ const resources = ref<Resources>({
   medicaments: { amount: 100, capacity: 200, production: 0, consumption: 0 }
 })
 
-type ResourceKey = keyof Resources
-
 interface RoomConfigBase {
   maxWorkers: number
 }
@@ -213,13 +223,14 @@ const NOMS = [
   'Durand', 'Leroy', 'Moreau', 'Simon', 'Laurent', 'Lefebvre', 'Michel'
 ]
 
-function generateRandomName(): { nom: string, genre: 'H' | 'F' } {
+function generateRandomName(): { nom: string, genre: 'H' | 'F', age: number } {
   const genre = Math.random() > 0.5 ? 'H' : 'F'
   const prenom = genre === 'H' 
     ? PRENOMS.filter((_, i) => i < PRENOMS.length / 2)[Math.floor(Math.random() * (PRENOMS.length / 2))]
     : PRENOMS.filter((_, i) => i >= PRENOMS.length / 2)[Math.floor(Math.random() * (PRENOMS.length / 2))]
   const nom = NOMS[Math.floor(Math.random() * NOMS.length)]
-  return { nom: `${prenom} ${nom}`, genre }
+  const age = Math.floor(Math.random() * 30) + 18 // Entre 18 et 47 ans
+  return { nom: `${prenom} ${nom}`, genre, age }
 }
 
 function generateRandomCompetences(): Competences {
@@ -265,6 +276,13 @@ export const useGameStore = defineStore('game', () => {
   const excavationsInProgress = ref<ExcavationProgress[]>([])
   const habitants = ref<Habitant[]>([])
   const excavations = ref<Excavation[]>([])
+  const resources = ref<{ [key: string]: Resource }>({
+    energie: { amount: 0, capacity: 200, production: 0, consumption: 0 },
+    eau: { amount: 0, capacity: 200, production: 0, consumption: 0 },
+    nourriture: { amount: 0, capacity: 200, production: 0, consumption: 0 },
+    vetements: { amount: 0, capacity: 200, production: 0, consumption: 0 },
+    medicaments: { amount: 0, capacity: 200, production: 0, consumption: 0 }
+  })
 
   // Getters
   const resourcesList = computed(() => Object.entries(resources.value))
@@ -301,7 +319,8 @@ export const useGameStore = defineStore('game', () => {
       occupants: [],
       position: side,
       index,
-      isExcavated: isFirstLevel
+      isExcavated: isFirstLevel,
+      equipments: []
     }))
   }
 
@@ -382,11 +401,12 @@ export const useGameStore = defineStore('game', () => {
 
     // Initialiser les habitants
     habitants.value = Array.from({ length: 5 }, (_, i) => {
-      const { nom, genre } = generateRandomName()
+      const { nom, genre, age } = generateRandomName()
       return {
         id: `habitant-${i}`,
         nom,
         genre,
+        age,
         affectation: { type: null },
         competences: generateRandomCompetences()
       }
@@ -417,17 +437,41 @@ export const useGameStore = defineStore('game', () => {
     const deltaTime = currentTime - lastUpdateTime.value
     
     if (deltaTime >= 2000) {
+      const previousGameTime = gameTime.value
       gameTime.value += speed
       lastUpdateTime.value = currentTime
 
+      // Vérifier si une semaine s'est écoulée
+      if (Math.floor(gameTime.value / 52) > Math.floor(previousGameTime / 52)) {
+        // Faire vieillir les habitants
+        habitants.value?.forEach(habitant => {
+          habitant.age += 1
+        })
+      }
+
+      // Mise à jour des équipements en construction
+      levels.value?.forEach(level => {
+        const allRooms = [...(level.leftRooms || []), ...(level.rightRooms || [])]
+        allRooms.forEach(room => {
+          room.equipments?.forEach(equipment => {
+            if (equipment.isUnderConstruction && equipment.constructionStartTime !== undefined && equipment.constructionDuration !== undefined) {
+              const elapsedTime = gameTime.value - equipment.constructionStartTime
+              if (elapsedTime >= equipment.constructionDuration) {
+                equipment.isUnderConstruction = false
+              }
+            }
+          })
+        })
+      })
+
       // Mise à jour des ressources
-      Object.entries(resources.value).forEach(([key, resource]) => {
+      Object.entries(resources.value || {}).forEach(([key, resource]) => {
         let consumption = resource.consumption
         
         // Gestion spéciale pour les médicaments
         if (key === 'medicaments') {
           // Chaque habitant a une chance de 1/10 de consommer un médicament par semaine
-          const consumingHabitants = habitants.value.filter(() => Math.random() < 0.1)
+          const consumingHabitants = (habitants.value || []).filter(() => Math.random() < 0.1)
           consumption = consumingHabitants.length
         }
 
@@ -673,14 +717,15 @@ export const useGameStore = defineStore('game', () => {
 
   function updateRoomProduction() {
     // Réinitialiser les productions
-    Object.entries(resources.value).forEach(([key, resource]) => {
+    Object.entries(resources.value || {}).forEach(([key, resource]) => {
       resource.production = 0
       resource.capacity = 200 // Capacité de base
     })
 
     // Calculer les productions et capacités de chaque salle
-    levels.value.forEach(level => {
-      [...level.leftRooms, ...level.rightRooms].forEach(room => {
+    levels.value?.forEach(level => {
+      const allRooms = [...(level.leftRooms || []), ...(level.rightRooms || [])]
+      allRooms.forEach(room => {
         if (room.isBuilt) {
           const config = ROOM_CONFIGS[room.type]
           if (!config) return
@@ -693,18 +738,18 @@ export const useGameStore = defineStore('game', () => {
 
           // Gestion du stockage
           if ('capacityPerWorker' in config) {
-            const nbWorkers = room.occupants.length
-            Object.entries(config.capacityPerWorker).forEach(([resource, amount]) => {
-              if (amount && resource in resources.value) {
+            const nbWorkers = room.occupants?.length || 0
+            Object.entries(config.capacityPerWorker || {}).forEach(([resource, amount]) => {
+              if (amount && resource in (resources.value || {})) {
                 resources.value[resource as ResourceKey].capacity += amount * nbWorkers * gridSize * mergeMultiplier
               }
             })
           }
           // Gestion de la production
           else if ('productionPerWorker' in config) {
-            const nbWorkers = room.occupants.length
-            Object.entries(config.productionPerWorker).forEach(([resource, amount]) => {
-              if (amount && resource in resources.value) {
+            const nbWorkers = room.occupants?.length || 0
+            Object.entries(config.productionPerWorker || {}).forEach(([resource, amount]) => {
+              if (amount && resource in (resources.value || {})) {
                 resources.value[resource as ResourceKey].production += amount * nbWorkers * gridSize * mergeMultiplier
               }
             })
@@ -714,7 +759,23 @@ export const useGameStore = defineStore('game', () => {
     })
   }
 
+  // Configuration des équipements disponibles par type de salle
+  const EQUIPMENT_CONFIG: { [key: string]: { [key: string]: { constructionTime: number, description: string } } } = {
+    medical: {
+      nurserie: {
+        constructionTime: 2, // 2 semaines pour construire
+        description: "Permet de créer de nouveaux habitants. Les enfants de moins de 7 ans ne peuvent pas travailler."
+      }
+    }
+  }
+
   function affecterHabitantSalle(habitantId: string, levelId: number, position: 'left' | 'right', roomIndex: number): boolean {
+    const habitant = habitants.value.find(h => h.id === habitantId)
+    if (!habitant) return false
+
+    // Vérifier l'âge minimum
+    if (habitant.age < 7) return false
+
     const level = levels.value.find(l => l.id === levelId)
     if (!level) return false
 
@@ -726,10 +787,6 @@ export const useGameStore = defineStore('game', () => {
 
     // Vérifier si la salle n'est pas déjà pleine
     if (room.occupants.length >= (config.maxWorkers || 0)) return false
-
-    // Retirer l'habitant de son ancienne affectation
-    const habitant = habitants.value.find(h => h.id === habitantId)
-    if (!habitant) return false
 
     // Si l'habitant était déjà dans une salle, le retirer
     if (habitant.affectation.type === 'salle') {
@@ -879,6 +936,66 @@ export const useGameStore = defineStore('game', () => {
     return false
   }
 
+  function addEquipment(levelId: number, position: 'left' | 'right', roomIndex: number, equipmentType: string): boolean {
+    const level = levels.value.find(l => l.id === levelId)
+    if (!level) return false
+
+    const room = position === 'left' ? level.leftRooms[roomIndex] : level.rightRooms[roomIndex]
+    if (!room || !room.isBuilt) return false
+
+    // Vérifier si l'équipement est disponible pour ce type de salle
+    const equipmentConfig = EQUIPMENT_CONFIG[room.type]?.[equipmentType]
+    if (!equipmentConfig) return false
+
+    // Vérifier si l'équipement n'est pas déjà installé ou en construction
+    if (room.equipments.some(e => e.type === equipmentType)) return false
+
+    const equipment: Equipment = {
+      id: `${room.id}-${equipmentType}`,
+      type: equipmentType,
+      isUnderConstruction: true,
+      constructionStartTime: gameTime.value,
+      constructionDuration: equipmentConfig.constructionTime
+    }
+
+    room.equipments.push(equipment)
+    saveGame()
+    return true
+  }
+
+  function createNewHabitant(levelId: number, position: 'left' | 'right', roomIndex: number): boolean {
+    const level = levels.value.find(l => l.id === levelId)
+    if (!level) return false
+
+    const room = position === 'left' ? level.leftRooms[roomIndex] : level.rightRooms[roomIndex]
+    if (!room || !room.isBuilt || room.type !== 'medical') return false
+
+    // Vérifier si la nurserie est construite et opérationnelle
+    const nurserie = room.equipments.find(e => e.type === 'nurserie' && !e.isUnderConstruction)
+    if (!nurserie) return false
+
+    // Créer un nouveau-né
+    const genre = Math.random() > 0.5 ? 'H' : 'F'
+    const prenom = genre === 'H' 
+      ? PRENOMS.filter((_, i) => i < PRENOMS.length / 2)[Math.floor(Math.random() * (PRENOMS.length / 2))]
+      : PRENOMS.filter((_, i) => i >= PRENOMS.length / 2)[Math.floor(Math.random() * (PRENOMS.length / 2))]
+    const nom = NOMS[Math.floor(Math.random() * NOMS.length)]
+
+    const newHabitant: Habitant = {
+      id: `habitant-${Date.now()}`,
+      nom: `${prenom} ${nom}`,
+      genre,
+      age: 0,
+      affectation: { type: null },
+      competences: generateRandomCompetences()
+    }
+
+    habitants.value.push(newHabitant)
+    population.value++
+    saveGame()
+    return true
+  }
+
   // Initialisation
   if (!loadGame()) {
     initGame()
@@ -920,6 +1037,9 @@ export const useGameStore = defineStore('game', () => {
     ROOM_CONFIGS,
     ROOM_MERGE_CONFIG,
     GAME_CONFIG,
-    addStairs
+    addStairs,
+    addEquipment,
+    createNewHabitant,
+    EQUIPMENT_CONFIG
   }
 }) 
