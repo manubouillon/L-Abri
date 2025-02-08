@@ -95,7 +95,8 @@ export const GAME_CONFIG = {
         { position: 'left', index: 0, type: 'dortoir', gridSize: 2, workers: 0 },
         { position: 'left', index: 2, type: 'stockage', gridSize: 1, workers: 1 },
         { position: 'right', index: 0, type: 'energie', gridSize: 2, workers: 1 },
-        { position: 'right', index: 2, type: 'eau', gridSize: 1, workers: 1 }
+        { position: 'right', index: 2, type: 'eau', gridSize: 1, workers: 1 },
+        { position: 'right', index: 3, type: 'serre', gridSize: 1, workers: 1 }
       ]
     }
   ]
