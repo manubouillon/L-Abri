@@ -11,6 +11,11 @@
         <div class="resource-header">
           <span class="resource-name">{{ name }}</span>
           <span class="resource-amount">{{ Math.floor(resource.amount) }}/{{ resource.capacity }}</span>
+          <button v-if="name === 'energie'" 
+                  class="details-button"
+                  @click="showEnergyDetails = true">
+            Détails
+          </button>
         </div>
         
         <div class="resource-progress">
@@ -23,10 +28,10 @@
         
         <div class="resource-details">
           <div class="production">
-            +{{ resource.production }}/s
+            +{{ resource.production }}/semaine
           </div>
           <div class="consumption">
-            -{{ resource.consumption * population }}/s
+            -{{ resource.consumption }}/semaine
           </div>
         </div>
       </div>
@@ -63,15 +68,20 @@
         </span>
       </div>
     </div>
+
+    <EnergyDetailsModal v-if="showEnergyDetails" @close="showEnergyDetails = false" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
+import { ref } from 'vue'
 import { useGameStore } from '../stores/gameStore'
+import EnergyDetailsModal from './EnergyDetailsModal.vue'
 
 const store = useGameStore()
 const { resourcesList, population, happiness, formattedTime, habitantsLibres, habitantsOccupes, enfants } = storeToRefs(store)
+const showEnergyDetails = ref(false)
 </script>
 
 <style lang="scss" scoped>
@@ -100,6 +110,7 @@ const { resourcesList, population, happiness, formattedTime, habitantsLibres, ha
 .resource-header {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   margin-bottom: 0.5rem;
   
   .resource-name {
@@ -161,6 +172,20 @@ const { resourcesList, population, happiness, formattedTime, habitantsLibres, ha
     .stat-value {
       font-weight: bold;
     }
+  }
+}
+
+.details-button {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
+  background-color: #3498db;
+  border: none;
+  border-radius: 4px;
+  color: white;
+  cursor: pointer;
+
+  &:hover {
+    background-color: #2980b9;
   }
 }
 </style> 

@@ -148,6 +148,7 @@ const resources = ref<Resources>({
 
 interface RoomConfigBase {
   maxWorkers: number
+  energyConsumption: number // Consommation d'énergie par semaine
 }
 
 interface StorageRoomConfig extends RoomConfigBase {
@@ -171,6 +172,7 @@ type RoomConfig = StorageRoomConfig | DortoryRoomConfig | ProductionRoomConfig
 const ROOM_CONFIGS: { [key: string]: RoomConfig } = {
   stockage: {
     maxWorkers: 2,
+    energyConsumption: 1, // 1 unité d'énergie par semaine
     capacityPerWorker: {
       nourriture: 100,
       vetements: 50,
@@ -179,34 +181,40 @@ const ROOM_CONFIGS: { [key: string]: RoomConfig } = {
   } as StorageRoomConfig,
   dortoir: {
     maxWorkers: 0,
+    energyConsumption: 2, // 2 unités d'énergie par semaine
     capacityPerResident: 4
   } as DortoryRoomConfig,
   cuisine: {
     maxWorkers: 2,
+    energyConsumption: 3, // 3 unités d'énergie par semaine
     productionPerWorker: {
       nourriture: 2
     }
   } as ProductionRoomConfig,
   eau: {
     maxWorkers: 2,
+    energyConsumption: 4, // 4 unités d'énergie par semaine
     productionPerWorker: {
       eau: 2
     }
   } as ProductionRoomConfig,
   energie: {
     maxWorkers: 2,
+    energyConsumption: 0, // La salle d'énergie ne consomme pas d'énergie
     productionPerWorker: {
       energie: 3
     }
   } as ProductionRoomConfig,
   medical: {
     maxWorkers: 2,
+    energyConsumption: 5, // 5 unités d'énergie par semaine
     productionPerWorker: {
       medicaments: 1
     }
   } as ProductionRoomConfig,
   serre: {
     maxWorkers: 3,
+    energyConsumption: 4, // 4 unités d'énergie par semaine
     productionPerWorker: {
       nourriture: 1.5
     }
@@ -418,10 +426,10 @@ export const useGameStore = defineStore('game', () => {
 
     // Initialiser les ressources avec les nouvelles valeurs
     resources.value = {
-      energie: { amount: 100, capacity: 200, production: 10, consumption: 5 } as Resource,
-      eau: { amount: 200, capacity: 400, production: 0, consumption: 1 } as Resource,
-      nourriture: { amount: 200, capacity: 400, production: 0, consumption: 1 } as Resource,
-      vetements: { amount: 50, capacity: 100, production: 0, consumption: 0.25 } as Resource, // 1 par mois = 0.25 par semaine
+      energie: { amount: 100, capacity: 200, production: 15, consumption: 0 } as Resource,
+      eau: { amount: 200, capacity: 400, production: 0, consumption: 0 } as Resource,
+      nourriture: { amount: 200, capacity: 400, production: 0, consumption: 0 } as Resource,
+      vetements: { amount: 50, capacity: 100, production: 0, consumption: 0 } as Resource,
       medicaments: { amount: 100, capacity: 200, production: 0, consumption: 0 } as Resource,
     }
 
@@ -432,7 +440,18 @@ export const useGameStore = defineStore('game', () => {
     lastUpdateTime.value = Date.now()
     excavations.value = []
 
+    // Mettre à jour les productions et consommations initiales
+    updateRoomProduction()
+
     // Sauvegarder l'état initial
+    saveGame()
+  }
+
+  function updateProductionAndConsumption() {
+    // Mettre à jour les productions et consommations
+    updateRoomProduction()
+    
+    // Sauvegarder l'état
     saveGame()
   }
 
@@ -440,127 +459,131 @@ export const useGameStore = defineStore('game', () => {
     const currentTime = Date.now()
     const deltaTime = currentTime - lastUpdateTime.value
     
-    if (deltaTime >= 2000) {
-      const previousGameTime = gameTime.value
+    if (deltaTime >= 2000) { // Mise à jour toutes les 2 secondes
+      const previousGameTime = Math.floor(gameTime.value)
       gameTime.value += speed
+      const currentGameTime = Math.floor(gameTime.value)
       lastUpdateTime.value = currentTime
 
-      // Vérifier si une semaine s'est écoulée
-      if (Math.floor(gameTime.value / 52) > Math.floor(previousGameTime / 52)) {
+      // Calculer combien de semaines se sont écoulées depuis la dernière mise à jour
+      const previousWeek = Math.floor(previousGameTime)
+      const currentWeek = Math.floor(currentGameTime)
+      const weeksElapsed = currentWeek - previousWeek
+
+      if (weeksElapsed > 0) {
         // Faire vieillir les habitants
         habitants.value?.forEach(habitant => {
-          habitant.age += 1
+          habitant.age += weeksElapsed
         })
-      }
 
-      // Mise à jour des équipements en construction
-      levels.value?.forEach(level => {
-        const allRooms = [...(level.leftRooms || []), ...(level.rightRooms || [])]
-        allRooms.forEach(room => {
-          room.equipments?.forEach(equipment => {
-            if (equipment.isUnderConstruction && equipment.constructionStartTime !== undefined && equipment.constructionDuration !== undefined) {
-              const elapsedTime = gameTime.value - equipment.constructionStartTime
-              if (elapsedTime >= equipment.constructionDuration) {
-                equipment.isUnderConstruction = false
+        // Mettre à jour les productions et consommations
+        updateProductionAndConsumption()
+
+        // Vérifier les constructions terminées
+        levels.value.forEach(level => {
+          [...level.leftRooms, ...level.rightRooms].forEach(room => {
+            if (room.isUnderConstruction && room.constructionStartTime !== undefined && room.constructionDuration !== undefined) {
+              const elapsedTime = Math.floor(gameTime.value) - room.constructionStartTime
+              if (elapsedTime >= room.constructionDuration) {
+                room.isUnderConstruction = false
+                room.isBuilt = true
+                
+                // Libérer l'habitant affecté à la construction
+                const habitantAffecte = habitants.value.find(h => 
+                  h.affectation.type === 'construction' &&
+                  h.affectation.levelId === level.id &&
+                  h.affectation.position === room.position &&
+                  h.affectation.roomIndex === room.index
+                )
+                if (habitantAffecte) {
+                  libererHabitant(habitantAffecte.id)
+                }
+
+                // Initialiser la taille de la salle si ce n'est pas déjà fait
+                if (!room.gridSize) {
+                  room.gridSize = 1
+                }
+
+                // Vérifier et fusionner les salles adjacentes
+                checkAndMergeRooms(level, room)
               }
             }
           })
         })
-      })
 
-      // Mise à jour des ressources
-      Object.entries(resources.value || {}).forEach(([key, resource]) => {
-        let consumption = resource.consumption
-        
-        // Gestion spéciale pour les médicaments
-        if (key === 'medicaments') {
-          // Chaque habitant a une chance de 1/10 de consommer un médicament par semaine
-          const consumingHabitants = (habitants.value || []).filter(() => Math.random() < 0.1)
-          consumption = consumingHabitants.length
+        // Appliquer les changements de ressources pour chaque semaine écoulée
+        for (let i = 0; i < weeksElapsed; i++) {
+          Object.entries(resources.value).forEach(([key, resource]) => {
+            const net = resource.production - resource.consumption
+            resource.amount = Math.max(0, Math.min(resource.amount + net, resource.capacity))
+          })
         }
 
-        const net = resource.production - consumption * population.value
-        resource.amount = Math.max(0, Math.min(resource.amount + net, resource.capacity))
-      })
+        updateHappiness()
 
-      // Vérifier les excavations terminées
-      excavations.value = excavations.value.filter(excavation => {
-        const isComplete = (gameTime.value - excavation.startTime) >= excavation.duration
-        
-        if (isComplete) {
-          if (excavation.position === 'stairs') {
-            const level = levels.value.find(l => l.id === excavation.levelId)
-            if (level) level.isStairsExcavated = true
+        if (gameTime.value % 10 === 0) {
+          saveGame()
+        }
+      }
 
-            // Libérer l'habitant affecté à l'excavation
-            const habitantAffecte = habitants.value.find(h => 
-              h.affectation.type === 'excavation' &&
-              h.affectation.levelId === excavation.levelId &&
-              h.affectation.position === excavation.position
-            )
-            if (habitantAffecte) {
-              libererHabitant(habitantAffecte.id)
-            }
-          } else {
-            const level = levels.value.find(l => l.id === excavation.levelId)
-            if (level) {
-              const rooms = excavation.position === 'left' ? level.leftRooms : level.rightRooms
-              const room = rooms[excavation.roomIndex!]
-              if (room) room.isExcavated = true
+      // Vérifier si une semaine s'est écoulée
+      if (Math.floor(gameTime.value / 52) > Math.floor(previousGameTime / 52)) {
+        // Mise à jour des équipements en construction
+        levels.value?.forEach(level => {
+          const allRooms = [...(level.leftRooms || []), ...(level.rightRooms || [])]
+          allRooms.forEach(room => {
+            room.equipments?.forEach(equipment => {
+              if (equipment.isUnderConstruction && equipment.constructionStartTime !== undefined && equipment.constructionDuration !== undefined) {
+                const elapsedTime = gameTime.value - equipment.constructionStartTime
+                if (elapsedTime >= equipment.constructionDuration) {
+                  equipment.isUnderConstruction = false
+                }
+              }
+            })
+          })
+        })
+
+        // Vérifier les excavations terminées
+        excavations.value = excavations.value.filter(excavation => {
+          const isComplete = (gameTime.value - excavation.startTime) >= excavation.duration
+          
+          if (isComplete) {
+            if (excavation.position === 'stairs') {
+              const level = levels.value.find(l => l.id === excavation.levelId)
+              if (level) level.isStairsExcavated = true
 
               // Libérer l'habitant affecté à l'excavation
               const habitantAffecte = habitants.value.find(h => 
                 h.affectation.type === 'excavation' &&
                 h.affectation.levelId === excavation.levelId &&
-                h.affectation.position === excavation.position &&
-                h.affectation.roomIndex === excavation.roomIndex
+                h.affectation.position === excavation.position
               )
               if (habitantAffecte) {
                 libererHabitant(habitantAffecte.id)
               }
-            }
-          }
-          return false
-        }
-        return true
-      })
+            } else {
+              const level = levels.value.find(l => l.id === excavation.levelId)
+              if (level) {
+                const rooms = excavation.position === 'left' ? level.leftRooms : level.rightRooms
+                const room = rooms[excavation.roomIndex!]
+                if (room) room.isExcavated = true
 
-      // Vérifier les constructions terminées
-      levels.value.forEach(level => {
-        [...level.leftRooms, ...level.rightRooms].forEach(room => {
-          if (room.isUnderConstruction && room.constructionStartTime !== undefined && room.constructionDuration !== undefined) {
-            const elapsedTime = gameTime.value - room.constructionStartTime
-            if (elapsedTime >= room.constructionDuration) {
-              room.isUnderConstruction = false
-              room.isBuilt = true
-              
-              // Libérer l'habitant affecté à la construction
-              const habitantAffecte = habitants.value.find(h => 
-                h.affectation.type === 'construction' &&
-                h.affectation.levelId === level.id &&
-                h.affectation.position === room.position &&
-                h.affectation.roomIndex === room.index
-              )
-              if (habitantAffecte) {
-                libererHabitant(habitantAffecte.id)
+                // Libérer l'habitant affecté à l'excavation
+                const habitantAffecte = habitants.value.find(h => 
+                  h.affectation.type === 'excavation' &&
+                  h.affectation.levelId === excavation.levelId &&
+                  h.affectation.position === excavation.position &&
+                  h.affectation.roomIndex === excavation.roomIndex
+                )
+                if (habitantAffecte) {
+                  libererHabitant(habitantAffecte.id)
+                }
               }
-
-              // Initialiser la taille de la salle si ce n'est pas déjà fait
-              if (!room.gridSize) {
-                room.gridSize = 1
-              }
-
-              // Vérifier et fusionner les salles adjacentes
-              checkAndMergeRooms(level, room)
             }
+            return false
           }
+          return true
         })
-      })
-
-      updateHappiness()
-
-      if (gameTime.value % 10 === 0) {
-        saveGame()
       }
     }
   }
@@ -665,7 +688,7 @@ export const useGameStore = defineStore('game', () => {
         const habitantLibre = habitantsLibres.value.find(h => h.age >= 7)
         if (habitantLibre) {
           room.isUnderConstruction = true
-          room.constructionStartTime = gameTime.value
+          room.constructionStartTime = Math.floor(gameTime.value)
           room.constructionDuration = 4 // 4 semaines pour construire une salle
           room.type = roomType // Définir le type immédiatement
           affecterHabitant(habitantLibre.id, {
@@ -674,6 +697,7 @@ export const useGameStore = defineStore('game', () => {
             position,
             roomIndex
           })
+          updateProductionAndConsumption() // Utiliser la nouvelle fonction
           saveGame()
         }
       }
@@ -737,6 +761,15 @@ export const useGameStore = defineStore('game', () => {
       resource.capacity = 200 // Capacité de base
     })
 
+    // Initialiser les consommations de base par habitant
+    resources.value.energie.consumption = population.value * 2 // 2 unités d'énergie par habitant
+    resources.value.eau.consumption = population.value * 1
+    resources.value.nourriture.consumption = population.value * 1
+    resources.value.vetements.consumption = population.value * 0.05
+    resources.value.medicaments.consumption = 0
+
+    let roomEnergyConsumption = 0 // Variable pour suivre la consommation des salles
+
     // Calculer les productions et capacités de chaque salle
     levels.value?.forEach(level => {
       const allRooms = [...(level.leftRooms || []), ...(level.rightRooms || [])]
@@ -750,6 +783,9 @@ export const useGameStore = defineStore('game', () => {
           const mergeMultiplier = mergeConfig?.useMultiplier 
             ? GAME_CONFIG.MERGE_MULTIPLIERS[Math.min(gridSize, 6) as keyof typeof GAME_CONFIG.MERGE_MULTIPLIERS] || 1
             : 1
+
+          // Ajouter la consommation d'énergie de la salle
+          roomEnergyConsumption += config.energyConsumption * gridSize
 
           // Gestion du stockage
           if ('capacityPerWorker' in config) {
@@ -772,6 +808,9 @@ export const useGameStore = defineStore('game', () => {
         }
       })
     })
+
+    // Ajouter la consommation totale des salles à la consommation de base
+    resources.value.energie.consumption += roomEnergyConsumption
   }
 
   // Configuration des équipements disponibles par type de salle
@@ -826,10 +865,7 @@ export const useGameStore = defineStore('game', () => {
       roomIndex
     }
 
-    // Mettre à jour les productions
-    updateRoomProduction()
-
-    saveGame()
+    updateProductionAndConsumption() // Utiliser la nouvelle fonction
     return true
   }
 
@@ -849,10 +885,7 @@ export const useGameStore = defineStore('game', () => {
     room.occupants = room.occupants.filter(id => id !== habitantId)
     habitant.affectation = { type: null }
 
-    // Mettre à jour les productions
-    updateRoomProduction()
-
-    saveGame()
+    updateProductionAndConsumption() // Utiliser la nouvelle fonction
     return true
   }
 
@@ -910,7 +943,7 @@ export const useGameStore = defineStore('game', () => {
           rooms[i].index = i
         }
 
-        updateRoomProduction()
+        updateProductionAndConsumption()
         return true
       }
     }
@@ -944,7 +977,7 @@ export const useGameStore = defineStore('game', () => {
           rooms[i].index = i
         }
 
-        updateRoomProduction()
+        updateProductionAndConsumption()
         return true
       }
     }
