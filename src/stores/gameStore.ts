@@ -86,7 +86,19 @@ export const GAME_CONFIG = {
     4: 6.0, // 4 salles fusionnées
     5: 8.0, // 5 salles fusionnées
     6: 10.0, // 6+ salles fusionnées
-  }
+  },
+  // Configuration des salles pré-construites au démarrage
+  INITIAL_ROOMS: [
+    {
+      levelId: 0, // Premier niveau
+      rooms: [
+        { position: 'left', index: 0, type: 'dortoir', gridSize: 2, workers: 0 },
+        { position: 'left', index: 2, type: 'stockage', gridSize: 1, workers: 1 },
+        { position: 'right', index: 0, type: 'energie', gridSize: 2, workers: 1 },
+        { position: 'right', index: 2, type: 'eau', gridSize: 1, workers: 1 }
+      ]
+    }
+  ]
 } as const
 
 // Configuration des multiplicateurs de fusion par type de salle
@@ -326,16 +338,46 @@ export const useGameStore = defineStore('game', () => {
   )
 
   function createInitialRooms(side: 'left' | 'right', levelId: number, isFirstLevel: boolean): Room[] {
-    return Array.from({ length: ROOMS_PER_SIDE }, (_, index) => ({
+    // Calculer le nombre de salles à créer en tenant compte des fusions
+    let roomsToCreate = ROOMS_PER_SIDE
+    if (isFirstLevel) {
+      const levelConfig = GAME_CONFIG.INITIAL_ROOMS.find(config => config.levelId === levelId)
+      if (levelConfig) {
+        // Calculer l'espace occupé par les salles pré-construites de ce côté
+        const sideRooms = levelConfig.rooms.filter(r => r.position === side)
+        const spaceUsed = sideRooms.reduce((total, room) => total + (room.gridSize - 1), 0)
+        roomsToCreate -= spaceUsed
+      }
+    }
+
+    const rooms = Array.from({ length: roomsToCreate }, (_, index) => ({
       id: `${levelId}-${side}-${index}`,
       type: 'empty',
-      isBuilt: isFirstLevel,
+      isBuilt: false,
       occupants: [],
       position: side,
       index,
       isExcavated: isFirstLevel,
-      equipments: []
+      equipments: [],
+      gridSize: 1
     }))
+
+    // Si c'est le premier niveau, appliquer la configuration des salles pré-construites
+    if (isFirstLevel) {
+      const levelConfig = GAME_CONFIG.INITIAL_ROOMS.find(config => config.levelId === levelId)
+      if (levelConfig) {
+        levelConfig.rooms.forEach(roomConfig => {
+          if (roomConfig.position === side) {
+            const room = rooms[roomConfig.index]
+            room.type = roomConfig.type
+            room.isBuilt = true
+            room.gridSize = roomConfig.gridSize
+          }
+        })
+      }
+    }
+
+    return rooms
   }
 
   function getExcavationTime(levelId: number): number {
@@ -399,19 +441,17 @@ export const useGameStore = defineStore('game', () => {
     levels.value = Array.from({ length: INITIAL_LEVELS }, (_, i) => ({
       id: i,
       isStairsExcavated: i === 0,
-      leftRooms: createInitialRooms('left', i, false),
-      rightRooms: createInitialRooms('right', i, false)
+      leftRooms: createInitialRooms('left', i, i === 0),
+      rightRooms: createInitialRooms('right', i, i === 0)
     }))
 
-    // Initialiser le premier niveau avec des salles vides mais excavées
+    // Initialiser le premier niveau avec des salles excavées
     const firstLevel = levels.value[0]
     firstLevel.leftRooms.forEach(room => {
       room.isExcavated = true
-      room.isBuilt = false
     })
     firstLevel.rightRooms.forEach(room => {
       room.isExcavated = true
-      room.isBuilt = false
     })
 
     // Initialiser les habitants
@@ -442,6 +482,32 @@ export const useGameStore = defineStore('game', () => {
     happiness.value = 100
     lastUpdateTime.value = Date.now()
     excavations.value = []
+
+    // Affecter automatiquement les habitants aux salles pré-construites
+    if (firstLevel) {
+      const allRooms = [...firstLevel.leftRooms, ...firstLevel.rightRooms]
+      const builtRooms = allRooms.filter(room => room.isBuilt)
+      let habitantIndex = 0
+
+      // Récupérer la configuration des salles initiales
+      const levelConfig = GAME_CONFIG.INITIAL_ROOMS.find(config => config.levelId === 0)
+      if (levelConfig) {
+        levelConfig.rooms.forEach(roomConfig => {
+          const room = builtRooms.find(r => 
+            r.position === roomConfig.position && 
+            r.index === roomConfig.index
+          )
+          if (room && roomConfig.workers > 0) {
+            // Affecter le nombre de travailleurs spécifié
+            for (let i = 0; i < roomConfig.workers && habitantIndex < habitants.value.length; i++) {
+              const habitant = habitants.value[habitantIndex]
+              affecterHabitantSalle(habitant.id, 0, room.position, room.index)
+              habitantIndex++
+            }
+          }
+        })
+      }
+    }
 
     // Mettre à jour les productions et consommations initiales
     updateRoomProduction()
