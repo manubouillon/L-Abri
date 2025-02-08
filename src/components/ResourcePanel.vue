@@ -21,6 +21,21 @@
                   @click="showWaterDetails = true">
             Détails
           </button>
+          <button v-if="name === 'nourriture'" 
+                  class="details-button"
+                  @click="showFoodDetails = true">
+            Détails
+          </button>
+          <button v-if="name === 'vetements'" 
+                  class="details-button"
+                  @click="showClothesDetails = true">
+            Détails
+          </button>
+          <button v-if="name === 'medicaments'" 
+                  class="details-button"
+                  @click="showMedicineDetails = true">
+            Détails
+          </button>
         </div>
         
         <div class="resource-progress">
@@ -33,10 +48,10 @@
         
         <div class="resource-details">
           <div class="production">
-            +{{ resource.production }}/semaine
+            +{{ resource.production.toFixed(1) }}/semaine
           </div>
           <div class="consumption">
-            -{{ resource.consumption }}/semaine
+            -{{ resource.consumption.toFixed(1) }}/semaine
           </div>
         </div>
       </div>
@@ -76,6 +91,9 @@
 
     <EnergyDetailsModal v-if="showEnergyDetails" @close="showEnergyDetails = false" />
     <WaterDetailsModal v-if="showWaterDetails" @close="showWaterDetails = false" />
+    <FoodDetailsModal v-if="showFoodDetails" @close="showFoodDetails = false" />
+    <ClothesDetailsModal v-if="showClothesDetails" @close="showClothesDetails = false" />
+    <MedicineDetailsModal v-if="showMedicineDetails" @close="showMedicineDetails = false" />
   </div>
 </template>
 
@@ -85,11 +103,17 @@ import { ref } from 'vue'
 import { useGameStore } from '../stores/gameStore'
 import EnergyDetailsModal from './EnergyDetailsModal.vue'
 import WaterDetailsModal from './WaterDetailsModal.vue'
+import FoodDetailsModal from './FoodDetailsModal.vue'
+import ClothesDetailsModal from './ClothesDetailsModal.vue'
+import MedicineDetailsModal from './MedicineDetailsModal.vue'
 
 const store = useGameStore()
 const { resourcesList, population, happiness, formattedTime, habitantsLibres, habitantsOccupes, enfants } = storeToRefs(store)
 const showEnergyDetails = ref(false)
 const showWaterDetails = ref(false)
+const showFoodDetails = ref(false)
+const showClothesDetails = ref(false)
+const showMedicineDetails = ref(false)
 </script>
 
 <style lang="scss" scoped>

@@ -529,7 +529,7 @@ export const useGameStore = defineStore('game', () => {
     const baseConsumptions = {
       energie: population.value * 2, // 2 unités d'énergie par habitant
       eau: population.value * 1,     // 1 unité d'eau par habitant
-      nourriture: population.value * 1,
+      nourriture: population.value * 0.7, // 0.7 unité par habitant
       vetements: population.value * 0.05,
       medicaments: 0
     }
@@ -592,9 +592,10 @@ export const useGameStore = defineStore('game', () => {
 
     // Appliquer les changements pour chaque semaine écoulée
     for (let i = 0; i < weeksElapsed; i++) {
-      Object.values(resources.value).forEach(resource => {
+      Object.entries(resources.value).forEach(([key, resource]) => {
         const net = resource.production - resource.consumption
-        resource.amount = Math.max(0, Math.min(resource.amount + net, resource.capacity))
+        const newAmount = Math.max(0, Math.min(resource.amount + net, resource.capacity))
+        resources.value[key as ResourceKey].amount = newAmount
       })
     }
   }
@@ -726,8 +727,8 @@ export const useGameStore = defineStore('game', () => {
   }
 
   function updateHappiness() {
-    const resourcesStatus: number[] = Object.values(resources.value).map(r =>
-      Math.min(100, (r.amount / (r.consumption * population.value)) * 100)
+    const resourcesStatus = Object.values(resources.value).map(r =>
+      Math.min(100, (r.amount / Math.max(0.1, r.consumption)) * 100)
     );
     happiness.value = Math.floor(resourcesStatus.reduce((a: number, b: number) => a + b, 0) / resourcesStatus.length);
   }
