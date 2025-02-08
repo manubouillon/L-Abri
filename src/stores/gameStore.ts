@@ -165,6 +165,7 @@ interface ProductionRoomConfig extends RoomConfigBase {
   productionPerWorker: {
     [key in ResourceKey]?: number
   }
+  waterConsumption?: number
 }
 
 type RoomConfig = StorageRoomConfig | DortoryRoomConfig | ProductionRoomConfig
@@ -215,6 +216,7 @@ const ROOM_CONFIGS: { [key: string]: RoomConfig } = {
   serre: {
     maxWorkers: 3,
     energyConsumption: 4, // 4 unités d'énergie par semaine
+    waterConsumption: 2, // 2 unités d'eau par semaine
     productionPerWorker: {
       nourriture: 1.5
     }
@@ -381,8 +383,9 @@ export const useGameStore = defineStore('game', () => {
       return { inProgress: false, remainingWeeks: null, progress: 0 }
     }
     
-    const remainingWeeks = getRemainingExcavationTime(excavation)
-    const progress = Math.min(100, ((excavation.duration - remainingWeeks) / excavation.duration) * 100)
+    const elapsedTime = Math.floor(gameTime.value) - excavation.startTime
+    const remainingWeeks = Math.max(0, excavation.duration - elapsedTime)
+    const progress = Math.min(100, (elapsedTime / excavation.duration) * 100)
     
     return {
       inProgress: true,
@@ -447,12 +450,86 @@ export const useGameStore = defineStore('game', () => {
     saveGame()
   }
 
-  function updateProductionAndConsumption() {
+  function updateRoomProduction() {
+    // Réinitialiser toutes les productions et consommations
+    Object.values(resources.value).forEach(resource => {
+      resource.production = 0
+      resource.consumption = 0
+      resource.capacity = 200 // Capacité de base
+    })
+
+    // 1. Calculer les consommations de base des habitants
+    const baseConsumptions = {
+      energie: population.value * 2, // 2 unités d'énergie par habitant
+      eau: population.value * 1,     // 1 unité d'eau par habitant
+      nourriture: population.value * 1,
+      vetements: population.value * 0.05,
+      medicaments: 0
+    }
+
+    // Appliquer les consommations de base
+    Object.entries(baseConsumptions).forEach(([resource, amount]) => {
+      resources.value[resource as ResourceKey].consumption = amount
+    })
+
+    // 2. Calculer les productions et consommations des salles
+    levels.value?.forEach(level => {
+      const allRooms = [...level.leftRooms, ...level.rightRooms]
+      allRooms.forEach(room => {
+        if (!room.isBuilt) return
+
+        const config = ROOM_CONFIGS[room.type]
+        if (!config) return
+
+        const gridSize = room.gridSize || 1
+        const mergeConfig = ROOM_MERGE_CONFIG[room.type]
+        const mergeMultiplier = mergeConfig?.useMultiplier 
+          ? GAME_CONFIG.MERGE_MULTIPLIERS[Math.min(gridSize, 6) as keyof typeof GAME_CONFIG.MERGE_MULTIPLIERS] || 1
+          : 1
+
+        // 2.1 Ajouter la consommation d'énergie de la salle
+        resources.value.energie.consumption += config.energyConsumption * gridSize
+
+        // 2.2 Ajouter la consommation d'eau des serres
+        if (room.type === 'serre') {
+          const waterConsumption = (config as ProductionRoomConfig).waterConsumption || 0
+          resources.value.eau.consumption += waterConsumption * gridSize
+        }
+
+        // 2.3 Gérer la production des salles
+        if ('productionPerWorker' in config) {
+          const nbWorkers = room.occupants.length
+          Object.entries(config.productionPerWorker).forEach(([resource, amount]) => {
+            if (amount && resource in resources.value) {
+              resources.value[resource as ResourceKey].production += amount * nbWorkers * gridSize * mergeMultiplier
+            }
+          })
+        }
+
+        // 2.4 Gérer les capacités de stockage
+        if ('capacityPerWorker' in config) {
+          const nbWorkers = room.occupants.length
+          Object.entries(config.capacityPerWorker).forEach(([resource, amount]) => {
+            if (amount && resource in resources.value) {
+              resources.value[resource as ResourceKey].capacity += amount * nbWorkers * gridSize * mergeMultiplier
+            }
+          })
+        }
+      })
+    })
+  }
+
+  function updateResources(weeksElapsed: number) {
     // Mettre à jour les productions et consommations
     updateRoomProduction()
-    
-    // Sauvegarder l'état
-    saveGame()
+
+    // Appliquer les changements pour chaque semaine écoulée
+    for (let i = 0; i < weeksElapsed; i++) {
+      Object.values(resources.value).forEach(resource => {
+        const net = resource.production - resource.consumption
+        resource.amount = Math.max(0, Math.min(resource.amount + net, resource.capacity))
+      })
+    }
   }
 
   function update(speed: number) {
@@ -476,8 +553,8 @@ export const useGameStore = defineStore('game', () => {
           habitant.age += weeksElapsed
         })
 
-        // Mettre à jour les productions et consommations
-        updateProductionAndConsumption()
+        // Mettre à jour les ressources
+        updateResources(weeksElapsed)
 
         // Vérifier les constructions terminées
         levels.value.forEach(level => {
@@ -511,41 +588,10 @@ export const useGameStore = defineStore('game', () => {
           })
         })
 
-        // Appliquer les changements de ressources pour chaque semaine écoulée
-        for (let i = 0; i < weeksElapsed; i++) {
-          Object.entries(resources.value).forEach(([key, resource]) => {
-            const net = resource.production - resource.consumption
-            resource.amount = Math.max(0, Math.min(resource.amount + net, resource.capacity))
-          })
-        }
-
-        updateHappiness()
-
-        if (gameTime.value % 10 === 0) {
-          saveGame()
-        }
-      }
-
-      // Vérifier si une semaine s'est écoulée
-      if (Math.floor(gameTime.value / 52) > Math.floor(previousGameTime / 52)) {
-        // Mise à jour des équipements en construction
-        levels.value?.forEach(level => {
-          const allRooms = [...(level.leftRooms || []), ...(level.rightRooms || [])]
-          allRooms.forEach(room => {
-            room.equipments?.forEach(equipment => {
-              if (equipment.isUnderConstruction && equipment.constructionStartTime !== undefined && equipment.constructionDuration !== undefined) {
-                const elapsedTime = gameTime.value - equipment.constructionStartTime
-                if (elapsedTime >= equipment.constructionDuration) {
-                  equipment.isUnderConstruction = false
-                }
-              }
-            })
-          })
-        })
-
         // Vérifier les excavations terminées
         excavations.value = excavations.value.filter(excavation => {
-          const isComplete = (gameTime.value - excavation.startTime) >= excavation.duration
+          const elapsedTime = Math.floor(gameTime.value) - excavation.startTime
+          const isComplete = elapsedTime >= excavation.duration
           
           if (isComplete) {
             if (excavation.position === 'stairs') {
@@ -584,15 +630,39 @@ export const useGameStore = defineStore('game', () => {
           }
           return true
         })
+
+        updateHappiness()
+
+        if (gameTime.value % 10 === 0) {
+          saveGame()
+        }
+      }
+
+      // Vérifier si une semaine s'est écoulée
+      if (Math.floor(gameTime.value / 52) > Math.floor(previousGameTime / 52)) {
+        // Mise à jour des équipements en construction
+        levels.value?.forEach(level => {
+          const allRooms = [...(level.leftRooms || []), ...(level.rightRooms || [])]
+          allRooms.forEach(room => {
+            room.equipments?.forEach(equipment => {
+              if (equipment.isUnderConstruction && equipment.constructionStartTime !== undefined && equipment.constructionDuration !== undefined) {
+                const elapsedTime = gameTime.value - equipment.constructionStartTime
+                if (elapsedTime >= equipment.constructionDuration) {
+                  equipment.isUnderConstruction = false
+                }
+              }
+            })
+          })
+        })
       }
     }
   }
 
   function updateHappiness() {
-    const resourcesStatus = Object.values(resources.value).map(r =>
+    const resourcesStatus: number[] = Object.values(resources.value).map(r =>
       Math.min(100, (r.amount / (r.consumption * population.value)) * 100)
-    )
-    happiness.value = Math.floor(resourcesStatus.reduce((a, b) => a + b, 0) / resourcesStatus.length)
+    );
+    happiness.value = Math.floor(resourcesStatus.reduce((a: number, b: number) => a + b, 0) / resourcesStatus.length);
   }
 
   function addNewLevel() {
@@ -697,7 +767,7 @@ export const useGameStore = defineStore('game', () => {
             position,
             roomIndex
           })
-          updateProductionAndConsumption() // Utiliser la nouvelle fonction
+          updateRoomProduction() // Utiliser la nouvelle fonction
           saveGame()
         }
       }
@@ -754,65 +824,6 @@ export const useGameStore = defineStore('game', () => {
     }
   }
 
-  function updateRoomProduction() {
-    // Réinitialiser les productions
-    Object.entries(resources.value || {}).forEach(([key, resource]) => {
-      resource.production = 0
-      resource.capacity = 200 // Capacité de base
-    })
-
-    // Initialiser les consommations de base par habitant
-    resources.value.energie.consumption = population.value * 2 // 2 unités d'énergie par habitant
-    resources.value.eau.consumption = population.value * 1
-    resources.value.nourriture.consumption = population.value * 1
-    resources.value.vetements.consumption = population.value * 0.05
-    resources.value.medicaments.consumption = 0
-
-    let roomEnergyConsumption = 0 // Variable pour suivre la consommation des salles
-
-    // Calculer les productions et capacités de chaque salle
-    levels.value?.forEach(level => {
-      const allRooms = [...(level.leftRooms || []), ...(level.rightRooms || [])]
-      allRooms.forEach(room => {
-        if (room.isBuilt) {
-          const config = ROOM_CONFIGS[room.type]
-          if (!config) return
-
-          const gridSize = room.gridSize || 1
-          const mergeConfig = ROOM_MERGE_CONFIG[room.type]
-          const mergeMultiplier = mergeConfig?.useMultiplier 
-            ? GAME_CONFIG.MERGE_MULTIPLIERS[Math.min(gridSize, 6) as keyof typeof GAME_CONFIG.MERGE_MULTIPLIERS] || 1
-            : 1
-
-          // Ajouter la consommation d'énergie de la salle
-          roomEnergyConsumption += config.energyConsumption * gridSize
-
-          // Gestion du stockage
-          if ('capacityPerWorker' in config) {
-            const nbWorkers = room.occupants?.length || 0
-            Object.entries(config.capacityPerWorker || {}).forEach(([resource, amount]) => {
-              if (amount && resource in (resources.value || {})) {
-                resources.value[resource as ResourceKey].capacity += amount * nbWorkers * gridSize * mergeMultiplier
-              }
-            })
-          }
-          // Gestion de la production
-          else if ('productionPerWorker' in config) {
-            const nbWorkers = room.occupants?.length || 0
-            Object.entries(config.productionPerWorker || {}).forEach(([resource, amount]) => {
-              if (amount && resource in (resources.value || {})) {
-                resources.value[resource as ResourceKey].production += amount * nbWorkers * gridSize * mergeMultiplier
-              }
-            })
-          }
-        }
-      })
-    })
-
-    // Ajouter la consommation totale des salles à la consommation de base
-    resources.value.energie.consumption += roomEnergyConsumption
-  }
-
   // Configuration des équipements disponibles par type de salle
   const EQUIPMENT_CONFIG: { [key: string]: { [key: string]: { constructionTime: number, description: string, incubationTime?: number } } } = {
     medical: {
@@ -865,7 +876,7 @@ export const useGameStore = defineStore('game', () => {
       roomIndex
     }
 
-    updateProductionAndConsumption() // Utiliser la nouvelle fonction
+    updateRoomProduction() // Utiliser la nouvelle fonction
     return true
   }
 
@@ -885,7 +896,7 @@ export const useGameStore = defineStore('game', () => {
     room.occupants = room.occupants.filter(id => id !== habitantId)
     habitant.affectation = { type: null }
 
-    updateProductionAndConsumption() // Utiliser la nouvelle fonction
+    updateRoomProduction() // Utiliser la nouvelle fonction
     return true
   }
 
@@ -943,7 +954,7 @@ export const useGameStore = defineStore('game', () => {
           rooms[i].index = i
         }
 
-        updateProductionAndConsumption()
+        updateRoomProduction()
         return true
       }
     }
@@ -977,7 +988,7 @@ export const useGameStore = defineStore('game', () => {
           rooms[i].index = i
         }
 
-        updateProductionAndConsumption()
+        updateRoomProduction()
         return true
       }
     }

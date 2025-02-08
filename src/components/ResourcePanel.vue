@@ -16,6 +16,11 @@
                   @click="showEnergyDetails = true">
             Détails
           </button>
+          <button v-if="name === 'eau'" 
+                  class="details-button"
+                  @click="showWaterDetails = true">
+            Détails
+          </button>
         </div>
         
         <div class="resource-progress">
@@ -70,6 +75,7 @@
     </div>
 
     <EnergyDetailsModal v-if="showEnergyDetails" @close="showEnergyDetails = false" />
+    <WaterDetailsModal v-if="showWaterDetails" @close="showWaterDetails = false" />
   </div>
 </template>
 
@@ -78,10 +84,12 @@ import { storeToRefs } from 'pinia'
 import { ref } from 'vue'
 import { useGameStore } from '../stores/gameStore'
 import EnergyDetailsModal from './EnergyDetailsModal.vue'
+import WaterDetailsModal from './WaterDetailsModal.vue'
 
 const store = useGameStore()
 const { resourcesList, population, happiness, formattedTime, habitantsLibres, habitantsOccupes, enfants } = storeToRefs(store)
 const showEnergyDetails = ref(false)
+const showWaterDetails = ref(false)
 </script>
 
 <style lang="scss" scoped>
