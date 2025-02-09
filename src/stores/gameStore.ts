@@ -72,6 +72,7 @@ export interface Room {
   gridSize?: number // Nombre de cellules occupées par la salle
   stairsPosition?: 'left' | 'right'
   equipments: Equipment[]
+  fuelLevel?: number // Niveau de carburant en pourcentage (0-100)
 }
 
 export interface Level {
@@ -225,6 +226,13 @@ interface ProductionRoomConfig extends RoomConfigBase {
     [key in ResourceKey]?: number
   }
   waterConsumption?: number
+  fuelConsumption?: number // Consommation de carburant par semaine en pourcentage
+  resourceConsumption?: {
+    [key in ResourceKey]?: number
+  }
+  resourceProduction?: {
+    [key in ResourceKey]?: number
+  }
 }
 
 type RoomConfig = StorageRoomConfig | DortoryRoomConfig | ProductionRoomConfig
@@ -263,7 +271,8 @@ const ROOM_CONFIGS: { [key: string]: RoomConfig } = {
     energyConsumption: 0, // La salle d'énergie ne consomme pas d'énergie
     productionPerWorker: {
       energie: 3
-    }
+    },
+    fuelConsumption: 10 // Consomme 10% du réservoir par semaine par travailleur
   } as ProductionRoomConfig,
   infirmerie: {
     maxWorkers: 2,
@@ -511,6 +520,10 @@ export const useGameStore = defineStore('game', () => {
             room.type = roomConfig.type
             room.isBuilt = true
             room.gridSize = roomConfig.gridSize
+            // Initialiser le niveau de carburant pour le générateur
+            if (room.type === 'generateur') {
+              room.fuelLevel = 100
+            }
           }
         })
       }
@@ -631,7 +644,7 @@ export const useGameStore = defineStore('game', () => {
     const barilsPetrole: Item = {
       id: `baril-petrole-${Date.now()}-1`,
       type: 'baril-petrole',
-      quantity: 100,
+      quantity: 2,
       stackSize: ITEMS_CONFIG['baril-petrole'].stackSize,
       description: ITEMS_CONFIG['baril-petrole'].description,
       category: ITEMS_CONFIG['baril-petrole'].category
@@ -646,15 +659,6 @@ export const useGameStore = defineStore('game', () => {
       category: ITEMS_CONFIG['nourriture-conserve'].category
     }
     
-    const barilsVides: Item = {
-      id: `baril-vide-${Date.now()}-1`,
-      type: 'baril-vide',
-      quantity: 50,
-      stackSize: ITEMS_CONFIG['baril-vide'].stackSize,
-      description: ITEMS_CONFIG['baril-vide'].description,
-      category: ITEMS_CONFIG['baril-vide'].category
-    }
-    
     const cereales: Item = {
       id: `cereales-${Date.now()}-1`,
       type: 'cereales',
@@ -662,6 +666,15 @@ export const useGameStore = defineStore('game', () => {
       stackSize: ITEMS_CONFIG['cereales'].stackSize,
       description: ITEMS_CONFIG['cereales'].description,
       category: ITEMS_CONFIG['cereales'].category
+    }
+    
+    const barilsVides: Item = {
+      id: `baril-vide-${Date.now()}-1`,
+      type: 'baril-vide',
+      quantity: 0,
+      stackSize: ITEMS_CONFIG['baril-vide'].stackSize,
+      description: ITEMS_CONFIG['baril-vide'].description,
+      category: ITEMS_CONFIG['baril-vide'].category
     }
     
     // Ajouter directement les items à l'inventaire
@@ -756,11 +769,59 @@ export const useGameStore = defineStore('game', () => {
         // 2.3 Gérer la production des salles
         if ('productionPerWorker' in config) {
           const nbWorkers = room.occupants.length
-          Object.entries(config.productionPerWorker).forEach(([resource, amount]) => {
-            if (amount && resource in resources.value) {
-              resources.value[resource as ResourceKey].production += amount * nbWorkers * gridSize * mergeMultiplier
+
+          // Gestion spéciale pour le générateur
+          if (room.type === 'generateur') {
+            // Initialiser le niveau de carburant s'il n'existe pas
+            if (room.fuelLevel === undefined) {
+              room.fuelLevel = 0
             }
-          })
+
+            // Si le réservoir est vide, essayer de le remplir
+            if (room.fuelLevel <= 0) {
+              const barilPetrole = inventory.value.find(item => item.type === 'baril-petrole' && item.quantity > 0)
+              if (barilPetrole) {
+                console.log('Consommation d\'un baril de pétrole')
+                const success = removeItem(barilPetrole.id, 1)
+                if (success) {
+                  console.log('Baril de pétrole retiré, création d\'un baril vide')
+                  const addSuccess = addItem('baril-vide', 1)
+                  console.log('Création du baril vide:', addSuccess ? 'réussie' : 'échouée')
+                  room.fuelLevel = 100 // Remplir le réservoir
+                }
+              }
+            }
+
+            // Calculer la consommation de carburant
+            if (room.fuelLevel > 0 && config.fuelConsumption) {
+              const fuelNeeded = config.fuelConsumption * nbWorkers
+              if (room.fuelLevel >= fuelNeeded) {
+                // Assez de carburant, production normale
+                Object.entries(config.productionPerWorker).forEach(([resource, amount]) => {
+                  if (amount && resource in resources.value) {
+                    resources.value[resource as ResourceKey].production += amount * nbWorkers * gridSize * mergeMultiplier
+                  }
+                })
+                room.fuelLevel -= fuelNeeded
+              } else {
+                // Pas assez de carburant, production réduite
+                const ratio = room.fuelLevel / fuelNeeded
+                Object.entries(config.productionPerWorker).forEach(([resource, amount]) => {
+                  if (amount && resource in resources.value) {
+                    resources.value[resource as ResourceKey].production += amount * nbWorkers * gridSize * mergeMultiplier * ratio
+                  }
+                })
+                room.fuelLevel = 0
+              }
+            }
+          } else {
+            // Production normale pour les autres salles
+            Object.entries(config.productionPerWorker).forEach(([resource, amount]) => {
+              if (amount && resource in resources.value) {
+                resources.value[resource as ResourceKey].production += amount * nbWorkers * gridSize * mergeMultiplier
+              }
+            })
+          }
         }
 
         // 2.4 Gérer les capacités de stockage
@@ -920,11 +981,12 @@ export const useGameStore = defineStore('game', () => {
   }
 
   function updateHappiness() {
-    const resourcesStatus: number[] = Object.values(resources.value).map(r =>
-      Math.min(100, (r.amount / Math.max(0.1, r.consumption)) * 100)
-    );
+    const resourcesStatus = Object.values(resources.value).map(resource => {
+      if (resource.consumption === 0) return 100;
+      return Math.min(100, (resource.production / resource.consumption) * 100);
+    });
 
-    happiness.value = Math.floor(resourcesStatus.reduce((a: number, b: number) => a + b, 0) / resourcesStatus.length);
+    happiness.value = Math.floor((resourcesStatus.reduce((a: number, b: number) => a + b, 0) / resourcesStatus.length));
   }
 
   function addNewLevel() {
@@ -1023,13 +1085,17 @@ export const useGameStore = defineStore('game', () => {
           room.constructionStartTime = Math.floor(gameTime.value)
           room.constructionDuration = 4 // 4 semaines pour construire une salle
           room.type = roomType // Définir le type immédiatement
+          // Initialiser le niveau de carburant pour le générateur
+          if (roomType === 'generateur') {
+            room.fuelLevel = 100
+          }
           affecterHabitant(habitantLibre.id, {
             type: 'construction',
             levelId,
             position,
             roomIndex
           })
-          updateRoomProduction() // Utiliser la nouvelle fonction
+          updateRoomProduction()
           saveGame()
         }
       }
@@ -1377,29 +1443,34 @@ export const useGameStore = defineStore('game', () => {
 
   // Fonctions de gestion de l'inventaire
   function addItem(type: ItemType, quantity: number = 1): boolean {
-    // Vérifier si on a assez d'espace
-    if (inventorySpace.value.remaining < quantity) return false
+    console.log('Tentative d\'ajout d\'item:', type, quantity);
+    console.log('Espace d\'inventaire:', inventorySpace.value);
 
     // Vérifier si on ne dépasse pas la taille du stack
-    const config = ITEMS_CONFIG[type]
-    if (!config) return false
+    const config = ITEMS_CONFIG[type];
+    if (!config) {
+      console.log('Type d\'item non trouvé:', type);
+      return false;
+    }
 
-    let remainingQuantity = quantity
+    let remainingQuantity = quantity;
 
     while (remainingQuantity > 0) {
       // Chercher un stack existant non plein
       const existingItem = inventory.value.find(item => 
         item.type === type && item.quantity < item.stackSize
-      )
+      );
 
       if (existingItem) {
-        const spaceInStack = existingItem.stackSize - existingItem.quantity
-        const toAdd = Math.min(remainingQuantity, spaceInStack)
-        existingItem.quantity += toAdd
-        remainingQuantity -= toAdd
+        console.log('Stack existant trouvé:', existingItem);
+        const spaceInStack = existingItem.stackSize - existingItem.quantity;
+        const toAdd = Math.min(remainingQuantity, spaceInStack);
+        existingItem.quantity += toAdd;
+        remainingQuantity -= toAdd;
+        console.log('Ajouté au stack existant:', toAdd);
       } else {
         // Créer un nouveau stack
-        const stackSize = Math.min(remainingQuantity, config.stackSize)
+        const stackSize = Math.min(remainingQuantity, config.stackSize);
         const newItem: Item = {
           id: `${type}-${Date.now()}-${Math.random()}`,
           type,
@@ -1407,14 +1478,15 @@ export const useGameStore = defineStore('game', () => {
           stackSize: config.stackSize,
           description: config.description,
           category: config.category
-        }
-        inventory.value.push(newItem)
-        remainingQuantity -= stackSize
+        };
+        inventory.value.push(newItem);
+        remainingQuantity -= stackSize;
+        console.log('Nouveau stack créé:', newItem);
       }
     }
 
-    saveGame()
-    return true
+    saveGame();
+    return true;
   }
 
   function removeItem(itemId: string, quantity: number = 1): boolean {

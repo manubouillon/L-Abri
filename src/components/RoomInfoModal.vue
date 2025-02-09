@@ -24,6 +24,13 @@
         <div class="production-details" v-if="isProductionRoom">
           <h3>Détails de la production</h3>
           <div class="production-formula">
+            <div class="formula-row" v-if="room.type === 'generateur'">
+              <span class="label">Niveau de carburant:</span>
+              <div class="fuel-gauge">
+                <div class="fuel-bar" :style="{ width: `${room.fuelLevel || 0}%` }"></div>
+                <span class="fuel-text">{{ Math.floor(room.fuelLevel || 0) }}%</span>
+              </div>
+            </div>
             <div class="formula-row">
               <span class="label">Production de base par travailleur:</span>
               <span v-for="(amount, resource) in baseProduction" :key="resource">
@@ -367,9 +374,11 @@ function createNewHabitant() {
   inset: 0;
   background-color: rgba(0, 0, 0, 0.7);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  padding-top: max(100px, 15vh);
   justify-content: center;
   z-index: 1000;
+  overflow-y: auto;
 }
 
 .modal-content {
@@ -378,12 +387,12 @@ function createNewHabitant() {
   padding: 1.5rem;
   max-width: 500px;
   width: 90%;
-  max-height: 80vh;
-  overflow-y: auto;
+  height: fit-content;
+  min-height: 200px;
   position: fixed;
-  top: 50%;
+  top: max(50px, 5vh);
   left: 50%;
-  transform: translate(-50%, -50%);
+  transform: translateX(-50%);
 
   h2 {
     margin: 0 0 1rem;
@@ -672,5 +681,30 @@ function createNewHabitant() {
   border-radius: 4px;
   margin-bottom: 1rem;
   text-align: center;
+}
+
+.fuel-gauge {
+  width: 100px;
+  height: 20px;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
+  position: relative;
+  overflow: hidden;
+}
+
+.fuel-bar {
+  height: 100%;
+  background-color: #e67e22;
+  transition: width 0.3s ease;
+}
+
+.fuel-text {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  color: #ecf0f1;
+  font-size: 0.8rem;
+  text-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
 }
 </style> 
