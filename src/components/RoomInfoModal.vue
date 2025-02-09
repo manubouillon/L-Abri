@@ -158,15 +158,14 @@
                 </template>
                 <template v-else>
                   <span class="status">Opérationnel</span>
-                  <div v-if="equipment.type === 'nurserie'" class="nurserie-controls">
-                    <button 
-                      @click="createNewHabitant"
-                      :disabled="!canIncubate"
-                      class="incubate-button"
-                    >
-                      {{ isIncubating ? `Incubation en cours: ${remainingIncubationTime} semaines` : props.room.occupants.length === 0 ? 'Pas de travailleur disponible' : 'Incuber un embryon' }}
-                    </button>
-                  </div>
+                  <template v-if="equipment.type === 'nurserie'">
+                    <NurserieInterface
+                      :levelId="props.levelId"
+                      :position="props.room.position"
+                      :roomIndex="props.room.index"
+                      :equipmentId="equipment.id"
+                    />
+                  </template>
                 </template>
               </div>
             </div>
@@ -186,6 +185,7 @@ import { ref, computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useGameStore } from '../stores/gameStore'
 import type { Room, Equipment } from '../stores/gameStore'
+import NurserieInterface from './NurserieInterface.vue'
 
 const props = defineProps<{
   room: Room

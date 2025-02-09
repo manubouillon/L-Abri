@@ -1,6 +1,12 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 
+export interface NurserieState {
+  isIncubating: boolean
+  startTime?: number
+  embryonType?: ItemType
+}
+
 export interface Resource {
   amount: number
   capacity: number
@@ -49,6 +55,7 @@ export interface Equipment {
   isUnderConstruction: boolean
   constructionStartTime?: number
   constructionDuration?: number
+  nurserieState?: NurserieState
 }
 
 export interface Room {
@@ -328,6 +335,83 @@ interface Excavation {
   duration: number
 }
 
+export interface Item {
+  id: string
+  type: string
+  quantity: number
+  stackSize: number
+  description: string
+  category: ItemCategory
+}
+
+export type ItemCategory = 'biologique' | 'ressource' | 'nourriture' | 'conteneur'
+export type ItemType = 'embryon-humain' | 'baril-petrole' | 'baril-vide' | 'cereales' | 'nourriture-conserve'
+
+export const ITEMS_CONFIG: { [key in ItemType]: {
+  name: string
+  stackSize: number
+  description: string
+  category: ItemCategory
+} } = {
+  'embryon-humain': {
+    name: 'Embryon humain',
+    stackSize: 1000,
+    description: 'Un embryon humain cryogénisé, prêt à être implanté dans une nurserie.',
+    category: 'biologique'
+  },
+  'baril-petrole': {
+    name: 'Baril de pétrole',
+    stackSize: 50,
+    description: 'Un baril contenant du pétrole brut.',
+    category: 'ressource'
+  },
+  'baril-vide': {
+    name: 'Baril vide',
+    stackSize: 100,
+    description: 'Un baril vide pouvant contenir des liquides.',
+    category: 'conteneur'
+  },
+  'cereales': {
+    name: 'Céréales',
+    stackSize: 1000,
+    description: 'Des céréales cultivées dans les serres.',
+    category: 'nourriture'
+  },
+  'nourriture-conserve': {
+    name: 'Nourriture en conserve',
+    stackSize: 1000,
+    description: 'De la nourriture en conserve, peut être stockée longtemps.',
+    category: 'nourriture'
+  }
+}
+
+export const ITEM_CATEGORIES: { [key in ItemCategory]: {
+  name: string
+  description: string
+  color: string
+} } = {
+  'biologique': {
+    name: 'Biologique',
+    description: 'Items biologiques et médicaux',
+    color: '#2ecc71'
+  },
+  'ressource': {
+    name: 'Ressource',
+    description: 'Ressources brutes et matériaux',
+    color: '#e67e22'
+  },
+  'nourriture': {
+    name: 'Nourriture',
+    description: 'Tout ce qui peut être consommé',
+    color: '#f1c40f'
+  },
+  'conteneur': {
+    name: 'Conteneur',
+    description: 'Objets de stockage',
+    color: '#95a5a6'
+  }
+}
+
 export const useGameStore = defineStore('game', () => {
   // État du jeu
   const levels = ref<Level[]>([])
@@ -345,6 +429,10 @@ export const useGameStore = defineStore('game', () => {
     vetements: { amount: 0, capacity: 200, production: 0, consumption: 0 },
     medicaments: { amount: 0, capacity: 200, production: 0, consumption: 0 }
   })
+
+  // Inventaire
+  const inventory = ref<Item[]>([])
+  const inventoryCapacity = ref(1000) // Capacité totale de l'inventaire en nombre d'items
 
   // Getters
   const resourcesList = computed(() => Object.entries(resources.value))
@@ -376,6 +464,17 @@ export const useGameStore = defineStore('game', () => {
   const enfants = computed(() =>
     habitants.value.filter(h => h.age < 7)
   )
+
+  // Getters pour l'inventaire
+  const inventoryItems = computed(() => inventory.value)
+  const inventorySpace = computed(() => {
+    const used = inventory.value.reduce((total, item) => total + item.quantity, 0)
+    return {
+      used,
+      total: inventoryCapacity.value,
+      remaining: inventoryCapacity.value - used
+    }
+  })
 
   function createInitialRooms(side: 'left' | 'right', levelId: number, isFirstLevel: boolean): Room[] {
     // Calculer le nombre de salles à créer en tenant compte des fusions
@@ -515,6 +614,58 @@ export const useGameStore = defineStore('game', () => {
       vetements: { amount: 50, capacity: 100, production: 0, consumption: 0 } as Resource,
       medicaments: { amount: 100, capacity: 200, production: 0, consumption: 0 } as Resource,
     }
+
+    // Réinitialiser l'inventaire
+    inventory.value = []
+    
+    // Ajouter les items initiaux avec leur configuration complète
+    const embryons: Item = {
+      id: `embryon-humain-${Date.now()}-1`,
+      type: 'embryon-humain',
+      quantity: 1000,
+      stackSize: ITEMS_CONFIG['embryon-humain'].stackSize,
+      description: ITEMS_CONFIG['embryon-humain'].description,
+      category: ITEMS_CONFIG['embryon-humain'].category
+    }
+    
+    const barilsPetrole: Item = {
+      id: `baril-petrole-${Date.now()}-1`,
+      type: 'baril-petrole',
+      quantity: 100,
+      stackSize: ITEMS_CONFIG['baril-petrole'].stackSize,
+      description: ITEMS_CONFIG['baril-petrole'].description,
+      category: ITEMS_CONFIG['baril-petrole'].category
+    }
+    
+    const nourritureConserve: Item = {
+      id: `nourriture-conserve-${Date.now()}-1`,
+      type: 'nourriture-conserve',
+      quantity: 200,
+      stackSize: ITEMS_CONFIG['nourriture-conserve'].stackSize,
+      description: ITEMS_CONFIG['nourriture-conserve'].description,
+      category: ITEMS_CONFIG['nourriture-conserve'].category
+    }
+    
+    const barilsVides: Item = {
+      id: `baril-vide-${Date.now()}-1`,
+      type: 'baril-vide',
+      quantity: 50,
+      stackSize: ITEMS_CONFIG['baril-vide'].stackSize,
+      description: ITEMS_CONFIG['baril-vide'].description,
+      category: ITEMS_CONFIG['baril-vide'].category
+    }
+    
+    const cereales: Item = {
+      id: `cereales-${Date.now()}-1`,
+      type: 'cereales',
+      quantity: 500,
+      stackSize: ITEMS_CONFIG['cereales'].stackSize,
+      description: ITEMS_CONFIG['cereales'].description,
+      category: ITEMS_CONFIG['cereales'].category
+    }
+    
+    // Ajouter directement les items à l'inventaire
+    inventory.value.push(embryons, barilsPetrole, nourritureConserve, barilsVides, cereales)
 
     // Réinitialiser les autres valeurs
     gameTime.value = 0
@@ -740,6 +891,9 @@ export const useGameStore = defineStore('game', () => {
 
         updateHappiness()
 
+        // Vérifier les incubations
+        checkAndFinalizeIncubation()
+
         if (gameTime.value % 10 === 0) {
           saveGame()
         }
@@ -891,7 +1045,9 @@ export const useGameStore = defineStore('game', () => {
       happiness: happiness.value,
       lastUpdateTime: lastUpdateTime.value,
       excavations: excavations.value,
-      habitants: habitants.value
+      habitants: habitants.value,
+      inventory: inventory.value,
+      inventoryCapacity: inventoryCapacity.value
     }
     localStorage.setItem('abriGameState', JSON.stringify(gameState))
   }
@@ -908,6 +1064,8 @@ export const useGameStore = defineStore('game', () => {
       lastUpdateTime.value = state.lastUpdateTime || Date.now()
       excavations.value = state.excavations || []
       habitants.value = state.habitants || []
+      inventory.value = state.inventory || []
+      inventoryCapacity.value = state.inventoryCapacity || 1000
       return true
     }
     return false
@@ -1131,7 +1289,7 @@ export const useGameStore = defineStore('game', () => {
     return true
   }
 
-  function createNewHabitant(levelId: number, position: 'left' | 'right', roomIndex: number): boolean {
+  function createNewHabitant(levelId: number, position: 'left' | 'right', roomIndex: number, embryonType: ItemType = 'embryon-humain'): boolean {
     const level = levels.value.find(l => l.id === levelId)
     if (!level) return false
 
@@ -1142,26 +1300,143 @@ export const useGameStore = defineStore('game', () => {
     const nurserie = room.equipments.find(e => e.type === 'nurserie' && !e.isUnderConstruction)
     if (!nurserie) return false
 
-    // Créer un nouveau-né
-    const genre = Math.random() > 0.5 ? 'H' : 'F'
-    const prenom = genre === 'H' 
-      ? PRENOMS.filter((_, i) => i < PRENOMS.length / 2)[Math.floor(Math.random() * (PRENOMS.length / 2))]
-      : PRENOMS.filter((_, i) => i >= PRENOMS.length / 2)[Math.floor(Math.random() * (PRENOMS.length / 2))]
-    const nom = NOMS[Math.floor(Math.random() * NOMS.length)]
+    // Vérifier si la nurserie n'est pas déjà en train d'incuber
+    if (nurserie.nurserieState?.isIncubating) return false
 
-    const newHabitant: Habitant = {
-      id: `habitant-${Date.now()}`,
-      nom: `${prenom} ${nom}`,
-      genre,
-      age: 0,
-      affectation: { type: null },
-      competences: generateRandomCompetences()
+    // Vérifier s'il y a des embryons disponibles
+    const embryonsDisponibles = getItemQuantity(embryonType)
+    if (embryonsDisponibles <= 0) return false
+
+    // Trouver un embryon à utiliser et le retirer de l'inventaire
+    const embryonItem = inventory.value.find(item => item.type === embryonType && item.quantity > 0)
+    if (!embryonItem) return false
+
+    // Retirer un embryon
+    removeItem(embryonItem.id, 1)
+
+    // Démarrer l'incubation
+    nurserie.nurserieState = {
+      isIncubating: true,
+      startTime: gameTime.value,
+      embryonType
     }
 
-    habitants.value.push(newHabitant)
-    population.value++
     saveGame()
     return true
+  }
+
+  // Ajouter une nouvelle fonction pour vérifier et finaliser l'incubation
+  function checkAndFinalizeIncubation() {
+    levels.value.forEach(level => {
+      const allRooms = [...level.leftRooms, ...level.rightRooms]
+      allRooms.forEach(room => {
+        if (room.type === 'infirmerie' && room.isBuilt) {
+          room.equipments.forEach(equipment => {
+            if (equipment.type === 'nurserie' && !equipment.isUnderConstruction) {
+              const nurserieState = equipment.nurserieState
+              if (nurserieState?.isIncubating && nurserieState.startTime !== undefined) {
+                const elapsedTime = gameTime.value - nurserieState.startTime
+                const incubationTime = EQUIPMENT_CONFIG.infirmerie.nurserie.incubationTime || 36
+
+                if (elapsedTime >= incubationTime) {
+                  // Créer le nouvel habitant
+                  const genre = Math.random() > 0.5 ? 'H' : 'F'
+                  const prenom = genre === 'H' 
+                    ? PRENOMS.filter((_, i) => i < PRENOMS.length / 2)[Math.floor(Math.random() * (PRENOMS.length / 2))]
+                    : PRENOMS.filter((_, i) => i >= PRENOMS.length / 2)[Math.floor(Math.random() * (PRENOMS.length / 2))]
+                  const nom = NOMS[Math.floor(Math.random() * NOMS.length)]
+
+                  const newHabitant: Habitant = {
+                    id: `habitant-${Date.now()}`,
+                    nom: `${prenom} ${nom}`,
+                    genre,
+                    age: 0,
+                    affectation: { type: null },
+                    competences: generateRandomCompetences()
+                  }
+
+                  habitants.value.push(newHabitant)
+                  population.value++
+
+                  // Réinitialiser l'état de la nurserie
+                  equipment.nurserieState = {
+                    isIncubating: false,
+                    embryonType: undefined,
+                    startTime: undefined
+                  }
+
+                  saveGame()
+                }
+              }
+            }
+          })
+        }
+      })
+    })
+  }
+
+  // Fonctions de gestion de l'inventaire
+  function addItem(type: ItemType, quantity: number = 1): boolean {
+    // Vérifier si on a assez d'espace
+    if (inventorySpace.value.remaining < quantity) return false
+
+    // Vérifier si on ne dépasse pas la taille du stack
+    const config = ITEMS_CONFIG[type]
+    if (!config) return false
+
+    let remainingQuantity = quantity
+
+    while (remainingQuantity > 0) {
+      // Chercher un stack existant non plein
+      const existingItem = inventory.value.find(item => 
+        item.type === type && item.quantity < item.stackSize
+      )
+
+      if (existingItem) {
+        const spaceInStack = existingItem.stackSize - existingItem.quantity
+        const toAdd = Math.min(remainingQuantity, spaceInStack)
+        existingItem.quantity += toAdd
+        remainingQuantity -= toAdd
+      } else {
+        // Créer un nouveau stack
+        const stackSize = Math.min(remainingQuantity, config.stackSize)
+        const newItem: Item = {
+          id: `${type}-${Date.now()}-${Math.random()}`,
+          type,
+          quantity: stackSize,
+          stackSize: config.stackSize,
+          description: config.description,
+          category: config.category
+        }
+        inventory.value.push(newItem)
+        remainingQuantity -= stackSize
+      }
+    }
+
+    saveGame()
+    return true
+  }
+
+  function removeItem(itemId: string, quantity: number = 1): boolean {
+    const itemIndex = inventory.value.findIndex(item => item.id === itemId)
+    if (itemIndex === -1) return false
+
+    const item = inventory.value[itemIndex]
+    if (item.quantity < quantity) return false
+
+    item.quantity -= quantity
+    if (item.quantity === 0) {
+      inventory.value.splice(itemIndex, 1)
+    }
+
+    saveGame()
+    return true
+  }
+
+  function getItemQuantity(type: ItemType): number {
+    return inventory.value
+      .filter(item => item.type === type)
+      .reduce((total, item) => total + item.quantity, 0)
   }
 
   // Initialisation
@@ -1209,6 +1484,14 @@ export const useGameStore = defineStore('game', () => {
     addStairs,
     addEquipment,
     createNewHabitant,
-    EQUIPMENT_CONFIG
+    EQUIPMENT_CONFIG,
+    
+    // Inventaire
+    inventory,
+    inventoryItems,
+    inventorySpace,
+    addItem,
+    removeItem,
+    getItemQuantity
   }
 }) 

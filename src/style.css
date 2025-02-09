@@ -80,3 +80,31 @@ button:disabled {
     background-color: #ecf0f1;
   }
 }
+
+/* Styles globaux pour les modales */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  z-index: 1000;
+  padding-top: 100px; /* Marge minimale en haut */
+}
+
+.modal-content {
+  background-color: #2c3e50;
+  border-radius: 8px;
+  width: 80%;
+  max-width: 800px;
+  max-height: calc(100vh - 200px); /* Hauteur maximale en tenant compte de la marge */
+  display: flex;
+  flex-direction: column;
+  color: #ecf0f1;
+  overflow-y: auto;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}

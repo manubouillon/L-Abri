@@ -4,6 +4,9 @@
       <h1>L'Abri</h1>
       <div class="game-controls">
         <button @click="resetGame">Réinitialiser</button>
+        <button @click="showInventory = true">
+          Inventaire ({{ inventorySpace.used }}/{{ inventorySpace.total }})
+        </button>
         <button @click="togglePause">{{ isPaused ? 'Reprendre' : 'Pause' }}</button>
         <div class="game-speed">
           <button @click="decreaseSpeed" :disabled="gameSpeed === 1">-</button>
@@ -35,6 +38,7 @@
       v-if="showHabitantsList"
       @close="showHabitantsList = false"
     />
+    <InventoryModal v-if="showInventory" @close="showInventory = false" />
   </div>
 </template>
 
@@ -45,14 +49,16 @@ import { useGameStore } from './stores/gameStore'
 import ResourcePanel from './components/ResourcePanel.vue'
 import SiloLevel from './components/SiloLevel.vue'
 import HabitantsList from './components/HabitantsList.vue'
+import InventoryModal from './components/InventoryModal.vue'
 
 // État du jeu
 const gameStore = useGameStore()
-const { levels } = storeToRefs(gameStore)
+const { levels, inventorySpace } = storeToRefs(gameStore)
 const isPaused = ref(false)
 const gameSpeed = ref(1)
 const scrollPosition = ref(0)
 const showHabitantsList = ref(false)
+const showInventory = ref(false)
 
 // Niveaux affichables (excavés ou excavables)
 const displayableLevels = computed(() => {
