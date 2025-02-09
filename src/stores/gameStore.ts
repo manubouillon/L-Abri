@@ -74,6 +74,45 @@ export interface Level {
   rightRooms: Room[]
 }
 
+export interface RoomCategory {
+  id: string
+  name: string
+  rooms: string[]
+}
+
+export const ROOM_CATEGORIES: RoomCategory[] = [
+  {
+    id: 'stockage',
+    name: 'Stockage',
+    rooms: ['entrepot']
+  },
+  {
+    id: 'logements',
+    name: 'Logements',
+    rooms: ['dortoir']
+  },
+  {
+    id: 'eau',
+    name: 'Eau',
+    rooms: ['station-traitement']
+  },
+  {
+    id: 'alimentation',
+    name: 'Alimentation',
+    rooms: ['cuisine', 'serre']
+  },
+  {
+    id: 'energie',
+    name: 'Énergie',
+    rooms: ['generateur']
+  },
+  {
+    id: 'sante',
+    name: 'Santé',
+    rooms: ['infirmerie']
+  }
+]
+
 // Configuration du jeu
 export const GAME_CONFIG = {
   INITIAL_LEVELS: 5,
@@ -93,9 +132,9 @@ export const GAME_CONFIG = {
       levelId: 0, // Premier niveau
       rooms: [
         { position: 'left', index: 0, type: 'dortoir', gridSize: 2, workers: 0 },
-        { position: 'left', index: 2, type: 'stockage', gridSize: 1, workers: 1 },
-        { position: 'right', index: 0, type: 'energie', gridSize: 2, workers: 1 },
-        { position: 'right', index: 2, type: 'eau', gridSize: 1, workers: 1 },
+        { position: 'left', index: 2, type: 'entrepot', gridSize: 1, workers: 0 },
+        { position: 'right', index: 0, type: 'generateur', gridSize: 2, workers: 1 },
+        { position: 'right', index: 2, type: 'station-traitement', gridSize: 1, workers: 1 },
         { position: 'right', index: 3, type: 'serre', gridSize: 1, workers: 1 }
       ]
     }
@@ -104,12 +143,12 @@ export const GAME_CONFIG = {
 
 // Configuration des multiplicateurs de fusion par type de salle
 export const ROOM_MERGE_CONFIG: { [key: string]: { useMultiplier: boolean } } = {
-  stockage: { useMultiplier: true },
+  entrepot: { useMultiplier: true },
   dortoir: { useMultiplier: false }, // Le dortoir ne bénéficie pas des multiplicateurs
   cuisine: { useMultiplier: true },
-  eau: { useMultiplier: true },
-  energie: { useMultiplier: true },
-  medical: { useMultiplier: true },
+  'station-traitement': { useMultiplier: true },
+  generateur: { useMultiplier: true },
+  infirmerie: { useMultiplier: true },
   serre: { useMultiplier: true }
 }
 
@@ -184,7 +223,7 @@ interface ProductionRoomConfig extends RoomConfigBase {
 type RoomConfig = StorageRoomConfig | DortoryRoomConfig | ProductionRoomConfig
 
 const ROOM_CONFIGS: { [key: string]: RoomConfig } = {
-  stockage: {
+  entrepot: {
     maxWorkers: 2,
     energyConsumption: 1, // 1 unité d'énergie par semaine
     capacityPerWorker: {
@@ -205,21 +244,21 @@ const ROOM_CONFIGS: { [key: string]: RoomConfig } = {
       nourriture: 2
     }
   } as ProductionRoomConfig,
-  eau: {
+  'station-traitement': {
     maxWorkers: 2,
     energyConsumption: 4, // 4 unités d'énergie par semaine
     productionPerWorker: {
       eau: 2
     }
   } as ProductionRoomConfig,
-  energie: {
+  generateur: {
     maxWorkers: 2,
     energyConsumption: 0, // La salle d'énergie ne consomme pas d'énergie
     productionPerWorker: {
       energie: 3
     }
   } as ProductionRoomConfig,
-  medical: {
+  infirmerie: {
     maxWorkers: 2,
     energyConsumption: 5, // 5 unités d'énergie par semaine
     productionPerWorker: {
@@ -727,9 +766,10 @@ export const useGameStore = defineStore('game', () => {
   }
 
   function updateHappiness() {
-    const resourcesStatus = Object.values(resources.value).map(r =>
+    const resourcesStatus: number[] = Object.values(resources.value).map(r =>
       Math.min(100, (r.amount / Math.max(0.1, r.consumption)) * 100)
     );
+
     happiness.value = Math.floor(resourcesStatus.reduce((a: number, b: number) => a + b, 0) / resourcesStatus.length);
   }
 
@@ -894,7 +934,7 @@ export const useGameStore = defineStore('game', () => {
 
   // Configuration des équipements disponibles par type de salle
   const EQUIPMENT_CONFIG: { [key: string]: { [key: string]: { constructionTime: number, description: string, incubationTime?: number } } } = {
-    medical: {
+    infirmerie: {
       nurserie: {
         constructionTime: 2, // 2 semaines pour construire
         description: "Permet de créer de nouveaux habitants. Les enfants de moins de 7 ans ne peuvent pas travailler.",
@@ -1096,7 +1136,7 @@ export const useGameStore = defineStore('game', () => {
     if (!level) return false
 
     const room = position === 'left' ? level.leftRooms[roomIndex] : level.rightRooms[roomIndex]
-    if (!room || !room.isBuilt || room.type !== 'medical') return false
+    if (!room || !room.isBuilt || room.type !== 'infirmerie') return false
 
     // Vérifier si la nurserie est construite et opérationnelle
     const nurserie = room.equipments.find(e => e.type === 'nurserie' && !e.isUnderConstruction)

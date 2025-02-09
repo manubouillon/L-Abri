@@ -1,10 +1,27 @@
 <template>
   <div class="modal-overlay" @click="$emit('close')">
     <div class="modal-content" @click.stop>
-      <h2>Choisir le type de salle</h2>
-      <div class="room-types">
+      <h2>{{ selectedCategory ? categories.find(c => c.id === selectedCategory)?.name : 'Choisir une catégorie' }}</h2>
+      
+      <!-- Affichage des catégories -->
+      <div v-if="!selectedCategory" class="categories">
         <button 
-          v-for="type in roomTypes" 
+          v-for="category in categories" 
+          :key="category.id"
+          class="category-button"
+          :class="`category-${category.id}`"
+          @click="selectedCategory = category.id"
+        >
+          <div class="category-info">
+            <h3>{{ category.name }}</h3>
+          </div>
+        </button>
+      </div>
+
+      <!-- Affichage des salles de la catégorie -->
+      <div v-else class="room-types">
+        <button 
+          v-for="type in getRoomsByCategory(selectedCategory)" 
           :key="type.id"
           class="room-type-button"
           :class="`room-type-${type.id}`"
@@ -16,56 +33,78 @@
             <p>{{ type.description }}</p>
           </div>
         </button>
+
+        <button class="back-button" @click="selectedCategory = null">
+          Retour aux catégories
+        </button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
+import { ROOM_CATEGORIES } from '../stores/gameStore'
+
+const selectedCategory = ref<string | null>(null)
+
+const categories = ROOM_CATEGORIES
+
 const roomTypes = [
   {
-    id: 'stockage',
-    name: 'Stockage',
+    id: 'entrepot',
+    name: 'Entrepôt',
     icon: '📦',
-    description: 'Augmente la capacité de stockage des ressources'
+    description: 'Augmente la capacité de stockage des ressources',
+    category: 'stockage'
   },
   {
     id: 'dortoir',
     name: 'Dortoir',
     icon: '🛏️',
-    description: 'Héberge les habitants'
+    description: 'Héberge les habitants',
+    category: 'logements'
   },
   {
     id: 'cuisine',
     name: 'Cuisine',
     icon: '🍳',
-    description: 'Produit de la nourriture'
+    description: 'Produit de la nourriture',
+    category: 'alimentation'
   },
   {
-    id: 'eau',
+    id: 'station-traitement',
     name: 'Station de traitement',
     icon: '💧',
-    description: 'Produit de l\'eau potable'
+    description: 'Produit de l\'eau potable',
+    category: 'eau'
   },
   {
-    id: 'energie',
+    id: 'generateur',
     name: 'Générateur',
     icon: '⚡',
-    description: 'Produit de l\'énergie'
+    description: 'Produit de l\'énergie',
+    category: 'energie'
   },
   {
-    id: 'medical',
+    id: 'infirmerie',
     name: 'Infirmerie',
     icon: '🏥',
-    description: 'Produit des médicaments'
+    description: 'Produit des médicaments',
+    category: 'sante'
   },
   {
     id: 'serre',
     name: 'Serre',
     icon: '🌱',
-    description: 'Produit de la nourriture et de l\'oxygène'
+    description: 'Produit de la nourriture',
+    category: 'alimentation'
   }
 ]
+
+function getRoomsByCategory(categoryId: string) {
+  return roomTypes.filter(room => room.category === categoryId)
+}
 
 defineEmits<{
   (e: 'close'): void
@@ -90,17 +129,60 @@ defineEmits<{
   padding: 1.5rem;
   max-width: 500px;
   width: 90%;
-  max-height: 90vh;
+  max-height: calc(100vh - 200px);
   overflow-y: auto;
   position: fixed;
-  top: 50%;
+  top: 100px;
   left: 50%;
-  transform: translate(-50%, -50%);
+  transform: translateX(-50%);
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 
   h2 {
     margin: 0 0 1rem;
     text-align: center;
+    color: #ecf0f1;
+  }
+}
+
+.categories {
+  display: grid;
+  gap: 1rem;
+}
+
+.category-button {
+  display: flex;
+  align-items: center;
+  padding: 1rem;
+  background-color: #2c3e50;
+  border: 2px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s ease;
+
+  @each $type, $color in (
+    stockage: var(--category-stockage-color),
+    logements: var(--category-logements-color),
+    alimentation: var(--category-alimentation-color),
+    eau: var(--category-eau-color),
+    energie: var(--category-energie-color),
+    sante: var(--category-sante-color)
+  ) {
+    &.category-#{$type} {
+      border-color: $color;
+      
+      &:hover {
+        background-color: rgba($color, 0.1);
+      }
+    }
+  }
+
+  &:hover {
+    transform: translateY(-2px);
+  }
+
+  h3 {
+    margin: 0;
     color: #ecf0f1;
   }
 }
@@ -128,12 +210,13 @@ defineEmits<{
   }
 
   @each $type, $color in (
-    stockage: var(--room-stockage-color),
+    entrepot: var(--room-entrepot-color),
     dortoir: var(--room-dortoir-color),
     cuisine: var(--room-cuisine-color),
-    eau: var(--room-eau-color),
-    energie: var(--room-energie-color),
-    medical: var(--room-medical-color)
+    station-traitement: var(--room-station-traitement-color),
+    generateur: var(--room-generateur-color),
+    infirmerie: var(--room-infirmerie-color),
+    serre: var(--room-serre-color)
   ) {
     &.room-type-#{$type} {
       border-color: $color;
@@ -168,6 +251,21 @@ defineEmits<{
     margin: 0;
     font-size: 0.9rem;
     color: #bdc3c7;
+  }
+}
+
+.back-button {
+  margin-top: 1rem;
+  padding: 0.5rem 1rem;
+  background-color: #2c3e50;
+  border: 2px solid #95a5a6;
+  border-radius: 4px;
+  color: #ecf0f1;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background-color: #95a5a622;
   }
 }
 </style> 
