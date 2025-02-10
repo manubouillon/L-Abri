@@ -292,7 +292,7 @@ export const ROOM_CONFIGS: { [key: string]: RoomConfig } = {
     maxWorkers: 2,
     energyConsumption: 0, // La salle d'énergie ne consomme pas d'énergie
     productionPerWorker: {
-      energie: 3
+      energie: 5
     },
     fuelConsumption: 10 // Consomme 10% du réservoir par semaine par travailleur
   } as ProductionRoomConfig,

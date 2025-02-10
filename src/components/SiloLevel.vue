@@ -36,9 +36,14 @@
                     👤
                   </span>
                 </div>
-                <div v-if="room.type === 'generateur' || room.type === 'derrick'" class="fuel-gauge">
-                  <div class="fuel-bar" :style="{ width: `${room.fuelLevel || 0}%` }"></div>
-                  <span class="fuel-text">{{ Math.floor(room.fuelLevel || 0) }}%</span>
+                <div class="fuel-gauge-container">
+                  <div v-if="room.type === 'generateur' || room.type === 'derrick'" class="fuel-gauge">
+                    <div class="fuel-bar" :style="{ width: `${room.fuelLevel || 0}%` }"></div>
+                    <span class="fuel-text">{{ Math.floor(room.fuelLevel || 0) }}%</span>
+                  </div>
+                  <div v-if="room.type === 'generateur' || room.type === 'derrick'" class="barrel-count">
+                    {{ getBarrelCount() }} 🛢️
+                  </div>
                 </div>
                 <div class="room-production" v-if="getRoomProductionSimple(room)">
                   <div class="production-detail">
@@ -137,9 +142,14 @@
                     👤
                   </span>
                 </div>
-                <div v-if="room.type === 'generateur' || room.type === 'derrick'" class="fuel-gauge">
-                  <div class="fuel-bar" :style="{ width: `${room.fuelLevel || 0}%` }"></div>
-                  <span class="fuel-text">{{ Math.floor(room.fuelLevel || 0) }}%</span>
+                <div class="fuel-gauge-container">
+                  <div v-if="room.type === 'generateur' || room.type === 'derrick'" class="fuel-gauge">
+                    <div class="fuel-bar" :style="{ width: `${room.fuelLevel || 0}%` }"></div>
+                    <span class="fuel-text">{{ Math.floor(room.fuelLevel || 0) }}%</span>
+                  </div>
+                  <div v-if="room.type === 'generateur' || room.type === 'derrick'" class="barrel-count">
+                    {{ getBarrelCount() }} 🛢️
+                  </div>
                 </div>
                 <div class="room-production" v-if="getRoomProductionSimple(room)">
                   <div class="production-detail">
@@ -438,6 +448,10 @@ function getIncubationProgress(room: Room): number {
   return Math.min(100, (elapsedTime / incubationTime) * 100)
 }
 
+function getBarrelCount(): number {
+  return store.getItemQuantity('baril-petrole');
+}
+
 onMounted(() => {
   document.documentElement.style.setProperty('--rooms-per-side', ROOMS_PER_SIDE.toString())
 })
@@ -549,6 +563,17 @@ onMounted(() => {
       border-color: var(--room-#{$type}-color);
     }
   }
+}
+
+.fuel-gauge-container {
+  display: flex;
+}
+
+.barrel-count {
+  font-size: 0.6rem;
+  color: #95a5a6;
+  text-align: center;
+  width: 40px;
 }
 
 .room-info {
