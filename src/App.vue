@@ -6,7 +6,7 @@
       <div class="game-controls">
         <button @click="showSaveModal = true">Sauvegarde</button>
         <button @click="showInventory = true">
-          Inventaire ({{ Math.floor(inventorySpace.used) }}/{{ inventorySpace.total }})
+          Inventaire ({{ Math.floor(inventorySpace.used) }}/{{ Math.floor(inventorySpace.total) }})
         </button>
         <button @click="togglePause">{{ isPaused ? 'Reprendre' : 'Pause' }}</button>
         <div class="game-speed">

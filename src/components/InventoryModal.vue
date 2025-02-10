@@ -35,7 +35,7 @@
             >
               <div class="item-header">
                 <span class="item-name">{{ ITEMS_CONFIG[item.type].name }}</span>
-                <span class="item-quantity">{{ item.quantity }}/{{ item.stackSize }}</span>
+                <span class="item-quantity">{{ Math.floor(item.quantity) }}/{{ item.stackSize }}</span>
               </div>
               <div class="item-description">{{ item.description }}</div>
             </div>
