@@ -1965,15 +1965,22 @@ export const useGameStore = defineStore('game', () => {
 
     // Si l'habitant était déjà dans une salle, le retirer proprement
     if (habitant.affectation.type === 'salle') {
-      const oldLevel = levels.value.find(l => l.id === habitant.affectation.levelId)
-      if (oldLevel) {
-        const oldRoom = habitant.affectation.position === 'left' 
-          ? oldLevel.leftRooms[habitant.affectation.roomIndex!]
-          : oldLevel.rightRooms[habitant.affectation.roomIndex!]
-        if (oldRoom) {
-          oldRoom.occupants = oldRoom.occupants.filter(id => id !== habitantId)
+        const oldLevel = levels.value.find(l => l.id === habitant.affectation.levelId)
+        if (oldLevel) {
+            const oldRoom = habitant.affectation.position === 'left' 
+                ? oldLevel.leftRooms[habitant.affectation.roomIndex!]
+                : oldLevel.rightRooms[habitant.affectation.roomIndex!]
+            if (oldRoom) {
+                // Vérifier si c'est une infirmerie avec une incubation en cours
+                if (oldRoom.type === 'infirmerie') {
+                    const nurserie = oldRoom.equipments.find(e => e.type === 'nurserie')
+                    if (nurserie?.nurserieState?.isIncubating && oldRoom.occupants.length <= 1) {
+                        return false // Empêcher le retrait du dernier travailleur pendant l'incubation
+                    }
+                }
+                oldRoom.occupants = oldRoom.occupants.filter(id => id !== habitantId)
+            }
         }
-      }
     }
 
     // Affecter l'habitant à la nouvelle salle
@@ -2178,16 +2185,55 @@ export const useGameStore = defineStore('game', () => {
     const room = position === 'left' ? level.leftRooms[roomIndex] : level.rightRooms[roomIndex]
     if (!room || !room.isBuilt || room.type !== 'infirmerie') return false
 
+    // Vérifier s'il y a au moins un travailleur dans l'infirmerie
+    if (room.occupants.length === 0) {
+        window.dispatchEvent(new CustomEvent('excavation-complete', {
+            detail: {
+                title: 'Incubation impossible',
+                message: 'Il faut au moins un travailleur dans l\'infirmerie pour incuber un embryon.',
+                type: 'error'
+            }
+        }))
+        return false
+    }
+
     // Vérifier si la nurserie est construite et opérationnelle
     const nurserie = room.equipments.find(e => e.type === 'nurserie' && !e.isUnderConstruction)
-    if (!nurserie) return false
+    if (!nurserie) {
+        window.dispatchEvent(new CustomEvent('excavation-complete', {
+            detail: {
+                title: 'Incubation impossible',
+                message: 'Une nurserie opérationnelle est nécessaire pour incuber un embryon.',
+                type: 'error'
+            }
+        }))
+        return false
+    }
 
     // Vérifier si la nurserie n'est pas déjà en train d'incuber
-    if (nurserie.nurserieState?.isIncubating) return false
+    if (nurserie.nurserieState?.isIncubating) {
+        window.dispatchEvent(new CustomEvent('excavation-complete', {
+            detail: {
+                title: 'Incubation impossible',
+                message: 'Une incubation est déjà en cours dans cette nurserie.',
+                type: 'error'
+            }
+        }))
+        return false
+    }
 
     // Vérifier s'il y a des embryons disponibles
     const embryonsDisponibles = getItemQuantity(embryonType)
-    if (embryonsDisponibles <= 0) return false
+    if (embryonsDisponibles <= 0) {
+        window.dispatchEvent(new CustomEvent('excavation-complete', {
+            detail: {
+                title: 'Incubation impossible',
+                message: 'Aucun embryon disponible pour l\'incubation.',
+                type: 'error'
+            }
+        }))
+        return false
+    }
 
     // Trouver un embryon à utiliser et le retirer de l'inventaire
     const embryonItem = inventory.value.find(item => item.type === embryonType && item.quantity > 0)
