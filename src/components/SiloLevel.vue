@@ -511,7 +511,7 @@ onMounted(() => {
     margin-left: -2px;
   }
 
-  @each $type in (entrepot, dortoir, cuisine, station-traitement, generateur, infirmerie, serre, raffinerie) {
+  @each $type in (entrepot, dortoir, cuisine, station-traitement, generateur, infirmerie, serre, raffinerie, derrick) {
     &.room-type-#{$type} {
       --room-color: var(--room-#{$type}-color);
       border-color: var(--room-#{$type}-color);
@@ -707,7 +707,7 @@ onMounted(() => {
 }
 
 // Styles spécifiques pour chaque type de salle
-@each $type in (entrepot, dortoir, cuisine, station-traitement, generateur, infirmerie, serre) {
+@each $type in (entrepot, dortoir, cuisine, station-traitement, generateur, infirmerie, serre, raffinerie, derrick) {
   .room-type-#{$type} {
     --room-color: var(--room-#{$type}-color);
   }

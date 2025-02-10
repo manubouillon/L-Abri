@@ -115,6 +115,13 @@ const roomTypes = [
     icon: '⚒️',
     description: 'Raffine les minerais en lingots',
     category: 'production'
+  },
+  {
+    id: 'derrick',
+    name: 'Derrick',
+    icon: '🛢️',
+    description: 'Extrait du pétrole pour alimenter les générateurs',
+    category: 'production'
   }
 ]
 
@@ -255,7 +262,8 @@ defineEmits<{
     generateur: var(--room-generateur-color),
     infirmerie: var(--room-infirmerie-color),
     serre: var(--room-serre-color),
-    raffinerie: var(--room-production-color)
+    raffinerie: var(--room-raffinerie-color),
+    derrick: var(--room-derrick-color)
   ) {
     &.room-type-#{$type} {
       border-color: $color;

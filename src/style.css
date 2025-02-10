@@ -34,7 +34,8 @@
   --room-energie-color: #f1c40f;
   --room-medical-color: #2ecc71;
   --room-production-color: #8e44ad;
-  --room-raffinerie-color: #8e44ad;
+  --room-raffinerie-color: #9b59b6;
+  --room-derrick-color: #8e44ad;
 }
 
 * {

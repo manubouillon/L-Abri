@@ -126,7 +126,7 @@ export const ROOM_CATEGORIES: RoomCategory[] = [
   {
     id: 'production',
     name: 'Production',
-    rooms: ['raffinerie']
+    rooms: ['raffinerie', 'derrick']
   }
 ]
 
@@ -168,7 +168,8 @@ export const ROOM_MERGE_CONFIG: { [key: string]: { useMultiplier: boolean } } = 
   generateur: { useMultiplier: true },
   infirmerie: { useMultiplier: true },
   serre: { useMultiplier: true },
-  raffinerie: { useMultiplier: true }
+  raffinerie: { useMultiplier: true },
+  derrick: { useMultiplier: true }
 }
 
 export const INITIAL_LEVELS = GAME_CONFIG.INITIAL_LEVELS // Nombre de niveaux au départ
@@ -335,7 +336,18 @@ export const ROOM_CONFIGS: { [key: string]: RoomConfig } = {
         }
       }
     }
-  }
+  },
+  derrick: {
+    maxWorkers: 2,
+    energyConsumption: 4, // 4 unités d'énergie par semaine
+    productionPerWorker: {
+      energie: -1 // Consommation d'énergie par travailleur
+    },
+    fuelConsumption: 0, // Ne consomme pas de carburant
+    resourceProduction: {
+      'baril-petrole': 2 // Produit 2 barils de pétrole par semaine par travailleur
+    }
+  } as ProductionRoomConfig
 } as const
 
 const PRENOMS = [
@@ -627,6 +639,12 @@ export const ROOM_CONSTRUCTION_COSTS: { [key: string]: { [key in ItemType]?: num
     'lingot-cuivre': 25,
     'lingot-silicium': 20,
     'lingot-or': 10
+  },
+  derrick: {
+    'lingot-fer': 45,
+    'lingot-acier': 25,
+    'lingot-cuivre': 20,
+    'lingot-silicium': 15
   }
 }
 
