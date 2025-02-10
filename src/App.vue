@@ -6,7 +6,7 @@
       <div class="game-controls">
         <button @click="resetGame">Réinitialiser</button>
         <button @click="showInventory = true">
-          Inventaire ({{ inventorySpace.used }}/{{ inventorySpace.total }})
+          Inventaire ({{ Math.floor(inventorySpace.used) }}/{{ inventorySpace.total }})
         </button>
         <button @click="togglePause">{{ isPaused ? 'Reprendre' : 'Pause' }}</button>
         <div class="game-speed">
@@ -55,9 +55,8 @@ import NotificationSystem from './components/NotificationSystem.vue'
 
 // État du jeu
 const gameStore = useGameStore()
-const { levels, inventorySpace } = storeToRefs(gameStore)
+const { levels, inventorySpace, gameSpeed } = storeToRefs(gameStore)
 const isPaused = ref(false)
-const gameSpeed = ref(1)
 const scrollPosition = ref(0)
 const showHabitantsList = ref(false)
 const showInventory = ref(false)
@@ -77,11 +76,11 @@ const togglePause = () => {
 }
 
 const increaseSpeed = () => {
-  if (gameSpeed.value < 50) gameSpeed.value++
+  gameStore.increaseGameSpeed()
 }
 
 const decreaseSpeed = () => {
-  if (gameSpeed.value > 1) gameSpeed.value--
+  gameStore.decreaseGameSpeed()
 }
 
 const resetGame = () => {

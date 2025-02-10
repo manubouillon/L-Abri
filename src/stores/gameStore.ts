@@ -73,6 +73,10 @@ export interface Room {
   stairsPosition?: 'left' | 'right'
   equipments: Equipment[]
   fuelLevel?: number // Niveau de carburant en pourcentage (0-100)
+  nextMineralsToProcess?: { // Pour la raffinerie
+    input: { type: ItemType, amount: number }[]
+    output: { type: ItemType, amount: number }
+  }
 }
 
 export interface Level {
@@ -146,6 +150,7 @@ export const GAME_CONFIG = {
       rooms: [
         { position: 'left', index: 0, type: 'dortoir', gridSize: 2, workers: 0 },
         { position: 'left', index: 2, type: 'entrepot', gridSize: 1, workers: 0 },
+        //{ position: 'left', index: 4, type: 'raffinerie', gridSize: 1, workers: 1 },
         { position: 'right', index: 0, type: 'generateur', gridSize: 2, workers: 1 },
         { position: 'right', index: 2, type: 'station-traitement', gridSize: 1, workers: 1 },
         { position: 'right', index: 3, type: 'serre', gridSize: 1, workers: 1 }
@@ -239,11 +244,21 @@ interface ProductionRoomConfig extends RoomConfigBase {
   resourceProduction?: {
     [key in ResourceKey]?: number
   }
+  mineralsProcessingPerWorker?: number // Nombre de minerais traités par travailleur par semaine
+  conversionRules?: {
+    [key: string]: {
+      output: ItemType,
+      ratio: number,
+      requires?: {
+        [key: string]: number
+      }
+    }
+  }
 }
 
 type RoomConfig = StorageRoomConfig | DortoryRoomConfig | ProductionRoomConfig
 
-const ROOM_CONFIGS: { [key: string]: RoomConfig } = {
+export const ROOM_CONFIGS: { [key: string]: RoomConfig } = {
   entrepot: {
     maxWorkers: 2,
     energyConsumption: 1, // 1 unité d'énergie par semaine
@@ -300,9 +315,28 @@ const ROOM_CONFIGS: { [key: string]: RoomConfig } = {
     energyConsumption: 5, // 5 unités d'énergie par semaine
     productionPerWorker: {
       energie: -1 // Consommation d'énergie par travailleur
+    },
+    mineralsProcessingPerWorker: 5, // Nombre de minerais traités par travailleur par semaine
+    conversionRules: {
+      'minerai-fer': { output: 'lingot-fer', ratio: 0.8 }, // 80% de rendement
+      'minerai-cuivre': { output: 'lingot-cuivre', ratio: 0.8 },
+      'minerai-silicium': { output: 'lingot-silicium', ratio: 0.7 },
+      'minerai-or': { output: 'lingot-or', ratio: 0.9 },
+      'minerai-charbon': { output: 'lingot-acier', ratio: 0.6, requires: { 'minerai-fer': 2 } } // 2 fer + 1 charbon = 0.6 acier
     }
-  } as ProductionRoomConfig
-}
+  } as ProductionRoomConfig & {
+    mineralsProcessingPerWorker: number,
+    conversionRules: {
+      [key: string]: {
+        output: ItemType,
+        ratio: number,
+        requires?: {
+          [key: string]: number
+        }
+      }
+    }
+  }
+} as const
 
 const PRENOMS = [
   'Jean', 'Pierre', 'Luc', 'Louis', 'Thomas', 'Paul', 'Nicolas', 'Antoine', // Prénoms masculins
@@ -606,6 +640,7 @@ export const useGameStore = defineStore('game', () => {
   const excavationsInProgress = ref<ExcavationProgress[]>([])
   const habitants = ref<Habitant[]>([])
   const excavations = ref<Excavation[]>([])
+  const gameSpeed = ref(1) // Ajout de la vitesse du jeu
   const resources = ref<{ [key: string]: Resource }>({
     energie: { amount: 0, capacity: 200, production: 0, consumption: 0 },
     eau: { amount: 0, capacity: 200, production: 0, consumption: 0 },
@@ -896,8 +931,60 @@ export const useGameStore = defineStore('game', () => {
       }
     ]
     
+    // Ajouter les minerais initiaux
+    const mineraisInitiaux: Item[] = [
+      {
+        id: `minerai-fer-${Date.now()}-1`,
+        type: 'minerai-fer',
+        quantity: 200,
+        stackSize: ITEMS_CONFIG['minerai-fer'].stackSize,
+        description: ITEMS_CONFIG['minerai-fer'].description,
+        category: ITEMS_CONFIG['minerai-fer'].category
+      },
+      {
+        id: `minerai-cuivre-${Date.now()}-1`,
+        type: 'minerai-cuivre',
+        quantity: 200,
+        stackSize: ITEMS_CONFIG['minerai-cuivre'].stackSize,
+        description: ITEMS_CONFIG['minerai-cuivre'].description,
+        category: ITEMS_CONFIG['minerai-cuivre'].category
+      },
+      {
+        id: `minerai-silicium-${Date.now()}-1`,
+        type: 'minerai-silicium',
+        quantity: 200,
+        stackSize: ITEMS_CONFIG['minerai-silicium'].stackSize,
+        description: ITEMS_CONFIG['minerai-silicium'].description,
+        category: ITEMS_CONFIG['minerai-silicium'].category
+      },
+      {
+        id: `minerai-or-${Date.now()}-1`,
+        type: 'minerai-or',
+        quantity: 200,
+        stackSize: ITEMS_CONFIG['minerai-or'].stackSize,
+        description: ITEMS_CONFIG['minerai-or'].description,
+        category: ITEMS_CONFIG['minerai-or'].category
+      },
+      {
+        id: `minerai-charbon-${Date.now()}-1`,
+        type: 'minerai-charbon',
+        quantity: 200,
+        stackSize: ITEMS_CONFIG['minerai-charbon'].stackSize,
+        description: ITEMS_CONFIG['minerai-charbon'].description,
+        category: ITEMS_CONFIG['minerai-charbon'].category
+      },
+      {
+        id: `minerai-calcaire-${Date.now()}-1`,
+        type: 'minerai-calcaire',
+        quantity: 200,
+        stackSize: ITEMS_CONFIG['minerai-calcaire'].stackSize,
+        description: ITEMS_CONFIG['minerai-calcaire'].description,
+        category: ITEMS_CONFIG['minerai-calcaire'].category
+      }
+    ]
+    
     // Ajouter les items à l'inventaire
-    inventory.value.push(embryons, barilsPetrole, nourritureConserve, barilsVides, cereales, ...lingotsInitiaux)
+    inventory.value.push(embryons, barilsPetrole, nourritureConserve, barilsVides, cereales, ...lingotsInitiaux, ...mineraisInitiaux)
 
     // Réinitialiser les autres valeurs
     gameTime.value = 0
@@ -1051,6 +1138,85 @@ export const useGameStore = defineStore('game', () => {
               resources.value[resource as ResourceKey].capacity += amount * nbWorkers * gridSize * mergeMultiplier
             }
           })
+        }
+
+        // Gestion spéciale de la raffinerie
+        if (room.type === 'raffinerie' && room.occupants.length > 0) {
+          const nbWorkers = room.occupants.length
+          const gridSize = room.gridSize || 1
+          const mergeMultiplier = mergeConfig?.useMultiplier 
+            ? GAME_CONFIG.MERGE_MULTIPLIERS[Math.min(gridSize, 6) as keyof typeof GAME_CONFIG.MERGE_MULTIPLIERS] || 1
+            : 1
+
+          // Calculer le nombre total de minerais pouvant être traités
+          const totalProcessingCapacity = (config as any).mineralsProcessingPerWorker * nbWorkers * gridSize * mergeMultiplier
+
+          // Trouver les prochains minerais à traiter
+          const conversionRules = (config as any).conversionRules
+          let remainingCapacity = totalProcessingCapacity
+
+          // Réinitialiser les prochains minerais à traiter
+          room.nextMineralsToProcess = {
+            input: [],
+            output: { type: 'lingot-fer', amount: 0 } // Valeur par défaut, sera mise à jour
+          }
+
+          // Vérifier chaque règle de conversion
+          for (const [inputType, rule] of Object.entries(conversionRules)) {
+            if (remainingCapacity <= 0) break
+
+            const inputItem = inventory.value.find(item => item.type === inputType && item.quantity > 0)
+            if (!inputItem) continue
+
+            if (rule.requires) {
+              // Cas spécial pour l'acier qui nécessite du fer et du charbon
+              const canProcess = Object.entries(rule.requires).every(([reqType, reqAmount]) => {
+                const reqItem = inventory.value.find(item => item.type === reqType && item.quantity >= reqAmount)
+                return reqItem !== undefined
+              })
+
+              if (canProcess) {
+                const maxPossible = Math.min(
+                  remainingCapacity,
+                  inputItem.quantity,
+                  ...Object.entries(rule.requires).map(([reqType, reqAmount]) => {
+                    const reqItem = inventory.value.find(item => item.type === reqType)
+                    return reqItem ? Math.floor(reqItem.quantity / reqAmount) : 0
+                  })
+                )
+
+                if (maxPossible > 0) {
+                  room.nextMineralsToProcess = {
+                    input: [
+                      { type: inputType as ItemType, amount: maxPossible },
+                      ...Object.entries(rule.requires).map(([reqType, reqAmount]) => ({
+                        type: reqType as ItemType,
+                        amount: maxPossible * reqAmount
+                      }))
+                    ],
+                    output: {
+                      type: rule.output,
+                      amount: Math.floor(maxPossible * rule.ratio)
+                    }
+                  }
+                  remainingCapacity -= maxPossible
+                }
+              }
+            } else {
+              // Cas simple de conversion 1:1
+              const maxPossible = Math.min(remainingCapacity, inputItem.quantity)
+              if (maxPossible > 0) {
+                room.nextMineralsToProcess = {
+                  input: [{ type: inputType as ItemType, amount: maxPossible }],
+                  output: {
+                    type: rule.output,
+                    amount: Math.floor(maxPossible * rule.ratio)
+                  }
+                }
+                remainingCapacity -= maxPossible
+              }
+            }
+          }
         }
       })
     })
@@ -1212,7 +1378,119 @@ export const useGameStore = defineStore('game', () => {
       }
 
       // Vérifier si une semaine s'est écoulée
-      if (Math.floor(gameTime.value / 52) > Math.floor(previousGameTime / 52)) {
+      if (Math.floor(gameTime.value) > Math.floor(previousGameTime)) {
+        // Traiter les minerais dans les raffineries
+        levels.value.forEach(level => {
+          const allRooms = [...level.leftRooms, ...level.rightRooms]
+          allRooms.forEach(room => {
+            if (room.isBuilt && room.type === 'raffinerie' && room.occupants.length > 0) {
+              const nbWorkers = room.occupants.length
+              const gridSize = room.gridSize || 1
+              const mergeConfig = ROOM_MERGE_CONFIG[room.type]
+              const mergeMultiplier = mergeConfig?.useMultiplier 
+                ? GAME_CONFIG.MERGE_MULTIPLIERS[Math.min(gridSize, 6) as keyof typeof GAME_CONFIG.MERGE_MULTIPLIERS] || 1
+                : 1
+
+              // Effectuer autant de conversions que la vitesse actuelle
+              const batchesToProcess = speed
+
+              // Vérifier si la conversion actuelle est possible
+              let canProcess = false
+              if (room.nextMineralsToProcess) {
+                canProcess = room.nextMineralsToProcess.input.every(({ type, amount }) => {
+                  const needed = amount * batchesToProcess
+                  const available = getItemQuantity(type)
+                  return available >= needed
+                })
+              }
+
+              // Si la conversion actuelle n'est pas possible, chercher une autre conversion faisable
+              if (!canProcess) {
+                const config = ROOM_CONFIGS.raffinerie
+                const conversionRules = (config as any).conversionRules
+
+                // Parcourir toutes les règles de conversion pour en trouver une faisable
+                for (const [inputType, rule] of Object.entries(conversionRules)) {
+                  const inputItem = inventory.value.find(item => item.type === inputType && item.quantity > 0)
+                  if (!inputItem) continue
+
+                  if (rule.requires) {
+                    // Vérifier si tous les composants requis sont disponibles
+                    const hasAllComponents = Object.entries(rule.requires).every(([reqType, reqAmount]) => {
+                      const reqItem = inventory.value.find(item => item.type === reqType)
+                      return reqItem && reqItem.quantity >= (reqAmount as number) * batchesToProcess
+                    })
+
+                    if (hasAllComponents) {
+                      room.nextMineralsToProcess = {
+                        input: [
+                          { type: inputType as ItemType, amount: 1 },
+                          ...Object.entries(rule.requires).map(([reqType, reqAmount]) => ({
+                            type: reqType as ItemType,
+                            amount: reqAmount as number
+                          }))
+                        ],
+                        output: {
+                          type: rule.output as ItemType,
+                          amount: rule.ratio as number
+                        }
+                      }
+                      canProcess = true
+                      break
+                    }
+                  } else {
+                    // Conversion simple
+                    if (inputItem.quantity >= batchesToProcess) {
+                      room.nextMineralsToProcess = {
+                        input: [{ type: inputType as ItemType, amount: 1 }],
+                        output: {
+                          type: rule.output as ItemType,
+                          amount: rule.ratio as number
+                        }
+                      }
+                      canProcess = true
+                      break
+                    }
+                  }
+                }
+              }
+
+              // Si une conversion est possible, l'effectuer
+              if (canProcess && room.nextMineralsToProcess) {
+                const { input, output } = room.nextMineralsToProcess
+                
+                // Retirer les ressources d'entrée
+                input.forEach(({ type, amount }) => {
+                  const toRemove = amount * batchesToProcess
+                  const items = inventory.value.filter(item => item.type === type)
+                  let remaining = toRemove
+
+                  for (const item of items) {
+                    if (remaining <= 0) break
+                    const remove = Math.min(remaining, item.quantity)
+                    removeItem(item.id, remove)
+                    remaining -= remove
+                  }
+                })
+
+                // Ajouter les ressources de sortie
+                const outputAmount = output.amount * batchesToProcess
+                addItem(output.type, outputAmount)
+
+                // Émettre un événement pour mettre à jour l'interface
+                window.dispatchEvent(new CustomEvent('conversion-update', {
+                  detail: {
+                    type: 'success',
+                    input: input,
+                    output: output,
+                    amount: batchesToProcess
+                  }
+                }))
+              }
+            }
+          })
+        })
+
         // Mise à jour des équipements en construction
         levels.value?.forEach(level => {
           const allRooms = [...(level.leftRooms || []), ...(level.rightRooms || [])]
@@ -1454,7 +1732,8 @@ export const useGameStore = defineStore('game', () => {
       excavations: excavations.value,
       habitants: habitants.value,
       inventory: inventory.value,
-      inventoryCapacity: inventoryCapacity.value
+      inventoryCapacity: inventoryCapacity.value,
+      gameSpeed: gameSpeed.value // Ajout de la sauvegarde de la vitesse
     }
     localStorage.setItem('abriGameState', JSON.stringify(gameState))
   }
@@ -1473,6 +1752,7 @@ export const useGameStore = defineStore('game', () => {
       habitants.value = state.habitants || []
       inventory.value = state.inventory || []
       inventoryCapacity.value = state.inventoryCapacity || 1000
+      gameSpeed.value = state.gameSpeed || 1 // Chargement de la vitesse
       return true
     }
     return false
@@ -1856,6 +2136,23 @@ export const useGameStore = defineStore('game', () => {
     initGame()
   }
 
+  // Ajout des fonctions de contrôle de la vitesse
+  function setGameSpeed(speed: number) {
+    gameSpeed.value = speed
+  }
+
+  function increaseGameSpeed() {
+    if (gameSpeed.value < 50) {
+      gameSpeed.value++
+    }
+  }
+
+  function decreaseGameSpeed() {
+    if (gameSpeed.value > 1) {
+      gameSpeed.value--
+    }
+  }
+
   return {
     // État
     resources,
@@ -1893,6 +2190,7 @@ export const useGameStore = defineStore('game', () => {
     ROOM_CONFIGS,
     ROOM_MERGE_CONFIG,
     GAME_CONFIG,
+    ITEMS_CONFIG,
     addStairs,
     addEquipment,
     createNewHabitant,
@@ -1904,6 +2202,10 @@ export const useGameStore = defineStore('game', () => {
     inventorySpace,
     addItem,
     removeItem,
-    getItemQuantity
+    getItemQuantity,
+    gameSpeed,
+    setGameSpeed,
+    increaseGameSpeed,
+    decreaseGameSpeed
   }
 }) 

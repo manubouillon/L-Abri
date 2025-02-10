@@ -1,187 +1,195 @@
 <template>
   <div class="modal-overlay" @click="$emit('close')">
     <div class="modal-content" @click.stop>
-      <h2>{{ room.type }}</h2>
-      
-      <div class="modal-tabs">
-        <button 
-          :class="{ active: activeTab === 'info' }" 
-          @click="activeTab = 'info'"
-        >
-          Informations
-        </button>
-        <button 
-          :class="{ active: activeTab === 'equipment' }" 
-          @click="activeTab = 'equipment'"
-        >
-          Équipements
-        </button>
+      <div v-if="props.room.type === 'raffinerie'">
+        <RefineryDetailsModal 
+          :room="props.room"
+          @close="$emit('close')" 
+        />
       </div>
-
-      <div v-if="activeTab === 'info'">
-        <div class="error-message" v-if="errorMessage">{{ errorMessage }}</div>
+      <div v-else>
+        <h2>{{ room.type }}</h2>
         
-        <div class="production-details" v-if="isProductionRoom">
-          <h3>Détails de la production</h3>
-          <div class="production-formula">
-            <div class="formula-row" v-if="room.type === 'generateur'">
-              <span class="label">Niveau de carburant:</span>
-              <div class="fuel-gauge">
-                <div class="fuel-bar" :style="{ width: `${room.fuelLevel || 0}%` }"></div>
-                <span class="fuel-text">{{ Math.floor(room.fuelLevel || 0) }}%</span>
-              </div>
-            </div>
-            <div class="formula-row">
-              <span class="label">Production de base par travailleur:</span>
-              <span v-for="(amount, resource) in baseProduction" :key="resource">
-                {{ resource }}: {{ amount }}/s
-              </span>
-            </div>
-            <div class="formula-row">
-              <span class="label">Nombre de travailleurs:</span>
-              <span>{{ room.occupants.length }}👥</span>
-            </div>
-            <div class="formula-row">
-              <span class="label">Taille de la salle:</span>
-              <span>{{ room.gridSize || 1 }}��</span>
-            </div>
-            <div class="formula-row">
-              <span class="label">Multiplicateur de fusion:</span>
-              <span>{{ getMergeMultiplier }}✨</span>
-            </div>
-            <div class="formula-row total">
-              <span class="label">Production totale:</span>
-              <span>{{ getTotalProduction }}</span>
-            </div>
-          </div>
+        <div class="modal-tabs">
+          <button 
+            :class="{ active: activeTab === 'info' }" 
+            @click="activeTab = 'info'"
+          >
+            Informations
+          </button>
+          <button 
+            :class="{ active: activeTab === 'equipment' }" 
+            @click="activeTab = 'equipment'"
+          >
+            Équipements
+          </button>
         </div>
 
-        <div class="room-info">
-          <div class="production" v-if="roomConfig.productionPerWorker">
-            <h3>Production par travailleur</h3>
-            <div 
-              v-for="(amount, resource) in roomConfig.productionPerWorker" 
-              :key="resource"
-              class="production-item"
-            >
-              <span class="resource">{{ resource }}:</span>
-              <span class="amount">+{{ amount }}/s</span>
+        <div v-if="activeTab === 'info'">
+          <div class="error-message" v-if="errorMessage">{{ errorMessage }}</div>
+          
+          <div class="production-details" v-if="isProductionRoom">
+            <h3>Détails de la production</h3>
+            <div class="production-formula">
+              <div class="formula-row" v-if="room.type === 'generateur'">
+                <span class="label">Niveau de carburant:</span>
+                <div class="fuel-gauge">
+                  <div class="fuel-bar" :style="{ width: `${room.fuelLevel || 0}%` }"></div>
+                  <span class="fuel-text">{{ Math.floor(room.fuelLevel || 0) }}%</span>
+                </div>
+              </div>
+              <div class="formula-row">
+                <span class="label">Production de base par travailleur:</span>
+                <span v-for="(amount, resource) in baseProduction" :key="resource">
+                  {{ resource }}: {{ amount }}/s
+                </span>
+              </div>
+              <div class="formula-row">
+                <span class="label">Nombre de travailleurs:</span>
+                <span>{{ room.occupants.length }}👥</span>
+              </div>
+              <div class="formula-row">
+                <span class="label">Taille de la salle:</span>
+                <span>{{ room.gridSize || 1 }}</span>
+              </div>
+              <div class="formula-row">
+                <span class="label">Multiplicateur de fusion:</span>
+                <span>{{ getMergeMultiplier }}✨</span>
+              </div>
+              <div class="formula-row total">
+                <span class="label">Production totale:</span>
+                <span>{{ getTotalProduction }}</span>
+              </div>
             </div>
           </div>
 
-          <div class="storage" v-if="roomConfig.capacityPerWorker">
-            <h3>Capacité de stockage par travailleur</h3>
-            <div 
-              v-for="(amount, resource) in roomConfig.capacityPerWorker" 
-              :key="resource"
-              class="storage-item"
-            >
-              <span class="resource">{{ resource }}:</span>
-              <span class="amount">+{{ amount }}</span>
-            </div>
-          </div>
-
-          <div class="workers">
-            <h3>Travailleurs ({{ room.occupants.length }}/{{ roomConfig.maxWorkers }})</h3>
-            <div class="workers-list">
+          <div class="room-info">
+            <div class="production" v-if="roomConfig.productionPerWorker">
+              <h3>Production par travailleur</h3>
               <div 
-                v-for="habitantId in room.occupants" 
-                :key="habitantId"
-                class="worker"
+                v-for="(amount, resource) in roomConfig.productionPerWorker" 
+                :key="resource"
+                class="production-item"
               >
-                <span class="name">{{ getHabitantName(habitantId) }}</span>
-                <button class="remove" @click="retirerHabitant(habitantId)">Retirer</button>
+                <span class="resource">{{ resource }}:</span>
+                <span class="amount">+{{ amount }}/s</span>
               </div>
             </div>
 
-            <div class="add-worker" v-if="room.occupants.length < roomConfig.maxWorkers">
-              <select v-model="selectedHabitant">
-                <option value="">Sélectionner un habitant</option>
-                <option 
-                  v-for="habitant in habitantsDisponibles" 
-                  :key="habitant.id"
-                  :value="habitant.id"
+            <div class="storage" v-if="roomConfig.capacityPerWorker">
+              <h3>Capacité de stockage par travailleur</h3>
+              <div 
+                v-for="(amount, resource) in roomConfig.capacityPerWorker" 
+                :key="resource"
+                class="storage-item"
+              >
+                <span class="resource">{{ resource }}:</span>
+                <span class="amount">+{{ amount }}</span>
+              </div>
+            </div>
+
+            <div class="workers">
+              <h3>Travailleurs ({{ room.occupants.length }}/{{ roomConfig.maxWorkers }})</h3>
+              <div class="workers-list">
+                <div 
+                  v-for="habitantId in room.occupants" 
+                  :key="habitantId"
+                  class="worker"
                 >
-                  {{ habitant.nom }}
-                </option>
-              </select>
-              <button 
-                @click="ajouterHabitant"
-                :disabled="!selectedHabitant"
-              >
-                Ajouter
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div v-else-if="activeTab === 'equipment'" class="equipment-tab">
-        <div class="available-equipment" v-if="canAddMoreEquipment">
-          <h3>Équipements disponibles</h3>
-          <div class="equipment-list">
-            <div 
-              v-for="(config, type) in availableEquipments" 
-              :key="type"
-              class="equipment-item"
-            >
-              <div class="equipment-info">
-                <h4>{{ type }}</h4>
-                <p>{{ config.description }}</p>
-                <p class="construction-time">
-                  Temps de construction: {{ config.constructionTime }} semaines
-                </p>
+                  <span class="name">{{ getHabitantName(habitantId) }}</span>
+                  <button class="remove" @click="retirerHabitant(habitantId)">Retirer</button>
+                </div>
               </div>
-              <button 
-                @click="addEquipment(type)"
-                :disabled="hasEquipment(type)"
-              >
-                Installer
-              </button>
+
+              <div class="add-worker" v-if="room.occupants.length < roomConfig.maxWorkers">
+                <select v-model="selectedHabitant">
+                  <option value="">Sélectionner un habitant</option>
+                  <option 
+                    v-for="habitant in habitantsDisponibles" 
+                    :key="habitant.id"
+                    :value="habitant.id"
+                  >
+                    {{ habitant.nom }}
+                  </option>
+                </select>
+                <button 
+                  @click="ajouterHabitant"
+                  :disabled="!selectedHabitant"
+                >
+                  Ajouter
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
-        <div class="installed-equipment">
-          <h3>Équipements installés ({{ room.equipments?.length || 0 }}/{{ maxEquipments }})</h3>
-          <div class="equipment-list">
-            <div 
-              v-for="equipment in (room.equipments || [])" 
-              :key="equipment.id"
-              class="equipment-item"
-            >
-              <div class="equipment-info">
-                <h4>{{ equipment.type }}</h4>
-                <template v-if="equipment.isUnderConstruction">
-                  <div class="construction-progress">
-                    <div 
-                      class="progress-bar"
-                      :style="{ width: `${getEquipmentProgress(equipment)}%` }"
-                    ></div>
-                    <span class="progress-text">
-                      Construction: {{ getRemainingConstructionTime(equipment) }} semaines
-                    </span>
-                  </div>
-                </template>
-                <template v-else>
-                  <span class="status">Opérationnel</span>
-                  <template v-if="equipment.type === 'nurserie'">
-                    <NurserieInterface
-                      :levelId="props.levelId"
-                      :position="props.room.position"
-                      :roomIndex="props.room.index"
-                      :equipmentId="equipment.id"
-                    />
+        <div v-else-if="activeTab === 'equipment'" class="equipment-tab">
+          <div class="available-equipment" v-if="canAddMoreEquipment">
+            <h3>Équipements disponibles</h3>
+            <div class="equipment-list">
+              <div 
+                v-for="(config, type) in availableEquipments" 
+                :key="type"
+                class="equipment-item"
+              >
+                <div class="equipment-info">
+                  <h4>{{ type }}</h4>
+                  <p>{{ config.description }}</p>
+                  <p class="construction-time">
+                    Temps de construction: {{ config.constructionTime }} semaines
+                  </p>
+                </div>
+                <button 
+                  @click="addEquipment(type)"
+                  :disabled="hasEquipment(type)"
+                >
+                  Installer
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="installed-equipment">
+            <h3>Équipements installés ({{ room.equipments?.length || 0 }}/{{ maxEquipments }})</h3>
+            <div class="equipment-list">
+              <div 
+                v-for="equipment in (room.equipments || [])" 
+                :key="equipment.id"
+                class="equipment-item"
+              >
+                <div class="equipment-info">
+                  <h4>{{ equipment.type }}</h4>
+                  <template v-if="equipment.isUnderConstruction">
+                    <div class="construction-progress">
+                      <div 
+                        class="progress-bar"
+                        :style="{ width: `${getEquipmentProgress(equipment)}%` }"
+                      ></div>
+                      <span class="progress-text">
+                        Construction: {{ getRemainingConstructionTime(equipment) }} semaines
+                      </span>
+                    </div>
                   </template>
-                </template>
+                  <template v-else>
+                    <span class="status">Opérationnel</span>
+                    <template v-if="equipment.type === 'nurserie'">
+                      <NurserieInterface
+                        :levelId="props.levelId"
+                        :position="props.room.position"
+                        :roomIndex="props.room.index"
+                        :equipmentId="equipment.id"
+                      />
+                    </template>
+                  </template>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <div class="modal-actions">
-        <button @click="$emit('close')">Fermer</button>
+        <div class="modal-actions">
+          <button @click="$emit('close')">Fermer</button>
+        </div>
       </div>
     </div>
   </div>
@@ -193,6 +201,7 @@ import { storeToRefs } from 'pinia'
 import { useGameStore } from '../stores/gameStore'
 import type { Room, Equipment } from '../stores/gameStore'
 import NurserieInterface from './NurserieInterface.vue'
+import RefineryDetailsModal from './RefineryDetailsModal.vue'
 
 const props = defineProps<{
   room: Room
