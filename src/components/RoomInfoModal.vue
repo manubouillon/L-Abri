@@ -31,8 +31,8 @@
           <div class="production-details" v-if="isProductionRoom">
             <h3>Détails de la production</h3>
             <div class="production-formula">
-              <div class="formula-row" v-if="room.type === 'generateur'">
-                <span class="label">Niveau de carburant:</span>
+              <div class="formula-row" v-if="room.type === 'generateur' || room.type === 'derrick'">
+                <span class="label">{{ room.type === 'generateur' ? 'Niveau de carburant:' : 'Progression du forage:' }}</span>
                 <div class="fuel-gauge">
                   <div class="fuel-bar" :style="{ width: `${room.fuelLevel || 0}%` }"></div>
                   <span class="fuel-text">{{ Math.floor(room.fuelLevel || 0) }}%</span>

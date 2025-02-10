@@ -28,20 +28,26 @@
                 <span class="room-type">{{ room.type }}</span>
                 <span class="room-size" v-if="room.gridSize && room.gridSize > 1">x{{ room.gridSize }}</span>
                 <div class="room-occupants">
-                  <div class="occupant" v-for="occupantId in room.occupants" :key="occupantId">
-                    {{ getHabitantGenre(occupantId) === 'H' ? '👨' : '👩' }}
-                  </div>
+                  <span 
+                    v-for="(occupant, index) in room.occupants" 
+                    :key="index"
+                    class="occupant"
+                  >
+                    👤
+                  </span>
                 </div>
-                <div class="room-production" v-if="getRoomProduction(room)">
+                <div v-if="room.type === 'generateur' || room.type === 'derrick'" class="fuel-gauge">
+                  <div class="fuel-bar" :style="{ width: `${room.fuelLevel || 0}%` }"></div>
+                  <span class="fuel-text">{{ Math.floor(room.fuelLevel || 0) }}%</span>
+                </div>
+                <div class="room-production" v-if="getRoomProductionSimple(room)">
                   <div class="production-detail">
                     {{ getRoomProductionSimple(room) }}
                   </div>
                 </div>
-                <div v-if="room.type === 'generateur' && room.fuelLevel !== undefined" class="fuel-progress-bar">
-                  <div class="fuel-progress" :style="{ height: `${100 - room.fuelLevel}%`, top: 0 }"></div>
-                </div>
-                <div v-if="room.type === 'infirmerie' && room.equipments.some(e => e.type === 'nurserie' && e.nurserieState?.isIncubating)" class="incubation-progress-bar">
-                  <div class="incubation-progress" :style="{ height: `${100 - getIncubationProgress(room)}%` }"></div>
+                <div v-if="room.type === 'infirmerie' && room.equipments.some(e => e.type === 'nurserie' && e.nurserieState?.isIncubating)" class="incubation-gauge">
+                  <div class="incubation-bar" :style="{ width: `${getIncubationProgress(room)}%` }"></div>
+                  <span class="incubation-text">{{ Math.floor(getIncubationProgress(room)) }}%</span>
                 </div>
               </div>
             </template>
@@ -123,20 +129,26 @@
                 <span class="room-type">{{ room.type }}</span>
                 <span class="room-size" v-if="room.gridSize && room.gridSize > 1">x{{ room.gridSize }}</span>
                 <div class="room-occupants">
-                  <div class="occupant" v-for="occupantId in room.occupants" :key="occupantId">
-                    {{ getHabitantGenre(occupantId) === 'H' ? '👨' : '👩' }}
-                  </div>
+                  <span 
+                    v-for="(occupant, index) in room.occupants" 
+                    :key="index"
+                    class="occupant"
+                  >
+                    👤
+                  </span>
                 </div>
-                <div class="room-production" v-if="getRoomProduction(room)">
+                <div v-if="room.type === 'generateur' || room.type === 'derrick'" class="fuel-gauge">
+                  <div class="fuel-bar" :style="{ width: `${room.fuelLevel || 0}%` }"></div>
+                  <span class="fuel-text">{{ Math.floor(room.fuelLevel || 0) }}%</span>
+                </div>
+                <div class="room-production" v-if="getRoomProductionSimple(room)">
                   <div class="production-detail">
                     {{ getRoomProductionSimple(room) }}
                   </div>
                 </div>
-                <div v-if="room.type === 'generateur' && room.fuelLevel !== undefined" class="fuel-progress-bar">
-                  <div class="fuel-progress" :style="{ height: `${100 - room.fuelLevel}%` }"></div>
-                </div>
-                <div v-if="room.type === 'infirmerie' && room.equipments.some(e => e.type === 'nurserie' && e.nurserieState?.isIncubating)" class="incubation-progress-bar">
-                  <div class="incubation-progress" :style="{ height: `${100 - getIncubationProgress(room)}%` }"></div>
+                <div v-if="room.type === 'infirmerie' && room.equipments.some(e => e.type === 'nurserie' && e.nurserieState?.isIncubating)" class="incubation-gauge">
+                  <div class="incubation-bar" :style="{ width: `${getIncubationProgress(room)}%` }"></div>
+                  <span class="incubation-text">{{ Math.floor(getIncubationProgress(room)) }}%</span>
                 </div>
               </div>
             </template>
@@ -560,6 +572,40 @@ onMounted(() => {
     margin-bottom: 0.25rem;
   }
 
+  .fuel-gauge {
+    width: 80%;
+    height: 8px;
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+    position: relative;
+    overflow: hidden;
+    margin: 0.25rem auto;
+
+    .fuel-bar {
+      height: 100%;
+      transition: width 0.3s ease;
+      
+      .room-type-generateur & {
+        background-color: #e67e22; // Orange pour le générateur
+      }
+      
+      .room-type-derrick & {
+        background-color: #8e44ad; // Violet pour le derrick
+      }
+    }
+
+    .fuel-text {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      color: #ecf0f1;
+      font-size: 0.6rem;
+      text-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+      white-space: nowrap;
+    }
+  }
+
   .room-production {
     margin-top: auto;
     padding-top: 0.25rem;
@@ -741,19 +787,31 @@ onMounted(() => {
   transition: height 0.3s ease;
 }
 
-.incubation-progress-bar {
-  position: absolute;
-  right: 0;
-  top: 0;
-  width: 10px;
-  height: 100%;
-  background-color: #138b13; /* Couleur inversée pour l'incubation */
-}
+.incubation-gauge {
+  width: 80%;
+  height: 8px;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
+  margin: 0.25rem auto;
 
-.incubation-progress {
-  width: 100%;
-  background-color: #37474f; /* Couleur inversée pour l'incubation */
-  transition: height 0.3s ease;
+  .incubation-bar {
+    height: 100%;
+    background-color: #27ae60; // Vert pour l'incubation
+    transition: width 0.3s ease;
+  }
+
+  .incubation-text {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    color: #ecf0f1;
+    font-size: 0.6rem;
+    text-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+    white-space: nowrap;
+  }
 }
 
 // Styles spécifiques pour chaque type de salle

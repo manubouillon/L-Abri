@@ -910,7 +910,7 @@ export const useGameStore = defineStore('game', () => {
       {
         id: `lingot-fer-${Date.now()}-1`,
         type: 'lingot-fer',
-        quantity: 50,
+        quantity: 200,
         stackSize: ITEMS_CONFIG['lingot-fer'].stackSize,
         description: ITEMS_CONFIG['lingot-fer'].description,
         category: ITEMS_CONFIG['lingot-fer'].category
@@ -918,7 +918,7 @@ export const useGameStore = defineStore('game', () => {
       {
         id: `lingot-acier-${Date.now()}-1`,
         type: 'lingot-acier',
-        quantity: 30,
+        quantity: 100,
         stackSize: ITEMS_CONFIG['lingot-acier'].stackSize,
         description: ITEMS_CONFIG['lingot-acier'].description,
         category: ITEMS_CONFIG['lingot-acier'].category
@@ -926,7 +926,7 @@ export const useGameStore = defineStore('game', () => {
       {
         id: `lingot-cuivre-${Date.now()}-1`,
         type: 'lingot-cuivre',
-        quantity: 40,
+        quantity: 100,
         stackSize: ITEMS_CONFIG['lingot-cuivre'].stackSize,
         description: ITEMS_CONFIG['lingot-cuivre'].description,
         category: ITEMS_CONFIG['lingot-cuivre'].category
@@ -934,7 +934,7 @@ export const useGameStore = defineStore('game', () => {
       {
         id: `lingot-silicium-${Date.now()}-1`,
         type: 'lingot-silicium',
-        quantity: 20,
+        quantity: 50,
         stackSize: ITEMS_CONFIG['lingot-silicium'].stackSize,
         description: ITEMS_CONFIG['lingot-silicium'].description,
         category: ITEMS_CONFIG['lingot-silicium'].category
@@ -942,7 +942,7 @@ export const useGameStore = defineStore('game', () => {
       {
         id: `lingot-or-${Date.now()}-1`,
         type: 'lingot-or',
-        quantity: 10,
+        quantity: 20,
         stackSize: ITEMS_CONFIG['lingot-or'].stackSize,
         description: ITEMS_CONFIG['lingot-or'].description,
         category: ITEMS_CONFIG['lingot-or'].category
@@ -1044,7 +1044,7 @@ export const useGameStore = defineStore('game', () => {
     saveGame()
   }
 
-  function updateRoomProduction() {
+  function updateRoomProduction(weeksElapsed: number = 0) {
     // Réinitialiser toutes les productions et consommations
     Object.values(resources.value).forEach(resource => {
       resource.production = 0
@@ -1136,6 +1136,28 @@ export const useGameStore = defineStore('game', () => {
                   }
                 })
                 room.fuelLevel = 0
+              }
+            }
+          } else if (room.type === 'derrick' && room.occupants.length > 0) {
+            // Initialiser le niveau de carburant s'il n'existe pas
+            if (room.fuelLevel === undefined) {
+              room.fuelLevel = 0
+            }
+
+            // Augmenter le fuelLevel
+            room.fuelLevel = Math.min(100, room.fuelLevel + (10 * nbWorkers * weeksElapsed))
+
+            // Si le fuelLevel est à 100%, essayer de produire un baril de pétrole
+            if (room.fuelLevel >= 100) {
+              // Chercher un baril vide
+              const barilVide = inventory.value.find(item => item.type === 'baril-vide' && item.quantity > 0)
+              if (barilVide) {
+                // Retirer le baril vide et ajouter un baril de pétrole
+                const success = removeItem(barilVide.id, 1)
+                if (success) {
+                  addItem('baril-petrole', 1)
+                  room.fuelLevel = 0 // Réinitialiser le fuelLevel
+                }
               }
             }
           } else {
@@ -1242,7 +1264,7 @@ export const useGameStore = defineStore('game', () => {
 
   function updateResources(weeksElapsed: number) {
     // Mettre à jour les productions et consommations
-    updateRoomProduction()
+    updateRoomProduction(weeksElapsed)
 
     // Appliquer les changements pour chaque semaine écoulée
     for (let i = 0; i < weeksElapsed; i++) {
@@ -1720,9 +1742,11 @@ export const useGameStore = defineStore('game', () => {
           room.constructionStartTime = Math.floor(gameTime.value)
           room.constructionDuration = 4 // 4 semaines pour construire une salle
           room.type = roomType // Définir le type immédiatement
-          // Initialiser le niveau de carburant pour le générateur
+          // Initialiser le niveau de carburant pour le générateur ou le derrick
           if (roomType === 'generateur') {
             room.fuelLevel = 100
+          } else if (roomType === 'derrick') {
+            room.fuelLevel = 0
           }
           affecterHabitant(habitantLibre.id, {
             type: 'construction',
