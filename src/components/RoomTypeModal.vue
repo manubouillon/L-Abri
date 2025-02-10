@@ -38,6 +38,14 @@
             <p class="construction-cost">
               Coût: {{ getConstructionCosts(type.id) }}
             </p>
+            <div v-if="!canAffordRoom(type.id)" class="missing-resources">
+              <p class="missing-resources-title">Ressources manquantes:</p>
+              <ul class="missing-resources-list">
+                <li v-for="(amount, resource) in getMissingResources(type.id)" :key="resource">
+                  {{ ITEMS_CONFIG[resource as keyof typeof ITEMS_CONFIG].name }}: {{ amount }}
+                </li>
+              </ul>
+            </div>
           </div>
         </button>
 
@@ -51,7 +59,9 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import { ROOM_CATEGORIES, ROOM_CONSTRUCTION_COSTS, ITEMS_CONFIG, useGameStore } from '../stores/gameStore'
+import type { ItemType } from '../stores/gameStore'
 
 const store = useGameStore()
 
@@ -148,6 +158,20 @@ function getConstructionCosts(type: string): string {
   return Object.entries(costs)
     .map(([resource, amount]) => `${ITEMS_CONFIG[resource].name}: ${amount}`)
     .join(', ')
+}
+
+function getMissingResources(type: string): Record<ItemType, number> {
+  const costs = ROOM_CONSTRUCTION_COSTS[type]
+  if (!costs) return {} as Record<ItemType, number>
+
+  const missing: Record<ItemType, number> = {} as Record<ItemType, number>
+  for (const [resource, amount] of Object.entries(costs)) {
+    const currentAmount = store.getItemQuantity(resource as ItemType)
+    if (currentAmount < amount) {
+      missing[resource as ItemType] = amount - currentAmount
+    }
+  }
+  return missing
 }
 
 defineEmits<{
@@ -330,5 +354,26 @@ defineEmits<{
   margin-top: 0.25rem;
   font-size: 0.8rem;
   color: #f1c40f;
+}
+
+.missing-resources {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background-color: rgba(231, 76, 60, 0.1);
+  border-radius: 4px;
+  border: 1px solid rgba(231, 76, 60, 0.3);
+}
+
+.missing-resources-title {
+  color: #e74c3c;
+  font-size: 0.8rem;
+  margin: 0 0 0.25rem 0;
+}
+
+.missing-resources-list {
+  margin: 0;
+  padding-left: 1rem;
+  font-size: 0.8rem;
+  color: #e74c3c;
 }
 </style> 

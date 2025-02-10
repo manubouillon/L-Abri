@@ -559,31 +559,122 @@ const MINERAL_DISTRIBUTION = {
   0: { // Premier niveau
     'minerai-fer': { chance: 0.6, amount: { min: 10, max: 30 } },
     'minerai-charbon': { chance: 0.5, amount: { min: 10, max: 25 } },
-    'minerai-calcaire': { chance: 0.7, amount: { min: 15, max: 35 } }
+    'minerai-calcaire': { chance: 0.7, amount: { min: 15, max: 35 } },
+    'minerai-cuivre': { chance: 0.2, amount: { min: 5, max: 15 } },
+    'minerai-silicium': { chance: 0.1, amount: { min: 2, max: 10 } },
+    'minerai-or': { chance: 0.05, amount: { min: 1, max: 5 } }
   },
   1: {
     'minerai-fer': { chance: 0.5, amount: { min: 15, max: 35 } },
     'minerai-charbon': { chance: 0.4, amount: { min: 15, max: 30 } },
     'minerai-calcaire': { chance: 0.6, amount: { min: 20, max: 40 } },
-    'minerai-cuivre': { chance: 0.2, amount: { min: 5, max: 15 } }
+    'minerai-cuivre': { chance: 0.3, amount: { min: 10, max: 20 } },
+    'minerai-silicium': { chance: 0.2, amount: { min: 5, max: 15 } },
+    'minerai-or': { chance: 0.1, amount: { min: 2, max: 8 } }
   },
   2: {
     'minerai-fer': { chance: 0.4, amount: { min: 20, max: 40 } },
     'minerai-charbon': { chance: 0.3, amount: { min: 20, max: 35 } },
     'minerai-calcaire': { chance: 0.5, amount: { min: 25, max: 45 } },
-    'minerai-cuivre': { chance: 0.3, amount: { min: 10, max: 25 } },
-    'minerai-silicium': { chance: 0.2, amount: { min: 5, max: 15 } }
+    'minerai-cuivre': { chance: 0.4, amount: { min: 15, max: 25 } },
+    'minerai-silicium': { chance: 0.3, amount: { min: 10, max: 20 } },
+    'minerai-or': { chance: 0.15, amount: { min: 3, max: 10 } }
   },
   3: {
     'minerai-fer': { chance: 0.3, amount: { min: 25, max: 45 } },
-    'minerai-cuivre': { chance: 0.4, amount: { min: 15, max: 35 } },
-    'minerai-silicium': { chance: 0.3, amount: { min: 10, max: 25 } },
-    'minerai-or': { chance: 0.1, amount: { min: 2, max: 8 } }
+    'minerai-charbon': { chance: 0.2, amount: { min: 25, max: 40 } },
+    'minerai-calcaire': { chance: 0.4, amount: { min: 30, max: 50 } },
+    'minerai-cuivre': { chance: 0.5, amount: { min: 20, max: 30 } },
+    'minerai-silicium': { chance: 0.4, amount: { min: 15, max: 25 } },
+    'minerai-or': { chance: 0.2, amount: { min: 5, max: 15 } }
   },
   4: {
-    'minerai-cuivre': { chance: 0.5, amount: { min: 20, max: 40 } },
-    'minerai-silicium': { chance: 0.4, amount: { min: 15, max: 35 } },
-    'minerai-or': { chance: 0.2, amount: { min: 5, max: 15 } }
+    'minerai-fer': { chance: 0.2, amount: { min: 30, max: 50 } },
+    'minerai-charbon': { chance: 0.1, amount: { min: 30, max: 45 } },
+    'minerai-calcaire': { chance: 0.3, amount: { min: 35, max: 55 } },
+    'minerai-cuivre': { chance: 0.6, amount: { min: 25, max: 35 } },
+    'minerai-silicium': { chance: 0.5, amount: { min: 20, max: 30 } },
+    'minerai-or': { chance: 0.25, amount: { min: 6, max: 18 } }
+  },
+  5: {
+    'minerai-fer': { chance: 0.25, amount: { min: 35, max: 55 } },
+    'minerai-charbon': { chance: 0.15, amount: { min: 35, max: 50 } },
+    'minerai-calcaire': { chance: 0.35, amount: { min: 40, max: 60 } },
+    'minerai-cuivre': { chance: 0.55, amount: { min: 30, max: 40 } },
+    'minerai-silicium': { chance: 0.45, amount: { min: 25, max: 35 } },
+    'minerai-or': { chance: 0.3, amount: { min: 7, max: 20 } }
+  },
+  6: {
+    'minerai-fer': { chance: 0.3, amount: { min: 40, max: 60 } },
+    'minerai-charbon': { chance: 0.2, amount: { min: 40, max: 55 } },
+    'minerai-calcaire': { chance: 0.4, amount: { min: 45, max: 65 } },
+    'minerai-cuivre': { chance: 0.5, amount: { min: 35, max: 45 } },
+    'minerai-silicium': { chance: 0.4, amount: { min: 30, max: 40 } },
+    'minerai-or': { chance: 0.35, amount: { min: 8, max: 22 } }
+  },
+  7: {
+    'minerai-fer': { chance: 0.35, amount: { min: 45, max: 65 } },
+    'minerai-charbon': { chance: 0.25, amount: { min: 45, max: 60 } },
+    'minerai-calcaire': { chance: 0.45, amount: { min: 50, max: 70 } },
+    'minerai-cuivre': { chance: 0.45, amount: { min: 40, max: 50 } },
+    'minerai-silicium': { chance: 0.35, amount: { min: 35, max: 45 } },
+    'minerai-or': { chance: 0.4, amount: { min: 9, max: 25 } }
+  },
+  8: {
+    'minerai-fer': { chance: 0.4, amount: { min: 50, max: 70 } },
+    'minerai-charbon': { chance: 0.3, amount: { min: 50, max: 65 } },
+    'minerai-calcaire': { chance: 0.5, amount: { min: 55, max: 75 } },
+    'minerai-cuivre': { chance: 0.4, amount: { min: 45, max: 55 } },
+    'minerai-silicium': { chance: 0.3, amount: { min: 40, max: 50 } },
+    'minerai-or': { chance: 0.45, amount: { min: 10, max: 28 } }
+  },
+  9: {
+    'minerai-fer': { chance: 0.45, amount: { min: 55, max: 75 } },
+    'minerai-charbon': { chance: 0.35, amount: { min: 55, max: 70 } },
+    'minerai-calcaire': { chance: 0.55, amount: { min: 60, max: 80 } },
+    'minerai-cuivre': { chance: 0.35, amount: { min: 50, max: 60 } },
+    'minerai-silicium': { chance: 0.25, amount: { min: 45, max: 55 } },
+    'minerai-or': { chance: 0.5, amount: { min: 11, max: 30 } }
+  },
+  10: {
+    'minerai-fer': { chance: 0.5, amount: { min: 60, max: 80 } },
+    'minerai-charbon': { chance: 0.4, amount: { min: 60, max: 75 } },
+    'minerai-calcaire': { chance: 0.6, amount: { min: 65, max: 85 } },
+    'minerai-cuivre': { chance: 0.3, amount: { min: 55, max: 65 } },
+    'minerai-silicium': { chance: 0.2, amount: { min: 50, max: 60 } },
+    'minerai-or': { chance: 0.55, amount: { min: 12, max: 32 } }
+  },
+  11: {
+    'minerai-fer': { chance: 0.55, amount: { min: 65, max: 85 } },
+    'minerai-charbon': { chance: 0.45, amount: { min: 65, max: 80 } },
+    'minerai-calcaire': { chance: 0.65, amount: { min: 70, max: 90 } },
+    'minerai-cuivre': { chance: 0.25, amount: { min: 60, max: 70 } },
+    'minerai-silicium': { chance: 0.15, amount: { min: 55, max: 65 } },
+    'minerai-or': { chance: 0.6, amount: { min: 13, max: 35 } }
+  },
+  12: {
+    'minerai-fer': { chance: 0.6, amount: { min: 70, max: 90 } },
+    'minerai-charbon': { chance: 0.5, amount: { min: 70, max: 85 } },
+    'minerai-calcaire': { chance: 0.7, amount: { min: 75, max: 95 } },
+    'minerai-cuivre': { chance: 0.2, amount: { min: 65, max: 75 } },
+    'minerai-silicium': { chance: 0.1, amount: { min: 60, max: 70 } },
+    'minerai-or': { chance: 0.65, amount: { min: 14, max: 38 } }
+  },
+  13: {
+    'minerai-fer': { chance: 0.65, amount: { min: 75, max: 95 } },
+    'minerai-charbon': { chance: 0.55, amount: { min: 75, max: 90 } },
+    'minerai-calcaire': { chance: 0.75, amount: { min: 80, max: 100 } },
+    'minerai-cuivre': { chance: 0.15, amount: { min: 70, max: 80 } },
+    'minerai-silicium': { chance: 0.05, amount: { min: 65, max: 75 } },
+    'minerai-or': { chance: 0.7, amount: { min: 15, max: 40 } }
+  },
+  14: {
+    'minerai-fer': { chance: 0.7, amount: { min: 80, max: 100 } },
+    'minerai-charbon': { chance: 0.6, amount: { min: 80, max: 95 } },
+    'minerai-calcaire': { chance: 0.8, amount: { min: 85, max: 105 } },
+    'minerai-cuivre': { chance: 0.1, amount: { min: 75, max: 85 } },
+    'minerai-silicium': { chance: 0.05, amount: { min: 70, max: 80 } },
+    'minerai-or': { chance: 0.75, amount: { min: 16, max: 42 } }
   }
 }
 
@@ -896,6 +987,7 @@ export const useGameStore = defineStore('game', () => {
       category: ITEMS_CONFIG['cereales'].category
     }
     
+    /*
     const barilsVides: Item = {
       id: `baril-vide-${Date.now()}-1`,
       type: 'baril-vide',
@@ -903,7 +995,7 @@ export const useGameStore = defineStore('game', () => {
       stackSize: ITEMS_CONFIG['baril-vide'].stackSize,
       description: ITEMS_CONFIG['baril-vide'].description,
       category: ITEMS_CONFIG['baril-vide'].category
-    }
+    }*/
     
     // Ajouter les lingots initiaux
     const lingotsInitiaux: Item[] = [
@@ -934,7 +1026,7 @@ export const useGameStore = defineStore('game', () => {
       {
         id: `lingot-silicium-${Date.now()}-1`,
         type: 'lingot-silicium',
-        quantity: 50,
+        quantity: 100,
         stackSize: ITEMS_CONFIG['lingot-silicium'].stackSize,
         description: ITEMS_CONFIG['lingot-silicium'].description,
         category: ITEMS_CONFIG['lingot-silicium'].category
@@ -1002,7 +1094,7 @@ export const useGameStore = defineStore('game', () => {
     ]
     
     // Ajouter les items à l'inventaire
-    inventory.value.push(embryons, barilsPetrole, nourritureConserve, barilsVides, cereales, ...lingotsInitiaux, ...mineraisInitiaux)
+    inventory.value.push(embryons, barilsPetrole, nourritureConserve, cereales, ...lingotsInitiaux, ...mineraisInitiaux)
 
     // Réinitialiser les autres valeurs
     gameTime.value = 0
@@ -1801,7 +1893,29 @@ export const useGameStore = defineStore('game', () => {
   }
 
   function resetGame() {
+    // Supprimer la sauvegarde
     localStorage.removeItem('abriGameState')
+    
+    // Réinitialiser toutes les variables d'état
+    resources.value = {
+      energie: { amount: 0, capacity: 200, production: 0, consumption: 0 },
+      eau: { amount: 0, capacity: 200, production: 0, consumption: 0 },
+      nourriture: { amount: 0, capacity: 200, production: 0, consumption: 0 },
+      vetements: { amount: 0, capacity: 200, production: 0, consumption: 0 },
+      medicaments: { amount: 0, capacity: 200, production: 0, consumption: 0 }
+    }
+    levels.value = []
+    gameTime.value = 0
+    population.value = 0
+    happiness.value = 100
+    lastUpdateTime.value = Date.now()
+    excavations.value = []
+    habitants.value = []
+    inventory.value = [] // Vider complètement l'inventaire
+    inventoryCapacity.value = 1000
+    gameSpeed.value = 1
+    
+    // Réinitialiser le jeu avec les valeurs par défaut
     initGame()
   }
 
@@ -1849,7 +1963,7 @@ export const useGameStore = defineStore('game', () => {
     // Vérifier si la salle n'est pas déjà pleine
     if (room.occupants.length >= (config.maxWorkers || 0)) return false
 
-    // Si l'habitant était déjà dans une salle, le retirer
+    // Si l'habitant était déjà dans une salle, le retirer proprement
     if (habitant.affectation.type === 'salle') {
       const oldLevel = levels.value.find(l => l.id === habitant.affectation.levelId)
       if (oldLevel) {
@@ -1871,46 +1985,72 @@ export const useGameStore = defineStore('game', () => {
       roomIndex
     }
 
-    updateRoomProduction() // Utiliser la nouvelle fonction
+    updateRoomProduction()
     return true
   }
 
   function retirerHabitantSalle(habitantId: string): boolean {
     const habitant = habitants.value.find(h => h.id === habitantId)
-    if (!habitant || habitant.affectation.type !== 'salle') return false
+    if (!habitant) return false
+
+    // Si l'habitant n'est pas affecté à une salle, rien à faire
+    if (habitant.affectation.type !== 'salle') return false
 
     const level = levels.value.find(l => l.id === habitant.affectation.levelId)
-    if (!level) return false
+    if (!level) {
+      // Si le niveau n'existe pas, on réinitialise juste l'affectation
+      habitant.affectation = { type: null }
+      return true
+    }
 
     const room = habitant.affectation.position === 'left'
       ? level.leftRooms[habitant.affectation.roomIndex!]
       : level.rightRooms[habitant.affectation.roomIndex!]
-    if (!room) return false
+  
+    if (!room) {
+      // Si la salle n'existe pas, on réinitialise juste l'affectation
+      habitant.affectation = { type: null }
+      return true
+    }
 
+    // Retirer l'habitant de la salle
     room.occupants = room.occupants.filter(id => id !== habitantId)
     habitant.affectation = { type: null }
 
-    updateRoomProduction() // Utiliser la nouvelle fonction
+    updateRoomProduction()
     return true
   }
 
-  function addStairs(levelIndex: number, position: 'left' | 'right') {
-    const level = levels.value[levelIndex]
-    if (!level) return false
+  // Nouvelle version moins agressive de la vérification de cohérence
+  function verifierCoherenceAffectations() {
+    // 1. Nettoyer les références aux habitants qui n'existent plus
+    levels.value.forEach(level => {
+      const allRooms = [...level.leftRooms, ...level.rightRooms]
+      allRooms.forEach(room => {
+        if (!room.isBuilt) return
+        
+        room.occupants = room.occupants.filter(id => 
+          habitants.value.some(h => h.id === id)
+        )
+      })
+    })
 
-    const rooms = position === 'left' ? level.leftRooms : level.rightRooms
-    const room = rooms[0]
-
-    if (!room || !room.isBuilt) return false
-
-    const config = ROOM_CONFIGS[room.type]
-    if (!config) return false
-
-    room.stairsPosition = position
-    return true
+    // 2. Vérifier uniquement les habitants sans salle qui sont listés comme occupants
+    habitants.value.forEach(habitant => {
+      if (habitant.affectation.type !== 'salle') {
+        // Si l'habitant n'est pas affecté, s'assurer qu'il n'est pas listé comme occupant
+        levels.value.forEach(level => {
+          const allRooms = [...level.leftRooms, ...level.rightRooms]
+          allRooms.forEach(room => {
+            if (room.occupants.includes(habitant.id)) {
+              room.occupants = room.occupants.filter(id => id !== habitant.id)
+            }
+          })
+        })
+      }
+    })
   }
 
-  // Vérifier et fusionner les salles adjacentes du même type
   function checkAndMergeRooms(level: Level, room: Room) {
     if (!room.isBuilt) return false
 
@@ -1920,32 +2060,39 @@ export const useGameStore = defineStore('game', () => {
 
     // Vérifier si on peut fusionner avec la salle précédente
     if (prevRoom?.isBuilt && prevRoom.type === room.type && !prevRoom.isUnderConstruction) {
-      // Vérifier que la fusion ne dépassera pas 5 cellules
       const newSize = (prevRoom.gridSize || 1) + (room.gridSize || 1)
       if (newSize <= 5) {
         // Fusionner avec la salle précédente
         prevRoom.gridSize = newSize
         
-        // Déplacer les occupants
-        room.occupants.forEach(id => {
-          if (!prevRoom.occupants.includes(id)) {
+        // Déplacer les occupants de manière sûre
+        const occupantsToMove = [...room.occupants]
+        occupantsToMove.forEach(id => {
+          const habitant = habitants.value.find(h => h.id === id)
+          if (habitant && !prevRoom.occupants.includes(id)) {
             prevRoom.occupants.push(id)
-            const habitant = habitants.value.find(h => h.id === id)
-            if (habitant) {
-              habitant.affectation = {
-                type: 'salle',
-                levelId: level.id,
-                position: prevRoom.position,
-                roomIndex: prevRoom.index
-              }
+            habitant.affectation = {
+              type: 'salle',
+              levelId: level.id,
+              position: prevRoom.position,
+              roomIndex: prevRoom.index
             }
           }
         })
 
         // Supprimer la salle fusionnée et réorganiser les indices
         rooms.splice(room.index, 1)
+        
+        // Mettre à jour les indices des salles restantes
         for (let i = room.index; i < rooms.length; i++) {
           rooms[i].index = i
+          // Mettre à jour les affectations des habitants pour les salles suivantes
+          rooms[i].occupants.forEach(id => {
+            const habitant = habitants.value.find(h => h.id === id)
+            if (habitant && habitant.affectation.type === 'salle') {
+              habitant.affectation.roomIndex = i
+            }
+          })
         }
 
         updateRoomProduction()
@@ -1954,32 +2101,39 @@ export const useGameStore = defineStore('game', () => {
     }
     // Vérifier si on peut fusionner avec la salle suivante
     else if (nextRoom?.isBuilt && nextRoom.type === room.type && !nextRoom.isUnderConstruction) {
-      // Vérifier que la fusion ne dépassera pas 5 cellules
       const newSize = (room.gridSize || 1) + (nextRoom.gridSize || 1)
       if (newSize <= 5) {
         // Fusionner avec la salle suivante
         room.gridSize = newSize
         
-        // Déplacer les occupants
-        nextRoom.occupants.forEach(id => {
-          if (!room.occupants.includes(id)) {
+        // Déplacer les occupants de manière sûre
+        const occupantsToMove = [...nextRoom.occupants]
+        occupantsToMove.forEach(id => {
+          const habitant = habitants.value.find(h => h.id === id)
+          if (habitant && !room.occupants.includes(id)) {
             room.occupants.push(id)
-            const habitant = habitants.value.find(h => h.id === id)
-            if (habitant) {
-              habitant.affectation = {
-                type: 'salle',
-                levelId: level.id,
-                position: room.position,
-                roomIndex: room.index
-              }
+            habitant.affectation = {
+              type: 'salle',
+              levelId: level.id,
+              position: room.position,
+              roomIndex: room.index
             }
           }
         })
 
         // Supprimer la salle fusionnée et réorganiser les indices
         rooms.splice(nextRoom.index, 1)
+        
+        // Mettre à jour les indices des salles restantes
         for (let i = nextRoom.index - 1; i < rooms.length; i++) {
           rooms[i].index = i
+          // Mettre à jour les affectations des habitants pour les salles suivantes
+          rooms[i].occupants.forEach(id => {
+            const habitant = habitants.value.find(h => h.id === id)
+            if (habitant && habitant.affectation.type === 'salle') {
+              habitant.affectation.roomIndex = i
+            }
+          })
         }
 
         updateRoomProduction()
@@ -2223,6 +2377,22 @@ export const useGameStore = defineStore('game', () => {
     inventory.value = state.inventory || []
     inventoryCapacity.value = state.inventoryCapacity || 1000
     gameSpeed.value = state.gameSpeed || 1
+  }
+
+  function addStairs(levelIndex: number, position: 'left' | 'right') {
+    const level = levels.value[levelIndex]
+    if (!level) return false
+
+    const rooms = position === 'left' ? level.leftRooms : level.rightRooms
+    const room = rooms[0]
+
+    if (!room || !room.isBuilt) return false
+
+    const config = ROOM_CONFIGS[room.type]
+    if (!config) return false
+
+    room.stairsPosition = position
+    return true
   }
 
   return {
