@@ -4,7 +4,7 @@
     <header class="game-header">
       <h1>L'Abri</h1>
       <div class="game-controls">
-        <button @click="resetGame">Réinitialiser</button>
+        <button @click="showSaveModal = true">Sauvegarde</button>
         <button @click="showInventory = true">
           Inventaire ({{ Math.floor(inventorySpace.used) }}/{{ inventorySpace.total }})
         </button>
@@ -40,6 +40,7 @@
       @close="showHabitantsList = false"
     />
     <InventoryModal v-if="showInventory" @close="showInventory = false" />
+    <SaveModal v-if="showSaveModal" @close="showSaveModal = false" />
   </div>
 </template>
 
@@ -51,6 +52,7 @@ import ResourcePanel from './components/ResourcePanel.vue'
 import SiloLevel from './components/SiloLevel.vue'
 import HabitantsList from './components/HabitantsList.vue'
 import InventoryModal from './components/InventoryModal.vue'
+import SaveModal from './components/SaveModal.vue'
 import NotificationSystem from './components/NotificationSystem.vue'
 
 // État du jeu
@@ -60,6 +62,7 @@ const isPaused = ref(false)
 const scrollPosition = ref(0)
 const showHabitantsList = ref(false)
 const showInventory = ref(false)
+const showSaveModal = ref(false)
 
 // Niveaux affichables (excavés ou excavables)
 const displayableLevels = computed(() => {
@@ -81,12 +84,6 @@ const increaseSpeed = () => {
 
 const decreaseSpeed = () => {
   gameStore.decreaseGameSpeed()
-}
-
-const resetGame = () => {
-  if (confirm('Êtes-vous sûr de vouloir réinitialiser le jeu ?')) {
-    gameStore.resetGame()
-  }
 }
 
 // Gestion du scroll

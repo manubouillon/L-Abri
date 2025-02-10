@@ -2171,6 +2171,36 @@ export const useGameStore = defineStore('game', () => {
     }
   }
 
+  function getCurrentState() {
+    return {
+      resources: resources.value,
+      levels: levels.value,
+      gameTime: gameTime.value,
+      population: population.value,
+      happiness: happiness.value,
+      lastUpdateTime: lastUpdateTime.value,
+      excavations: excavations.value,
+      habitants: habitants.value,
+      inventory: inventory.value,
+      inventoryCapacity: inventoryCapacity.value,
+      gameSpeed: gameSpeed.value
+    }
+  }
+
+  function loadState(state: any) {
+    resources.value = state.resources
+    levels.value = state.levels
+    gameTime.value = state.gameTime
+    population.value = state.population
+    happiness.value = state.happiness
+    lastUpdateTime.value = state.lastUpdateTime || Date.now()
+    excavations.value = state.excavations || []
+    habitants.value = state.habitants || []
+    inventory.value = state.inventory || []
+    inventoryCapacity.value = state.inventoryCapacity || 1000
+    gameSpeed.value = state.gameSpeed || 1
+  }
+
   return {
     // État
     resources,
@@ -2224,6 +2254,8 @@ export const useGameStore = defineStore('game', () => {
     gameSpeed,
     setGameSpeed,
     increaseGameSpeed,
-    decreaseGameSpeed
+    decreaseGameSpeed,
+    getCurrentState,
+    loadState
   }
 }) 
