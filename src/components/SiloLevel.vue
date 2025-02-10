@@ -37,6 +37,12 @@
                     {{ getRoomProductionSimple(room) }}
                   </div>
                 </div>
+                <div v-if="room.type === 'generateur' && room.fuelLevel !== undefined" class="fuel-progress-bar">
+                  <div class="fuel-progress" :style="{ height: `${100 - room.fuelLevel}%`, top: 0 }"></div>
+                </div>
+                <div v-if="room.type === 'infirmerie' && room.equipments.some(e => e.type === 'nurserie' && e.nurserieState?.isIncubating)" class="incubation-progress-bar">
+                  <div class="incubation-progress" :style="{ height: `${100 - getIncubationProgress(room)}%` }"></div>
+                </div>
               </div>
             </template>
             <div class="room-overlay" v-else-if="room.isExcavated" @click="openRoomTypeModal('left', room.index)">
@@ -125,6 +131,12 @@
                   <div class="production-detail">
                     {{ getRoomProductionSimple(room) }}
                   </div>
+                </div>
+                <div v-if="room.type === 'generateur' && room.fuelLevel !== undefined" class="fuel-progress-bar">
+                  <div class="fuel-progress" :style="{ height: `${100 - room.fuelLevel}%` }"></div>
+                </div>
+                <div v-if="room.type === 'infirmerie' && room.equipments.some(e => e.type === 'nurserie' && e.nurserieState?.isIncubating)" class="incubation-progress-bar">
+                  <div class="incubation-progress" :style="{ height: `${100 - getIncubationProgress(room)}%` }"></div>
                 </div>
               </div>
             </template>
@@ -404,6 +416,14 @@ function getRoomStyle(room: Room) {
     width: gridSize > 1 ? `calc(${100 * gridSize}% + ${(gridSize - 1) * 0.5}rem)` : undefined,
     marginRight: gridSize > 1 ? '0' : undefined
   }
+}
+
+function getIncubationProgress(room: Room): number {
+  const equipment = room.equipments.find(e => e.type === 'nurserie' && e.nurserieState?.isIncubating)
+  if (!equipment || !equipment.nurserieState?.startTime) return 0
+  const elapsedTime = store.gameTime - equipment.nurserieState.startTime
+  const incubationTime = store.EQUIPMENT_CONFIG.infirmerie.nurserie.incubationTime || 36
+  return Math.min(100, (elapsedTime / incubationTime) * 100)
 }
 
 onMounted(() => {
@@ -704,6 +724,36 @@ onMounted(() => {
     font-size: 0.7rem;
     color: #ecf0f1;
   }
+}
+
+.fuel-progress-bar {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 10px;
+  height: 100%;
+  background-color: #8B4513; /* Marron-foncé pour le pétrole */
+}
+
+.fuel-progress {
+  width: 100%;
+  background-color: #37474f;
+  transition: height 0.3s ease;
+}
+
+.incubation-progress-bar {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 10px;
+  height: 100%;
+  background-color: #138b13; /* Couleur inversée pour l'incubation */
+}
+
+.incubation-progress {
+  width: 100%;
+  background-color: #37474f; /* Couleur inversée pour l'incubation */
+  transition: height 0.3s ease;
 }
 
 // Styles spécifiques pour chaque type de salle
