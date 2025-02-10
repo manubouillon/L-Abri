@@ -118,6 +118,11 @@ export const ROOM_CATEGORIES: RoomCategory[] = [
     id: 'sante',
     name: 'Santé',
     rooms: ['infirmerie']
+  },
+  {
+    id: 'production',
+    name: 'Production',
+    rooms: ['raffinerie']
   }
 ]
 
@@ -152,12 +157,13 @@ export const GAME_CONFIG = {
 // Configuration des multiplicateurs de fusion par type de salle
 export const ROOM_MERGE_CONFIG: { [key: string]: { useMultiplier: boolean } } = {
   entrepot: { useMultiplier: true },
-  dortoir: { useMultiplier: false }, // Le dortoir ne bénéficie pas des multiplicateurs
+  dortoir: { useMultiplier: false },
   cuisine: { useMultiplier: true },
   'station-traitement': { useMultiplier: true },
   generateur: { useMultiplier: true },
   infirmerie: { useMultiplier: true },
-  serre: { useMultiplier: true }
+  serre: { useMultiplier: true },
+  raffinerie: { useMultiplier: true }
 }
 
 export const INITIAL_LEVELS = GAME_CONFIG.INITIAL_LEVELS // Nombre de niveaux au départ
@@ -288,6 +294,13 @@ const ROOM_CONFIGS: { [key: string]: RoomConfig } = {
     productionPerWorker: {
       nourriture: 1.5
     }
+  } as ProductionRoomConfig,
+  raffinerie: {
+    maxWorkers: 3,
+    energyConsumption: 5, // 5 unités d'énergie par semaine
+    productionPerWorker: {
+      energie: -1 // Consommation d'énergie par travailleur
+    }
   } as ProductionRoomConfig
 }
 
@@ -342,6 +355,7 @@ interface Excavation {
   startTime: number
   habitantId: string
   duration: number
+  mineralsFound?: MineralFound[]
 }
 
 export interface Item {
@@ -353,8 +367,10 @@ export interface Item {
   category: ItemCategory
 }
 
-export type ItemCategory = 'biologique' | 'ressource' | 'nourriture' | 'conteneur'
-export type ItemType = 'embryon-humain' | 'baril-petrole' | 'baril-vide' | 'cereales' | 'nourriture-conserve'
+export type ItemCategory = 'biologique' | 'ressource' | 'nourriture' | 'conteneur' | 'ressource-brute'
+export type ItemType = 'embryon-humain' | 'baril-petrole' | 'baril-vide' | 'cereales' | 'nourriture-conserve' | 
+  'minerai-fer' | 'minerai-charbon' | 'minerai-silicium' | 'minerai-cuivre' | 'minerai-or' | 'minerai-calcaire' |
+  'lingot-fer' | 'lingot-acier' | 'lingot-cuivre' | 'lingot-silicium' | 'lingot-or'
 
 export const ITEMS_CONFIG: { [key in ItemType]: {
   name: string
@@ -370,7 +386,7 @@ export const ITEMS_CONFIG: { [key in ItemType]: {
   },
   'baril-petrole': {
     name: 'Baril de pétrole',
-    stackSize: 50,
+    stackSize: 100,
     description: 'Un baril contenant du pétrole brut.',
     category: 'ressource'
   },
@@ -391,6 +407,72 @@ export const ITEMS_CONFIG: { [key in ItemType]: {
     stackSize: 1000,
     description: 'De la nourriture en conserve, peut être stockée longtemps.',
     category: 'nourriture'
+  },
+  'minerai-fer': {
+    name: 'Minerai de fer',
+    stackSize: 1000,
+    description: 'Minerai de fer brut extrait des profondeurs.',
+    category: 'ressource-brute'
+  },
+  'minerai-charbon': {
+    name: 'Charbon',
+    stackSize: 1000,
+    description: 'Charbon extrait des profondeurs.',
+    category: 'ressource-brute'
+  },
+  'minerai-silicium': {
+    name: 'Minerai de silicium',
+    stackSize: 1000,
+    description: 'Minerai de silicium brut extrait des profondeurs.',
+    category: 'ressource-brute'
+  },
+  'minerai-cuivre': {
+    name: 'Minerai de cuivre',
+    stackSize: 1000,
+    description: 'Minerai de cuivre brut extrait des profondeurs.',
+    category: 'ressource-brute'
+  },
+  'minerai-or': {
+    name: 'Minerai d\'or',
+    stackSize: 1000,
+    description: 'Minerai d\'or brut extrait des profondeurs.',
+    category: 'ressource-brute'
+  },
+  'minerai-calcaire': {
+    name: 'Calcaire',
+    stackSize: 1000,
+    description: 'Calcaire extrait des profondeurs.',
+    category: 'ressource-brute'
+  },
+  'lingot-fer': {
+    name: 'Lingot de fer',
+    stackSize: 1000,
+    description: 'Lingot de fer raffiné.',
+    category: 'ressource'
+  },
+  'lingot-acier': {
+    name: 'Lingot d\'acier',
+    stackSize: 1000,
+    description: 'Lingot d\'acier, un alliage de fer et de carbone.',
+    category: 'ressource'
+  },
+  'lingot-cuivre': {
+    name: 'Lingot de cuivre',
+    stackSize: 1000,
+    description: 'Lingot de cuivre raffiné.',
+    category: 'ressource'
+  },
+  'lingot-silicium': {
+    name: 'Lingot de silicium',
+    stackSize: 1000,
+    description: 'Lingot de silicium raffiné.',
+    category: 'ressource'
+  },
+  'lingot-or': {
+    name: 'Lingot d\'or',
+    stackSize: 1000,
+    description: 'Lingot d\'or raffiné.',
+    category: 'ressource'
   }
 }
 
@@ -406,8 +488,13 @@ export const ITEM_CATEGORIES: { [key in ItemCategory]: {
   },
   'ressource': {
     name: 'Ressource',
-    description: 'Ressources brutes et matériaux',
+    description: 'Ressources transformées',
     color: '#e67e22'
+  },
+  'ressource-brute': {
+    name: 'Ressources brutes',
+    description: 'Minerais et matériaux bruts',
+    color: '#7f8c8d'
   },
   'nourriture': {
     name: 'Nourriture',
@@ -418,6 +505,94 @@ export const ITEM_CATEGORIES: { [key in ItemCategory]: {
     name: 'Conteneur',
     description: 'Objets de stockage',
     color: '#95a5a6'
+  }
+}
+
+// Configuration des minerais par niveau
+const MINERAL_DISTRIBUTION = {
+  0: { // Premier niveau
+    'minerai-fer': { chance: 0.6, amount: { min: 10, max: 30 } },
+    'minerai-charbon': { chance: 0.5, amount: { min: 10, max: 25 } },
+    'minerai-calcaire': { chance: 0.7, amount: { min: 15, max: 35 } }
+  },
+  1: {
+    'minerai-fer': { chance: 0.5, amount: { min: 15, max: 35 } },
+    'minerai-charbon': { chance: 0.4, amount: { min: 15, max: 30 } },
+    'minerai-calcaire': { chance: 0.6, amount: { min: 20, max: 40 } },
+    'minerai-cuivre': { chance: 0.2, amount: { min: 5, max: 15 } }
+  },
+  2: {
+    'minerai-fer': { chance: 0.4, amount: { min: 20, max: 40 } },
+    'minerai-charbon': { chance: 0.3, amount: { min: 20, max: 35 } },
+    'minerai-calcaire': { chance: 0.5, amount: { min: 25, max: 45 } },
+    'minerai-cuivre': { chance: 0.3, amount: { min: 10, max: 25 } },
+    'minerai-silicium': { chance: 0.2, amount: { min: 5, max: 15 } }
+  },
+  3: {
+    'minerai-fer': { chance: 0.3, amount: { min: 25, max: 45 } },
+    'minerai-cuivre': { chance: 0.4, amount: { min: 15, max: 35 } },
+    'minerai-silicium': { chance: 0.3, amount: { min: 10, max: 25 } },
+    'minerai-or': { chance: 0.1, amount: { min: 2, max: 8 } }
+  },
+  4: {
+    'minerai-cuivre': { chance: 0.5, amount: { min: 20, max: 40 } },
+    'minerai-silicium': { chance: 0.4, amount: { min: 15, max: 35 } },
+    'minerai-or': { chance: 0.2, amount: { min: 5, max: 15 } }
+  }
+}
+
+interface MineralFound {
+  type: ItemType
+  amount: number
+}
+
+// Configuration des coûts de construction par type de salle
+export const ROOM_CONSTRUCTION_COSTS: { [key: string]: { [key in ItemType]?: number } } = {
+  entrepot: {
+    'lingot-fer': 20,
+    'lingot-acier': 10
+  },
+  dortoir: {
+    'lingot-fer': 30,
+    'lingot-acier': 15,
+    'lingot-cuivre': 10
+  },
+  cuisine: {
+    'lingot-fer': 25,
+    'lingot-acier': 12,
+    'lingot-cuivre': 8
+  },
+  'station-traitement': {
+    'lingot-fer': 35,
+    'lingot-acier': 20,
+    'lingot-cuivre': 15,
+    'lingot-silicium': 10
+  },
+  generateur: {
+    'lingot-fer': 40,
+    'lingot-acier': 25,
+    'lingot-cuivre': 20,
+    'lingot-silicium': 15,
+    'lingot-or': 5
+  },
+  infirmerie: {
+    'lingot-fer': 30,
+    'lingot-acier': 15,
+    'lingot-cuivre': 12,
+    'lingot-silicium': 8
+  },
+  serre: {
+    'lingot-fer': 25,
+    'lingot-acier': 10,
+    'lingot-cuivre': 8,
+    'lingot-silicium': 5
+  },
+  raffinerie: {
+    'lingot-fer': 50,
+    'lingot-acier': 30,
+    'lingot-cuivre': 25,
+    'lingot-silicium': 20,
+    'lingot-or': 10
   }
 }
 
@@ -644,7 +819,7 @@ export const useGameStore = defineStore('game', () => {
     const barilsPetrole: Item = {
       id: `baril-petrole-${Date.now()}-1`,
       type: 'baril-petrole',
-      quantity: 2,
+      quantity: 100,
       stackSize: ITEMS_CONFIG['baril-petrole'].stackSize,
       description: ITEMS_CONFIG['baril-petrole'].description,
       category: ITEMS_CONFIG['baril-petrole'].category
@@ -677,8 +852,52 @@ export const useGameStore = defineStore('game', () => {
       category: ITEMS_CONFIG['baril-vide'].category
     }
     
-    // Ajouter directement les items à l'inventaire
-    inventory.value.push(embryons, barilsPetrole, nourritureConserve, barilsVides, cereales)
+    // Ajouter les lingots initiaux
+    const lingotsInitiaux: Item[] = [
+      {
+        id: `lingot-fer-${Date.now()}-1`,
+        type: 'lingot-fer',
+        quantity: 50,
+        stackSize: ITEMS_CONFIG['lingot-fer'].stackSize,
+        description: ITEMS_CONFIG['lingot-fer'].description,
+        category: ITEMS_CONFIG['lingot-fer'].category
+      },
+      {
+        id: `lingot-acier-${Date.now()}-1`,
+        type: 'lingot-acier',
+        quantity: 30,
+        stackSize: ITEMS_CONFIG['lingot-acier'].stackSize,
+        description: ITEMS_CONFIG['lingot-acier'].description,
+        category: ITEMS_CONFIG['lingot-acier'].category
+      },
+      {
+        id: `lingot-cuivre-${Date.now()}-1`,
+        type: 'lingot-cuivre',
+        quantity: 40,
+        stackSize: ITEMS_CONFIG['lingot-cuivre'].stackSize,
+        description: ITEMS_CONFIG['lingot-cuivre'].description,
+        category: ITEMS_CONFIG['lingot-cuivre'].category
+      },
+      {
+        id: `lingot-silicium-${Date.now()}-1`,
+        type: 'lingot-silicium',
+        quantity: 20,
+        stackSize: ITEMS_CONFIG['lingot-silicium'].stackSize,
+        description: ITEMS_CONFIG['lingot-silicium'].description,
+        category: ITEMS_CONFIG['lingot-silicium'].category
+      },
+      {
+        id: `lingot-or-${Date.now()}-1`,
+        type: 'lingot-or',
+        quantity: 10,
+        stackSize: ITEMS_CONFIG['lingot-or'].stackSize,
+        description: ITEMS_CONFIG['lingot-or'].description,
+        category: ITEMS_CONFIG['lingot-or'].category
+      }
+    ]
+    
+    // Ajouter les items à l'inventaire
+    inventory.value.push(embryons, barilsPetrole, nourritureConserve, barilsVides, cereales, ...lingotsInitiaux)
 
     // Réinitialiser les autres valeurs
     gameTime.value = 0
@@ -917,6 +1136,21 @@ export const useGameStore = defineStore('game', () => {
               const level = levels.value.find(l => l.id === excavation.levelId)
               if (level) level.isStairsExcavated = true
 
+              // Notifier des minerais trouvés lors de l'excavation verticale
+              if (excavation.mineralsFound && excavation.mineralsFound.length > 0) {
+                const message = excavation.mineralsFound
+                  .map(m => `${ITEMS_CONFIG[m.type].name}: ${m.amount}`)
+                  .join('\n')
+                
+                window.dispatchEvent(new CustomEvent('excavation-complete', {
+                  detail: {
+                    title: 'Minerais découverts lors de l\'excavation verticale !',
+                    message,
+                    type: 'success'
+                  }
+                }))
+              }
+
               // Libérer l'habitant affecté à l'excavation
               const habitantAffecte = habitants.value.find(h => 
                 h.affectation.type === 'excavation' &&
@@ -931,7 +1165,24 @@ export const useGameStore = defineStore('game', () => {
               if (level) {
                 const rooms = excavation.position === 'left' ? level.leftRooms : level.rightRooms
                 const room = rooms[excavation.roomIndex!]
-                if (room) room.isExcavated = true
+                if (room) {
+                  room.isExcavated = true
+
+                  // Notifier des minerais trouvés lors de l'excavation horizontale
+                  if (excavation.mineralsFound && excavation.mineralsFound.length > 0) {
+                    const message = excavation.mineralsFound
+                      .map(m => `${ITEMS_CONFIG[m.type].name}: ${m.amount}`)
+                      .join('\n')
+                    
+                    window.dispatchEvent(new CustomEvent('excavation-complete', {
+                      detail: {
+                        title: 'Minerais découverts !',
+                        message,
+                        type: 'success'
+                      }
+                    }))
+                  }
+                }
 
                 // Libérer l'habitant affecté à l'excavation
                 const habitantAffecte = habitants.value.find(h => 
@@ -1020,13 +1271,43 @@ export const useGameStore = defineStore('game', () => {
             levelId,
             position: 'stairs'
           })
+
+          // Extraire des minerais (3x plus que l'excavation horizontale)
+          const mineralsFound: MineralFound[] = []
+          const mineralDistribution = MINERAL_DISTRIBUTION[Math.min(levelId, 4) as keyof typeof MINERAL_DISTRIBUTION]
+          if (mineralDistribution) {
+            // Garantir au moins une ressource
+            let hasFoundResource = false
+            Object.entries(mineralDistribution).forEach(([mineral, config]) => {
+              if (Math.random() < Math.max(0.3, config.chance)) { // Minimum 30% de chance
+                const amount = Math.floor(
+                  Math.max(
+                    config.amount.min,
+                    (config.amount.min + Math.random() * (config.amount.max - config.amount.min)) * 3
+                  )
+                )
+                addItem(mineral as ItemType, amount)
+                mineralsFound.push({ type: mineral as ItemType, amount })
+                hasFoundResource = true
+              }
+            })
+
+            // Si aucune ressource n'a été trouvée, en ajouter une aléatoire
+            if (!hasFoundResource) {
+              const randomMineral = Object.entries(mineralDistribution)[Math.floor(Math.random() * Object.entries(mineralDistribution).length)]
+              const amount = Math.floor(randomMineral[1].amount.min * 3)
+              addItem(randomMineral[0] as ItemType, amount)
+              mineralsFound.push({ type: randomMineral[0] as ItemType, amount })
+            }
+          }
           
           excavations.value.push({
             levelId,
             position: 'stairs',
             startTime: gameTime.value,
             habitantId: habitantLibre.id,
-            duration: getExcavationTime(levelId)
+            duration: getExcavationTime(levelId),
+            mineralsFound
           })
           return true
         }
@@ -1053,13 +1334,43 @@ export const useGameStore = defineStore('game', () => {
             roomIndex
           })
 
+          // Extraire des minerais
+          const mineralsFound: MineralFound[] = []
+          const mineralDistribution = MINERAL_DISTRIBUTION[Math.min(levelId, 4) as keyof typeof MINERAL_DISTRIBUTION]
+          if (mineralDistribution) {
+            // Garantir au moins une ressource
+            let hasFoundResource = false
+            Object.entries(mineralDistribution).forEach(([mineral, config]) => {
+              if (Math.random() < Math.max(0.3, config.chance)) { // Minimum 30% de chance
+                const amount = Math.floor(
+                  Math.max(
+                    config.amount.min,
+                    config.amount.min + Math.random() * (config.amount.max - config.amount.min)
+                  )
+                )
+                addItem(mineral as ItemType, amount)
+                mineralsFound.push({ type: mineral as ItemType, amount })
+                hasFoundResource = true
+              }
+            })
+
+            // Si aucune ressource n'a été trouvée, en ajouter une aléatoire
+            if (!hasFoundResource) {
+              const randomMineral = Object.entries(mineralDistribution)[Math.floor(Math.random() * Object.entries(mineralDistribution).length)]
+              const amount = Math.floor(randomMineral[1].amount.min)
+              addItem(randomMineral[0] as ItemType, amount)
+              mineralsFound.push({ type: randomMineral[0] as ItemType, amount })
+            }
+          }
+
           excavations.value.push({
             levelId,
             position,
             roomIndex,
             startTime: gameTime.value,
             habitantId: habitantLibre.id,
-            duration: getExcavationTime(levelId)
+            duration: getExcavationTime(levelId),
+            mineralsFound
           })
           return true
         }
@@ -1076,7 +1387,35 @@ export const useGameStore = defineStore('game', () => {
       if (room && room.isExcavated && !room.isBuilt && !room.isUnderConstruction) {
         // Vérifier qu'il y a au moins un adulte disponible
         const adultAvailable = habitantsLibres.value.some(h => h.age >= 7)
-        if (!adultAvailable) return
+        if (!adultAvailable) return false
+
+        // Vérifier les ressources nécessaires
+        const constructionCosts = ROOM_CONSTRUCTION_COSTS[roomType]
+        if (constructionCosts) {
+          // Vérifier si toutes les ressources sont disponibles
+          for (const [resource, amount] of Object.entries(constructionCosts)) {
+            const available = getItemQuantity(resource as ItemType)
+            if (available < amount) {
+              // Notifier le manque de ressources
+              window.dispatchEvent(new CustomEvent('excavation-complete', {
+                detail: {
+                  title: 'Construction impossible',
+                  message: `Il manque ${amount - available} ${ITEMS_CONFIG[resource as ItemType].name}`,
+                  type: 'error'
+                }
+              }))
+              return false
+            }
+          }
+
+          // Consommer les ressources
+          for (const [resource, amount] of Object.entries(constructionCosts)) {
+            const item = inventory.value.find(item => item.type === resource && item.quantity >= amount)
+            if (item) {
+              removeItem(item.id, amount)
+            }
+          }
+        }
 
         // Trouver un habitant libre qui a plus de 7 ans
         const habitantLibre = habitantsLibres.value.find(h => h.age >= 7)
@@ -1097,9 +1436,11 @@ export const useGameStore = defineStore('game', () => {
           })
           updateRoomProduction()
           saveGame()
+          return true
         }
       }
     }
+    return false
   }
 
   function saveGame() {
@@ -1222,7 +1563,6 @@ export const useGameStore = defineStore('game', () => {
     const room = habitant.affectation.position === 'left'
       ? level.leftRooms[habitant.affectation.roomIndex!]
       : level.rightRooms[habitant.affectation.roomIndex!]
-    
     if (!room) return false
 
     room.occupants = room.occupants.filter(id => id !== habitantId)

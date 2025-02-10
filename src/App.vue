@@ -1,5 +1,6 @@
 <template>
   <div class="game-container">
+    <NotificationSystem ref="notificationSystem" />
     <header class="game-header">
       <h1>L'Abri</h1>
       <div class="game-controls">
@@ -43,13 +44,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, provide } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useGameStore } from './stores/gameStore'
 import ResourcePanel from './components/ResourcePanel.vue'
 import SiloLevel from './components/SiloLevel.vue'
 import HabitantsList from './components/HabitantsList.vue'
 import InventoryModal from './components/InventoryModal.vue'
+import NotificationSystem from './components/NotificationSystem.vue'
 
 // État du jeu
 const gameStore = useGameStore()
@@ -109,10 +111,31 @@ const updateGame = () => {
 
 onMounted(() => {
   gameLoop = requestAnimationFrame(updateGame)
+
+  // Écouter les événements d'excavation
+  window.addEventListener('excavation-complete', ((event: CustomEvent) => {
+    const { title, message, type } = event.detail
+    notificationSystem.value?.addNotification(title, message, type)
+  }) as EventListener)
 })
 
 onUnmounted(() => {
   cancelAnimationFrame(gameLoop)
+
+  // Supprimer les écouteurs d'événements
+  window.removeEventListener('excavation-complete', ((event: CustomEvent) => {
+    const { title, message, type } = event.detail
+    notificationSystem.value?.addNotification(title, message, type)
+  }) as EventListener)
+})
+
+const notificationSystem = ref()
+
+// Fournir le système de notification à tous les composants enfants
+provide('notifications', {
+  addNotification: (title: string, message: string, type: 'info' | 'success' | 'warning' | 'error' = 'info') => {
+    notificationSystem.value?.addNotification(title, message, type)
+  }
 })
 </script>
 

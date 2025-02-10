@@ -510,6 +510,13 @@ onMounted(() => {
     border-bottom-left-radius: 0;
     margin-left: -2px;
   }
+
+  @each $type in (entrepot, dortoir, cuisine, station-traitement, generateur, infirmerie, serre, raffinerie) {
+    &.room-type-#{$type} {
+      --room-color: var(--room-#{$type}-color);
+      border-color: var(--room-#{$type}-color);
+    }
+  }
 }
 
 .room-info {

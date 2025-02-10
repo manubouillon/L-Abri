@@ -24,13 +24,20 @@
           v-for="type in getRoomsByCategory(selectedCategory)" 
           :key="type.id"
           class="room-type-button"
-          :class="`room-type-${type.id}`"
-          @click="$emit('select', type.id)"
+          :class="[
+            `room-type-${type.id}`,
+            { 'disabled': !canAffordRoom(type.id) }
+          ]"
+          @click="canAffordRoom(type.id) && $emit('select', type.id)"
+          :disabled="!canAffordRoom(type.id)"
         >
           <div class="room-type-icon">{{ type.icon }}</div>
           <div class="room-type-info">
             <h3>{{ type.name }}</h3>
             <p>{{ type.description }}</p>
+            <p class="construction-cost">
+              Coût: {{ getConstructionCosts(type.id) }}
+            </p>
           </div>
         </button>
 
@@ -44,7 +51,9 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { ROOM_CATEGORIES } from '../stores/gameStore'
+import { ROOM_CATEGORIES, ROOM_CONSTRUCTION_COSTS, ITEMS_CONFIG, useGameStore } from '../stores/gameStore'
+
+const store = useGameStore()
 
 const selectedCategory = ref<string | null>(null)
 
@@ -99,11 +108,39 @@ const roomTypes = [
     icon: '🌱',
     description: 'Produit de la nourriture',
     category: 'alimentation'
+  },
+  {
+    id: 'raffinerie',
+    name: 'Raffinerie',
+    icon: '⚒️',
+    description: 'Raffine les minerais en lingots',
+    category: 'production'
   }
 ]
 
 function getRoomsByCategory(categoryId: string) {
   return roomTypes.filter(room => room.category === categoryId)
+}
+
+function canAffordRoom(type: string): boolean {
+  const costs = ROOM_CONSTRUCTION_COSTS[type]
+  if (!costs) return true
+
+  for (const [resource, amount] of Object.entries(costs)) {
+    if (store.getItemQuantity(resource) < amount) {
+      return false
+    }
+  }
+  return true
+}
+
+function getConstructionCosts(type: string): string {
+  const costs = ROOM_CONSTRUCTION_COSTS[type]
+  if (!costs) return 'Gratuit'
+
+  return Object.entries(costs)
+    .map(([resource, amount]) => `${ITEMS_CONFIG[resource].name}: ${amount}`)
+    .join(', ')
 }
 
 defineEmits<{
@@ -166,7 +203,8 @@ defineEmits<{
     alimentation: var(--category-alimentation-color),
     eau: var(--category-eau-color),
     energie: var(--category-energie-color),
-    sante: var(--category-sante-color)
+    sante: var(--category-sante-color),
+    production: var(--room-production-color)
   ) {
     &.category-#{$type} {
       border-color: $color;
@@ -216,7 +254,8 @@ defineEmits<{
     station-traitement: var(--room-station-traitement-color),
     generateur: var(--room-generateur-color),
     infirmerie: var(--room-infirmerie-color),
-    serre: var(--room-serre-color)
+    serre: var(--room-serre-color),
+    raffinerie: var(--room-production-color)
   ) {
     &.room-type-#{$type} {
       border-color: $color;
@@ -224,6 +263,16 @@ defineEmits<{
       &:hover {
         background-color: rgba($color, 0.1);
       }
+    }
+  }
+
+  &.disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    
+    &:hover {
+      transform: none;
+      background-color: #2c3e50;
     }
   }
 }
@@ -267,5 +316,11 @@ defineEmits<{
   &:hover {
     background-color: #95a5a622;
   }
+}
+
+.construction-cost {
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
+  color: #f1c40f;
 }
 </style> 
