@@ -45,6 +45,7 @@ export interface Habitant {
   nom: string
   genre: 'H' | 'F'
   age: number // Âge en années
+  sante: number // Santé en pourcentage
   affectation: Affectation
   competences: Competences
   bonheur: number // Score de bonheur sur 100
@@ -374,8 +375,9 @@ function generateRandomName(): { nom: string, genre: 'H' | 'F', age: number } {
     ? PRENOMS.filter((_, i) => i < PRENOMS.length / 2)[Math.floor(Math.random() * (PRENOMS.length / 2))]
     : PRENOMS.filter((_, i) => i >= PRENOMS.length / 2)[Math.floor(Math.random() * (PRENOMS.length / 2))]
   const nom = NOMS[Math.floor(Math.random() * NOMS.length)]
-  const age = Math.floor(Math.random() * 30) + 18 // Entre 18 et 47 ans
-  return { nom: `${prenom} ${nom}`, genre, age }
+  const ageEnAnnees = Math.floor(Math.random() * 53) + 8 // Entre 8 et 60 ans
+  const ageEnSemaines = ageEnAnnees * 52 // Conversion en semaines
+  return { nom: `${prenom} ${nom}`, genre, age: ageEnSemaines }
 }
 
 function generateRandomCompetences(): Competences {
@@ -813,7 +815,7 @@ export const useGameStore = defineStore('game', () => {
   )
 
   const enfants = computed(() =>
-    habitants.value.filter(h => h.age < 7)
+    habitants.value.filter(h => h.age < (7 * 52)) // Moins de 7 ans en semaines
   )
 
   // Getters pour l'inventaire
@@ -956,6 +958,7 @@ export const useGameStore = defineStore('game', () => {
         nom,
         genre,
         age,
+        sante: 100, // Santé initiale à 100%
         affectation: { type: null },
         competences: generateRandomCompetences(),
         bonheur: 50 // Score de bonheur par défaut
@@ -1981,11 +1984,30 @@ export const useGameStore = defineStore('game', () => {
     initGame()
   }
 
+  // Ajouter la fonction utilitaire
+  function isEnfant(age: number): boolean {
+    return age < (7 * 52) // Moins de 7 ans en semaines
+  }
+
+  // Modifier la fonction affecterHabitant
   function affecterHabitant(habitantId: string, affectation: Habitant['affectation']) {
     const habitant = habitants.value.find(h => h.id === habitantId)
     if (habitant) {
+      // Vérifier si l'habitant n'est pas un enfant
+      if (isEnfant(habitant.age)) {
+        window.dispatchEvent(new CustomEvent('excavation-complete', {
+          detail: {
+            title: 'Affectation impossible',
+            message: 'Les enfants de moins de 7 ans ne peuvent pas travailler.',
+            type: 'error'
+          }
+        }))
+        return false
+      }
       habitant.affectation = affectation
+      return true
     }
+    return false
   }
 
   function libererHabitant(habitantId: string) {
@@ -2006,12 +2028,22 @@ export const useGameStore = defineStore('game', () => {
     }
   }
 
+  // Modifier la fonction affecterHabitantSalle
   function affecterHabitantSalle(habitantId: string, levelId: number, position: 'left' | 'right', roomIndex: number): boolean {
     const habitant = habitants.value.find(h => h.id === habitantId)
     if (!habitant) return false
 
-    // Vérifier l'âge minimum
-    if (habitant.age < 7) return false
+    // Vérifier si l'habitant n'est pas un enfant
+    if (isEnfant(habitant.age)) {
+      window.dispatchEvent(new CustomEvent('excavation-complete', {
+        detail: {
+          title: 'Affectation impossible',
+          message: 'Les enfants de moins de 7 ans ne peuvent pas travailler.',
+          type: 'error'
+        }
+      }))
+      return false
+    }
 
     const level = levels.value.find(l => l.id === levelId)
     if (!level) return false
@@ -2027,22 +2059,22 @@ export const useGameStore = defineStore('game', () => {
 
     // Si l'habitant était déjà dans une salle, le retirer proprement
     if (habitant.affectation.type === 'salle') {
-        const oldLevel = levels.value.find(l => l.id === habitant.affectation.levelId)
-        if (oldLevel) {
-            const oldRoom = habitant.affectation.position === 'left' 
-                ? oldLevel.leftRooms[habitant.affectation.roomIndex!]
-                : oldLevel.rightRooms[habitant.affectation.roomIndex!]
-            if (oldRoom) {
-                // Vérifier si c'est une infirmerie avec une incubation en cours
-                if (oldRoom.type === 'infirmerie') {
-                    const nurserie = oldRoom.equipments.find(e => e.type === 'nurserie')
-                    if (nurserie?.nurserieState?.isIncubating && oldRoom.occupants.length <= 1) {
-                        return false // Empêcher le retrait du dernier travailleur pendant l'incubation
-                    }
-                }
-                oldRoom.occupants = oldRoom.occupants.filter(id => id !== habitantId)
+      const oldLevel = levels.value.find(l => l.id === habitant.affectation.levelId)
+      if (oldLevel) {
+        const oldRoom = habitant.affectation.position === 'left' 
+          ? oldLevel.leftRooms[habitant.affectation.roomIndex!]
+          : oldLevel.rightRooms[habitant.affectation.roomIndex!]
+        if (oldRoom) {
+          // Vérifier si c'est une infirmerie avec une incubation en cours
+          if (oldRoom.type === 'infirmerie') {
+            const nurserie = oldRoom.equipments.find(e => e.type === 'nurserie')
+            if (nurserie?.nurserieState?.isIncubating && oldRoom.occupants.length <= 1) {
+              return false // Empêcher le retrait du dernier travailleur pendant l'incubation
             }
+          }
+          oldRoom.occupants = oldRoom.occupants.filter(id => id !== habitantId)
         }
+      }
     }
 
     // Affecter l'habitant à la nouvelle salle
@@ -2341,6 +2373,7 @@ export const useGameStore = defineStore('game', () => {
                     nom: `${prenom} ${nom}`,
                     genre,
                     age: 0,
+                    sante: 100, // Santé initiale à 100%
                     affectation: { type: null },
                     competences: generateRandomCompetences(),
                     bonheur: 50 // Score de bonheur par défaut

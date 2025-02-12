@@ -13,10 +13,15 @@
           v-for="habitant in habitants" 
           :key="habitant.id"
           class="habitant-card"
+          :class="{ 'enfant': isEnfant(habitant.age) }"
         >
           <h3>
             {{ habitant.nom }}
             <span class="genre-icon">{{ habitant.genre === 'H' ? '👨' : '👩' }}</span>
+            <span class="age" :class="{ 'age-enfant': isEnfant(habitant.age) }">
+              {{ formatAge(habitant.age) }}
+              <span v-if="isEnfant(habitant.age)" class="enfant-tag">Enfant</span>
+            </span>
           </h3>
           <div class="happiness-indicator">
             <span class="label">Bonheur:</span>
@@ -140,6 +145,23 @@ function getHappinessColor(happiness: number): string {
   if (happiness >= 40) return '#FFC107' // Jaune
   if (happiness >= 20) return '#FF9800' // Orange
   return '#F44336' // Rouge
+}
+
+function isEnfant(age: number): boolean {
+  return age < (7 * 52) // Moins de 7 ans en semaines
+}
+
+function formatAge(age: number): string {
+  const ageEnAnnees = Math.floor(age / 52)
+  if (isEnfant(age)) {
+    // Pour les enfants, afficher aussi les mois
+    const mois = Math.floor((age % 52) / 4)
+    if (ageEnAnnees === 0) {
+      return `${mois} mois`
+    }
+    return `${ageEnAnnees} ans ${mois} mois`
+  }
+  return `${ageEnAnnees} ans`
 }
 </script>
 
@@ -310,5 +332,29 @@ function getHappinessColor(happiness: number): string {
 .happiness-indicator .value {
   min-width: 45px;
   text-align: right;
+}
+
+.age {
+  font-size: 0.9rem;
+  color: #bdc3c7;
+  margin-left: auto;
+}
+
+.enfant {
+  border: 2px solid #e74c3c;
+  position: relative;
+}
+
+.age-enfant {
+  color: #e74c3c;
+}
+
+.enfant-tag {
+  font-size: 0.8rem;
+  background-color: #e74c3c;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 6px;
 }
 </style> 
