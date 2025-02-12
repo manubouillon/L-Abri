@@ -47,6 +47,7 @@ export interface Habitant {
   age: number // Âge en années
   affectation: Affectation
   competences: Competences
+  bonheur: number // Score de bonheur sur 100
 }
 
 export interface Equipment {
@@ -323,7 +324,14 @@ export const ROOM_CONFIGS: { [key: string]: RoomConfig } = {
       'minerai-cuivre': { output: 'lingot-cuivre', ratio: 0.8 },
       'minerai-silicium': { output: 'lingot-silicium', ratio: 0.7 },
       'minerai-or': { output: 'lingot-or', ratio: 0.9 },
-      'minerai-charbon': { output: 'lingot-acier', ratio: 0.6, requires: { 'minerai-fer': 2 } } // 2 fer + 1 charbon = 0.6 acier
+      'lingot-fer': { 
+        output: 'lingot-acier', 
+        ratio: 0.8, 
+        requires: { 
+          'minerai-charbon': 1,
+          'minerai-calcaire': 0.5
+        }
+      } // 1 lingot de fer + 1 charbon + 0.5 calcaire = 0.8 acier
     }
   } as ProductionRoomConfig & {
     mineralsProcessingPerWorker: number,
@@ -418,16 +426,11 @@ export type ItemType = 'embryon-humain' | 'baril-petrole' | 'baril-vide' | 'cere
   'minerai-fer' | 'minerai-charbon' | 'minerai-silicium' | 'minerai-cuivre' | 'minerai-or' | 'minerai-calcaire' |
   'lingot-fer' | 'lingot-acier' | 'lingot-cuivre' | 'lingot-silicium' | 'lingot-or'
 
-export const ITEMS_CONFIG: { [key in ItemType]: {
-  name: string
-  stackSize: number
-  description: string
-  category: ItemCategory
-} } = {
+export const ITEMS_CONFIG = {
   'embryon-humain': {
     name: 'Embryon humain',
-    stackSize: 1000,
-    description: 'Un embryon humain cryogénisé, prêt à être implanté dans une nurserie.',
+    stackSize: 10,
+    description: 'Un embryon humain cryogénisé',
     category: 'biologique'
   },
   'baril-petrole': {
@@ -498,8 +501,8 @@ export const ITEMS_CONFIG: { [key in ItemType]: {
   },
   'lingot-acier': {
     name: 'Lingot d\'acier',
-    stackSize: 1000,
-    description: 'Lingot d\'acier, un alliage de fer et de carbone.',
+    stackSize: 50,
+    description: 'Un lingot d\'acier, alliage de fer et de carbone',
     category: 'ressource'
   },
   'lingot-cuivre': {
@@ -516,11 +519,11 @@ export const ITEMS_CONFIG: { [key in ItemType]: {
   },
   'lingot-or': {
     name: 'Lingot d\'or',
-    stackSize: 1000,
-    description: 'Lingot d\'or raffiné.',
+    stackSize: 50,
+    description: 'Un lingot d\'or pur',
     category: 'ressource'
   }
-}
+} as const
 
 export const ITEM_CATEGORIES: { [key in ItemCategory]: {
   name: string
@@ -739,6 +742,26 @@ export const ROOM_CONSTRUCTION_COSTS: { [key: string]: { [key in ItemType]?: num
   }
 }
 
+// Configuration des points de bonheur
+const HAPPINESS_CONFIG = {
+  // Besoins de base
+  EAU: 25,
+  NOURRITURE: 25,
+  
+  // Besoins secondaires
+  VETEMENTS: 15,
+  MEDICAMENTS: 15,
+  
+  // Pénalités
+  MANQUE_EAU: -30,
+  MANQUE_NOURRITURE: -30,
+  MANQUE_VETEMENTS: -20,
+  MANQUE_MEDICAMENTS: -20,
+  
+  // Valeur par défaut
+  DEFAULT: 50
+}
+
 export const useGameStore = defineStore('game', () => {
   // État du jeu
   const levels = ref<Level[]>([])
@@ -934,7 +957,8 @@ export const useGameStore = defineStore('game', () => {
         genre,
         age,
         affectation: { type: null },
-        competences: generateRandomCompetences()
+        competences: generateRandomCompetences(),
+        bonheur: 50 // Score de bonheur par défaut
       }
     })
 
@@ -1641,14 +1665,52 @@ export const useGameStore = defineStore('game', () => {
     }
   }
 
-  function updateHappiness() {
-    const resourcesStatus = Object.values(resources.value).map(resource => {
-      if (resource.consumption === 0) return 100;
-      return Math.min(100, (resource.production / resource.consumption) * 100);
-    });
+  // Ajout de la fonction de calcul du bonheur
+  function calculateHappiness(habitantId: string): number {
+    let score = HAPPINESS_CONFIG.DEFAULT
 
-    happiness.value = Math.floor((resourcesStatus.reduce((a: number, b: number) => a + b, 0) / resourcesStatus.length));
+    // Vérification des ressources disponibles
+    if (resources.value.eau.amount > 0) {
+      score += HAPPINESS_CONFIG.EAU
+    } else {
+      score += HAPPINESS_CONFIG.MANQUE_EAU
+    }
+
+    if (resources.value.nourriture.amount > 0) {
+      score += HAPPINESS_CONFIG.NOURRITURE
+    } else {
+      score += HAPPINESS_CONFIG.MANQUE_NOURRITURE
+    }
+
+    if (resources.value.vetements.amount > 0) {
+      score += HAPPINESS_CONFIG.VETEMENTS
+    } else {
+      score += HAPPINESS_CONFIG.MANQUE_VETEMENTS
+    }
+
+    if (resources.value.medicaments.amount > 0) {
+      score += HAPPINESS_CONFIG.MEDICAMENTS
+    } else {
+      score += HAPPINESS_CONFIG.MANQUE_MEDICAMENTS
+    }
+
+    // Limiter le score entre 0 et 100
+    return Math.max(0, Math.min(100, score))
   }
+
+  // Mise à jour de la fonction updateHappiness
+  function updateHappiness() {
+    habitants.value.forEach(habitant => {
+      habitant.bonheur = calculateHappiness(habitant.id)
+    })
+  }
+
+  // Ajout du calcul du bonheur global
+  const globalHappiness = computed(() => {
+    if (habitants.value.length === 0) return 0
+    const totalHappiness = habitants.value.reduce((sum, habitant) => sum + habitant.bonheur, 0)
+    return Math.round(totalHappiness / habitants.value.length)
+  })
 
   function addNewLevel() {
     const newLevelId = levels.value.length
@@ -2280,7 +2342,8 @@ export const useGameStore = defineStore('game', () => {
                     genre,
                     age: 0,
                     affectation: { type: null },
-                    competences: generateRandomCompetences()
+                    competences: generateRandomCompetences(),
+                    bonheur: 50 // Score de bonheur par défaut
                   }
 
                   habitants.value.push(newHabitant)
@@ -2496,6 +2559,8 @@ export const useGameStore = defineStore('game', () => {
     increaseGameSpeed,
     decreaseGameSpeed,
     getCurrentState,
-    loadState
+    loadState,
+    globalHappiness,
+    HAPPINESS_CONFIG
   }
 }) 

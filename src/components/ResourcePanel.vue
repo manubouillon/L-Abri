@@ -76,7 +76,7 @@
       </div>
       <div class="stat-item">
         <span class="stat-label">Bonheur:</span>
-        <span class="stat-value">{{ happiness }}%</span>
+        <span class="stat-value">{{ globalHappiness }}%</span>
       </div>
       <div class="stat-item">
         <span class="stat-label">Date:</span>
@@ -114,6 +114,8 @@ const showWaterDetails = ref(false)
 const showFoodDetails = ref(false)
 const showClothesDetails = ref(false)
 const showMedicineDetails = ref(false)
+const gameStore = useGameStore()
+const { globalHappiness } = storeToRefs(gameStore)
 </script>
 
 <style lang="scss" scoped>

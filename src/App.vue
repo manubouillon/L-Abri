@@ -3,6 +3,11 @@
     <NotificationSystem ref="notificationSystem" />
     <header class="game-header">
       <h1>L'Abri</h1>
+      <div class="game-info">
+        <div class="happiness">
+          Bonheur: {{ globalHappiness }}%
+        </div>
+      </div>
       <div class="game-controls">
         <button @click="showSaveModal = true">Sauvegarde</button>
         <button @click="showInventory = true">
@@ -57,7 +62,7 @@ import NotificationSystem from './components/NotificationSystem.vue'
 
 // État du jeu
 const gameStore = useGameStore()
-const { levels, inventorySpace, gameSpeed } = storeToRefs(gameStore)
+const { levels, inventorySpace, gameSpeed, globalHappiness } = storeToRefs(gameStore)
 const isPaused = ref(false)
 const scrollPosition = ref(0)
 const showHabitantsList = ref(false)
@@ -173,6 +178,20 @@ body {
   h1 {
     margin: 0;
     font-size: 1.5rem;
+  }
+
+  .game-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    color: #ecf0f1;
+    font-size: 1.1em;
+  }
+
+  .happiness {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
   }
 
   .game-controls {

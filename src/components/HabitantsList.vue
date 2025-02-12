@@ -3,6 +3,9 @@
     <div class="habitants-list" @click.stop>
       <div class="modal-header">
         <h2>Liste des habitants</h2>
+        <div class="global-happiness">
+          Bonheur global : {{ globalHappiness }}%
+        </div>
         <button class="close-button" @click="$emit('close')">×</button>
       </div>
       <div class="habitants-grid">
@@ -15,6 +18,19 @@
             {{ habitant.nom }}
             <span class="genre-icon">{{ habitant.genre === 'H' ? '👨' : '👩' }}</span>
           </h3>
+          <div class="happiness-indicator">
+            <span class="label">Bonheur:</span>
+            <div class="bar">
+              <div 
+                class="fill" 
+                :style="{ 
+                  width: `${habitant.bonheur}%`,
+                  backgroundColor: getHappinessColor(habitant.bonheur)
+                }"
+              ></div>
+            </div>
+            <span class="value">{{ habitant.bonheur }}%</span>
+          </div>
           <div class="competences">
             <div class="competence">
               <span class="label">Force:</span>
@@ -83,7 +99,7 @@ import type { Habitant } from '../stores/gameStore'
 import { onMounted, onUnmounted } from 'vue'
 
 const store = useGameStore()
-const { habitants } = storeToRefs(store)
+const { habitants, globalHappiness } = storeToRefs(store)
 
 const emit = defineEmits<{
   (e: 'close'): void
@@ -116,6 +132,14 @@ function getRoomInfo(affectation: Habitant['affectation']): string {
   if (!room) return 'Inconnu'
 
   return `${room.type} (Niveau ${level.id + 1})`
+}
+
+function getHappinessColor(happiness: number): string {
+  if (happiness >= 80) return '#4CAF50' // Vert
+  if (happiness >= 60) return '#8BC34A' // Vert clair
+  if (happiness >= 40) return '#FFC107' // Jaune
+  if (happiness >= 20) return '#FF9800' // Orange
+  return '#F44336' // Rouge
 }
 </script>
 
@@ -247,5 +271,44 @@ function getRoomInfo(affectation: Habitant['affectation']): string {
     color: #ecf0f1;
     font-weight: bold;
   }
+}
+
+.global-happiness {
+  font-size: 1.2em;
+  color: #ecf0f1;
+  margin-right: 20px;
+}
+
+.happiness-indicator {
+  margin: 10px 0;
+}
+
+.happiness-indicator .bar {
+  height: 12px;
+  background-color: #eee;
+  border-radius: 6px;
+  overflow: hidden;
+  margin: 0 5px;
+  flex-grow: 1;
+}
+
+.happiness-indicator .fill {
+  height: 100%;
+  transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+.happiness-indicator {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.happiness-indicator .label {
+  min-width: 70px;
+}
+
+.happiness-indicator .value {
+  min-width: 45px;
+  text-align: right;
 }
 </style> 

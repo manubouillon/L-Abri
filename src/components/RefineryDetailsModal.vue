@@ -53,12 +53,12 @@
             <div class="process-inputs">
               Entrée :
               <span v-for="(input, index) in props.room.nextMineralsToProcess.input" :key="index">
-                {{ input.amount }} {{ ITEMS_CONFIG[input.type]?.name }}
+                {{ input.amount }} {{ getItemName(input.type) }}
                 <span v-if="index < props.room.nextMineralsToProcess.input.length - 1">, </span>
               </span>
             </div>
             <div class="process-output">
-              Sortie : {{ props.room.nextMineralsToProcess.output.amount }} {{ ITEMS_CONFIG[props.room.nextMineralsToProcess.output.type]?.name }}
+              Sortie : {{ props.room.nextMineralsToProcess.output.amount }} {{ getItemName(props.room.nextMineralsToProcess.output.type) }}
             </div>
           </div>
           <div v-else class="no-process">
@@ -80,7 +80,7 @@
           </div>
         </div>
 
-        <div class="add-worker" v-if="props.room.occupants.length < ROOM_CONFIGS['raffinerie'].maxWorkers">
+        <div class="add-worker" v-if="props.room.occupants.length < (ROOM_CONFIGS['raffinerie'] as RefineryConfig).maxWorkers">
           <select v-model="selectedHabitant">
             <option value="">Sélectionner un habitant</option>
             <option 
@@ -106,35 +106,29 @@
       <div class="details-section">
         <h3>Conversions disponibles</h3>
         <div class="resources-grid">
-          <div v-for="(rule, inputType) in conversionRules" :key="inputType" class="resource-row">
+          <div v-for="rule in conversionRulesList" :key="rule.inputType" class="resource-row">
             <div class="resource-info">
-              <div class="resource-name">{{ ITEMS_CONFIG[inputType as ItemType]?.name }}</div>
+              <div class="resource-name">{{ getItemName(rule.output) }}</div>
               <div class="resource-quantity">
-                Disponible: {{ getResourceQuantity(inputType as ItemType) }}
+                Rendement: {{ Math.round(rule.ratio * 100) }}%
               </div>
             </div>
             <div class="conversion-info">
               <div class="conversion-details">
-                <template v-if="rule.requires">
-                  Nécessite aussi:
-                  <span v-for="(amount, reqType) in rule.requires" :key="reqType">
-                    {{ amount }} {{ ITEMS_CONFIG[reqType as ItemType]?.name }}
-                    (Disponible: {{ getResourceQuantity(reqType as ItemType) }})
-                  </span>
-                </template>
-                <div>
-                  Produit: {{ ITEMS_CONFIG[rule.output as ItemType]?.name }}
-                  ({{ Math.round(rule.ratio * 100) }}% de rendement)
-                </div>
+                Nécessite:
+                <span v-for="(req, index) in getRequiredResources(rule)" :key="req.type">
+                  {{ index > 0 ? ', ' : '' }}{{ Math.round(req.amount) }} {{ getItemName(req.type) }}
+                  ({{ Math.round(req.available) }})
+                </span>
               </div>
               <button 
                 class="convert-button"
                 :class="{ 
-                  active: selectedResource === inputType || 
-                  (props.room.nextMineralsToProcess?.input[0]?.type === inputType) 
+                  active: selectedResource === rule.inputType || 
+                  (props.room.nextMineralsToProcess?.input[0]?.type === rule.inputType) 
                 }"
-                @click="selectResource(inputType as ItemType)"
-                :disabled="!canConvertResource(inputType as ItemType, rule)"
+                @click="selectResource(rule.inputType, rule)"
+                :disabled="!canConvertResource(rule.inputType, rule)"
               >
                 Sélectionner
               </button>
@@ -153,14 +147,30 @@ import { ref, computed, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useGameStore } from '../stores/gameStore'
 import type { Room, ItemType } from '../stores/gameStore'
-import { ITEMS_CONFIG } from '../stores/gameStore'
+import { ITEMS_CONFIG, ROOM_CONFIGS } from '../stores/gameStore'
+
+interface ConversionRule {
+  output: ItemType
+  ratio: number
+  requires?: {
+    [key: string]: number
+  }
+}
+
+interface RefineryConfig {
+  maxWorkers: number
+  energyConsumption: number
+  mineralsProcessingPerWorker: number
+  conversionRules: {
+    [key: string]: ConversionRule
+  }
+}
 
 const props = defineProps<{
   room: Room
 }>()
 
 const store = useGameStore()
-const { ROOM_CONFIGS } = store
 const { habitants, gameSpeed } = storeToRefs(store)
 const selectedHabitant = ref('')
 const selectedResource = ref<ItemType | null>(null)
@@ -176,9 +186,23 @@ watch(() => props.room.nextMineralsToProcess, (newValue) => {
 }, { immediate: true })
 
 const conversionRules = computed(() => {
-  const config = ROOM_CONFIGS['raffinerie']
-  if (!config || !('conversionRules' in config)) return {}
-  return (config as any).conversionRules
+  const config = ROOM_CONFIGS['raffinerie'] as RefineryConfig
+  if (!config || !config.conversionRules) return {}
+  return Object.fromEntries(
+    Object.entries(config.conversionRules).map(([inputType, rule]) => [
+      inputType,
+      {
+        inputType,
+        output: rule.output,
+        ratio: rule.ratio,
+        requires: rule.requires
+      }
+    ])
+  ) as { [key: string]: ConversionRule & { inputType: string } }
+})
+
+const conversionRulesList = computed(() => {
+  return Object.values(conversionRules.value)
 })
 
 const habitantsDisponibles = computed(() => 
@@ -194,11 +218,11 @@ const getMergeMultiplier = computed(() => {
 })
 
 function getProcessingCapacity(): number {
+  const config = ROOM_CONFIGS['raffinerie'] as RefineryConfig
+  if (!config || !config.mineralsProcessingPerWorker) return 0
   const nbWorkers = props.room.occupants.length
   const gridSize = props.room.gridSize || 1
-  const config = ROOM_CONFIGS['raffinerie'] as any
-  const baseCapacity = config.mineralsProcessingPerWorker * nbWorkers * gridSize * getMergeMultiplier.value
-  return Math.floor(baseCapacity * gameSpeed.value)
+  return Math.floor(config.mineralsProcessingPerWorker * nbWorkers * gridSize * getMergeMultiplier.value * store.gameSpeed)
 }
 
 function getRoomName(room: Room): string {
@@ -219,11 +243,13 @@ function retirerHabitant(habitantId: string) {
 
 function ajouterHabitant() {
   if (selectedHabitant.value) {
+    const roomId = props.room.id
+    const [levelId, position, index] = roomId.split('-')
     store.affecterHabitantSalle(
       selectedHabitant.value,
-      Number(props.room.id.split('-')[0]),
-      props.room.position,
-      props.room.index
+      Number(levelId),
+      position as 'left' | 'right',
+      Number(index)
     )
     selectedHabitant.value = ''
   }
@@ -233,72 +259,49 @@ function getResourceQuantity(type: ItemType): number {
   return store.getItemQuantity(type)
 }
 
-function canConvertResource(type: ItemType, rule: any): boolean {
-  const mainResourceAvailable = getResourceQuantity(type) > 0
-  
-  if (!rule.requires) return mainResourceAvailable
-  
-  return mainResourceAvailable && Object.entries(rule.requires).every(([reqType, amount]) => {
-    return getResourceQuantity(reqType as ItemType) >= (amount as number)
-  })
+function getItemName(type: ItemType): string {
+  return ITEMS_CONFIG[type]?.name || type
 }
 
-function selectResource(type: ItemType) {
-  if (selectedResource.value === type) {
-    selectedResource.value = null
-  } else {
-    selectedResource.value = type
+function getRequiredResources(rule: ConversionRule & { inputType: string }) {
+  const resources: { type: ItemType; amount: number; available: number }[] = [
+    {
+      type: rule.inputType as ItemType,
+      amount: 1,
+      available: store.getItemQuantity(rule.inputType as ItemType)
+    }
+  ]
+
+  if (rule.requires) {
+    Object.entries(rule.requires).forEach(([type, amount]) => {
+      resources.push({
+        type: type as ItemType,
+        amount,
+        available: store.getItemQuantity(type as ItemType)
+      })
+    })
   }
-  
-  // Mettre à jour la configuration de la raffinerie
-  if (props.room.nextMineralsToProcess && selectedResource.value === null) {
-    props.room.nextMineralsToProcess = undefined
-  } else if (selectedResource.value) {
-    const rule = conversionRules.value[selectedResource.value]
-    if (rule) {
-      const baseProcessingCapacity = (ROOM_CONFIGS['raffinerie'] as any).mineralsProcessingPerWorker * 
-        props.room.occupants.length * (props.room.gridSize || 1) * getMergeMultiplier.value
-      const maxProcessingCapacity = Math.floor(baseProcessingCapacity * gameSpeed.value)
-      
-      const mainResourceAvailable = getResourceQuantity(selectedResource.value)
-      let maxPossible = Math.min(maxProcessingCapacity, mainResourceAvailable)
-      
-      if (rule.requires) {
-        maxPossible = Math.min(
-          maxPossible,
-          ...Object.entries(rule.requires).map(([reqType, reqAmount]) => {
-            const available = getResourceQuantity(reqType as ItemType)
-            return Math.floor(available / (reqAmount as number))
-          })
-        )
-      }
-      
-      // Arrondir à la baisse pour traiter des lots complets
-      if (maxPossible > 0) {
-        // Calculer le nombre de lots complets qu'on peut traiter
-        const batchSize = gameSpeed.value
-        maxPossible = Math.floor(maxPossible / batchSize) * batchSize
-        
-        if (maxPossible > 0) {
-          props.room.nextMineralsToProcess = {
-            input: rule.requires 
-              ? [
-                  { type: selectedResource.value, amount: maxPossible },
-                  ...Object.entries(rule.requires).map(([reqType, reqAmount]) => ({
-                    type: reqType as ItemType,
-                    amount: maxPossible * (reqAmount as number)
-                  }))
-                ]
-              : [{ type: selectedResource.value, amount: maxPossible }],
-            output: {
-              type: rule.output,
-              amount: Math.floor(maxPossible * rule.ratio)
-            }
-          }
-        }
-      }
+
+  return resources
+}
+
+function canConvertResource(inputType: string, rule: ConversionRule & { inputType: string }): boolean {
+  const resources = getRequiredResources(rule)
+  return resources.every(resource => resource.available >= resource.amount)
+}
+
+function selectResource(type: string, rule: ConversionRule & { inputType: string }) {
+  // Si une recette est déjà active, vérifier si elle a assez de ressources
+  if (props.room.nextMineralsToProcess) {
+    const currentInputType = props.room.nextMineralsToProcess.input[0].type
+    const currentRule = conversionRulesList.value.find(r => r.inputType === currentInputType)
+    if (currentRule && canConvertResource(currentInputType, currentRule)) {
+      // Si la recette actuelle a assez de ressources, ne rien faire
+      return
     }
   }
+  // Sinon, changer pour la nouvelle recette
+  selectedResource.value = type as ItemType
 }
 </script>
 
