@@ -574,7 +574,7 @@ onMounted(() => {
     width: calc(100%) !important;
   }
 
-  @each $type in (entrepot, dortoir, cuisine, station-traitement, generateur, infirmerie, serre, raffinerie, derrick, salle-controle) {
+  @each $type in (entrepot, dortoir, cuisine, station-traitement, generateur, infirmerie, serre, raffinerie, derrick, salle-controle, quartiers, appartement, suite) {
     &.room-type-#{$type} {
       --room-color: var(--room-#{$type}-color);
       border-color: var(--room-#{$type}-color);

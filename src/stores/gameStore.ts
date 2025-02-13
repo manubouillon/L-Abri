@@ -103,7 +103,7 @@ export const ROOM_CATEGORIES: RoomCategory[] = [
   {
     id: 'logements',
     name: 'Logements',
-    rooms: ['dortoir']
+    rooms: ['dortoir', 'quartiers', 'appartement', 'suite']
   },
   {
     id: 'eau',
@@ -167,6 +167,9 @@ export const GAME_CONFIG = {
 export const ROOM_MERGE_CONFIG: { [key: string]: { useMultiplier: boolean } } = {
   entrepot: { useMultiplier: true },
   dortoir: { useMultiplier: false },
+  quartiers: { useMultiplier: false },
+  appartement: { useMultiplier: false },
+  suite: { useMultiplier: false },
   cuisine: { useMultiplier: true },
   'station-traitement': { useMultiplier: true },
   generateur: { useMultiplier: true },
@@ -277,7 +280,22 @@ export const ROOM_CONFIGS: { [key: string]: RoomConfig } = {
   dortoir: {
     maxWorkers: 0,
     energyConsumption: 2, // 2 unités d'énergie par semaine
+    capacityPerResident: 8
+  } as DortoryRoomConfig,
+  quartiers: {
+    maxWorkers: 0,
+    energyConsumption: 3, // 3 unités d'énergie par semaine
+    capacityPerResident: 6
+  } as DortoryRoomConfig,
+  appartement: {
+    maxWorkers: 0,
+    energyConsumption: 4, // 4 unités d'énergie par semaine
     capacityPerResident: 4
+  } as DortoryRoomConfig,
+  suite: {
+    maxWorkers: 0,
+    energyConsumption: 5, // 5 unités d'énergie par semaine
+    capacityPerResident: 2
   } as DortoryRoomConfig,
   cuisine: {
     maxWorkers: 2,
@@ -715,6 +733,26 @@ export const ROOM_CONSTRUCTION_COSTS: { [key: string]: { [key in ItemType]?: num
     'lingot-fer': 30,
     'lingot-acier': 15,
     'lingot-cuivre': 10
+  },
+  quartiers: {
+    'lingot-fer': 40,
+    'lingot-acier': 20,
+    'lingot-cuivre': 15,
+    'lingot-silicium': 5
+  },
+  appartement: {
+    'lingot-fer': 50,
+    'lingot-acier': 25,
+    'lingot-cuivre': 20,
+    'lingot-silicium': 10,
+    'lingot-or': 2
+  },
+  suite: {
+    'lingot-fer': 60,
+    'lingot-acier': 30,
+    'lingot-cuivre': 25,
+    'lingot-silicium': 15,
+    'lingot-or': 5
   },
   cuisine: {
     'lingot-fer': 25,

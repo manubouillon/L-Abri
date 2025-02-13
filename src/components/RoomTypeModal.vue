@@ -81,7 +81,28 @@ const roomTypes = [
     id: 'dortoir',
     name: 'Dortoir',
     icon: '🛏️',
-    description: 'Héberge les habitants',
+    description: 'Héberge jusqu\'à 8 habitants',
+    category: 'logements'
+  },
+  {
+    id: 'quartiers',
+    name: 'Quartiers',
+    icon: '🏘️',
+    description: 'Héberge jusqu\'à 6 habitants avec plus de confort',
+    category: 'logements'
+  },
+  {
+    id: 'appartement',
+    name: 'Appartement',
+    icon: '🏢',
+    description: 'Héberge jusqu\'à 4 habitants avec un grand confort',
+    category: 'logements'
+  },
+  {
+    id: 'suite',
+    name: 'Suite',
+    icon: '🏰',
+    description: 'Héberge jusqu\'à 2 habitants dans un luxe absolu',
     category: 'logements'
   },
   {
@@ -288,6 +309,9 @@ defineEmits<{
   @each $type, $color in (
     entrepot: var(--room-entrepot-color),
     dortoir: var(--room-dortoir-color),
+    quartiers: var(--room-quartiers-color),
+    appartement: var(--room-appartement-color),
+    suite: var(--room-suite-color),
     cuisine: var(--room-cuisine-color),
     station-traitement: var(--room-station-traitement-color),
     generateur: var(--room-generateur-color),

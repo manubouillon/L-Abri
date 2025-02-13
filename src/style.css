@@ -24,6 +24,9 @@
   /* Couleurs des types de salles */
   --room-entrepot-color: #d35400;
   --room-dortoir-color: #2980b9;
+  --room-quartiers-color: #2980b9;
+  --room-appartement-color: #3498db;
+  --room-suite-color: #48c9ff;
   --room-cuisine-color: #c0392b;
   --room-station-traitement-color: #2980b9;
   --room-generateur-color: #f39c12;
