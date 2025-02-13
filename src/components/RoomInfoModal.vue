@@ -64,10 +64,10 @@
           </div>
 
           <div class="room-info">
-            <div class="production" v-if="roomConfig.productionPerWorker">
+            <div class="production" v-if="isProductionRoom">
               <h3>Production par travailleur</h3>
               <div 
-                v-for="(amount, resource) in roomConfig.productionPerWorker" 
+                v-for="(amount, resource) in baseProduction" 
                 :key="resource"
                 class="production-item"
               >
@@ -76,10 +76,10 @@
               </div>
             </div>
 
-            <div class="storage" v-if="roomConfig.capacityPerWorker">
+            <div class="storage" v-if="isStorageRoom">
               <h3>Capacité de stockage par travailleur</h3>
               <div 
-                v-for="(amount, resource) in roomConfig.capacityPerWorker" 
+                v-for="(amount, resource) in storageCapacity" 
                 :key="resource"
                 class="storage-item"
               >
@@ -88,8 +88,22 @@
               </div>
             </div>
 
+            <div class="logement-info" v-if="isLogementRoom">
+              <h3>Occupation du logement</h3>
+              <div class="occupation-info">
+                {{ props.room.occupants.length }} / {{ getTotalCapacity }} 🧍‍♂️
+              </div>
+            </div>
+
             <div class="workers">
-              <h3>Travailleurs ({{ room.occupants.length }}/{{ roomConfig.maxWorkers }})</h3>
+              <h3>
+                <template v-if="isLogementRoom">
+                  Habitants ({{ room.occupants.length }}/{{ getTotalCapacity }})
+                </template>
+                <template v-else>
+                  Travailleurs ({{ room.occupants.length }}/{{ roomConfig.maxWorkers }})
+                </template>
+              </h3>
               <div class="workers-list">
                 <div 
                   v-for="habitantId in room.occupants" 
@@ -101,11 +115,11 @@
                 </div>
               </div>
 
-              <div class="add-worker" v-if="room.occupants.length < roomConfig.maxWorkers">
+              <div class="add-worker" v-if="canAddOccupant">
                 <select v-model="selectedHabitant">
                   <option value="">Sélectionner un habitant</option>
                   <option 
-                    v-for="habitant in habitantsDisponibles" 
+                    v-for="habitant in availableHabitants" 
                     :key="habitant.id"
                     :value="habitant.id"
                   >
@@ -199,7 +213,7 @@
 import { ref, computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useGameStore } from '../stores/gameStore'
-import type { Room, Equipment } from '../stores/gameStore'
+import type { Room, Equipment, DortoryRoomConfig, ProductionRoomConfig, StorageRoomConfig } from '../stores/gameStore'
 import NurserieInterface from './NurserieInterface.vue'
 import RefineryDetailsModal from './RefineryDetailsModal.vue'
 
@@ -220,19 +234,26 @@ const roomConfig = computed(() =>
   store.ROOM_CONFIGS[props.room.type as keyof typeof store.ROOM_CONFIGS]
 )
 
-const habitantsDisponibles = computed(() => 
-  habitants.value.filter(h => h.affectation.type === null)
-)
-
 const isProductionRoom = computed(() => {
   const config = store.ROOM_CONFIGS[props.room.type]
   return config && 'productionPerWorker' in config
 })
 
 const baseProduction = computed(() => {
-  const config = store.ROOM_CONFIGS[props.room.type]
-  if (!config || !('productionPerWorker' in config)) return {}
+  if (!isProductionRoom.value) return {}
+  const config = store.ROOM_CONFIGS[props.room.type] as ProductionRoomConfig
   return config.productionPerWorker
+})
+
+const isStorageRoom = computed(() => {
+  const config = store.ROOM_CONFIGS[props.room.type]
+  return config && 'capacityPerWorker' in config
+})
+
+const storageCapacity = computed(() => {
+  const config = store.ROOM_CONFIGS[props.room.type]
+  if (!config || !('capacityPerWorker' in config)) return {}
+  return (config as StorageRoomConfig).capacityPerWorker
 })
 
 const getMergeMultiplier = computed(() => {
@@ -244,8 +265,8 @@ const getMergeMultiplier = computed(() => {
 })
 
 const getTotalProduction = computed(() => {
-  const config = store.ROOM_CONFIGS[props.room.type]
-  if (!config || !('productionPerWorker' in config)) return ''
+  if (!isProductionRoom.value) return ''
+  const config = store.ROOM_CONFIGS[props.room.type] as ProductionRoomConfig
 
   const nbWorkers = props.room.occupants.length
   const gridSize = props.room.gridSize || 1
@@ -260,10 +281,10 @@ const getTotalProduction = computed(() => {
   return productions.join(', ')
 })
 
-const activeTab = ref('info')
+const activeTab = ref<string>('info')
 
-const isIncubating = ref(false)
-const incubationStartTime = ref(0)
+const isIncubating = ref<boolean>(false)
+const incubationStartTime = ref<number>(0)
 
 const maxEquipments = computed(() => props.room.gridSize || 1)
 
@@ -277,7 +298,7 @@ const availableEquipments = computed(() => {
   
   return Object.entries(allEquipments).reduce((acc, [type, config]) => {
     if (!installedTypes.has(type)) {
-      acc[type] = config
+      acc[type as keyof typeof allEquipments] = config
     }
     return acc
   }, {} as typeof allEquipments)
@@ -295,6 +316,34 @@ const canIncubate = computed(() => {
 })
 
 const errorMessage = ref('')
+
+const isLogementRoom = computed(() => {
+  return ['dortoir', 'quartiers', 'appartement', 'suite'].includes(props.room.type)
+})
+
+const getTotalCapacity = computed(() => {
+  if (!isLogementRoom.value) return 0
+  const config = roomConfig.value as DortoryRoomConfig
+  return config.capacityPerResident * (props.room.gridSize || 1)
+})
+
+const canAddOccupant = computed(() => {
+  if (isLogementRoom.value) {
+    return props.room.occupants.length < getTotalCapacity.value
+  }
+  return props.room.occupants.length < (roomConfig.value?.maxWorkers || 0)
+})
+
+const availableHabitants = computed(() => {
+  if (isLogementRoom.value) {
+    // Pour les logements, on peut affecter n'importe quel habitant sans logement
+    return habitants.value.filter(h => !h.logement)
+  }
+  // Pour les autres salles, seulement les adultes sans affectation
+  return habitants.value.filter(h => 
+    h.affectation.type === null && h.age >= (7 * 52)
+  )
+})
 
 function getHabitantName(habitantId: string): string {
   const habitant = habitants.value.find(h => h.id === habitantId)
@@ -329,12 +378,12 @@ function hasEquipment(type: string): boolean {
   return props.room.equipments?.some(e => e.type === type) || false
 }
 
-function addEquipment(type: string) {
+function addEquipment(equipmentType: string) {
   store.addEquipment(
     props.levelId,
     props.room.position,
     props.room.index,
-    type
+    equipmentType
   )
 }
 
@@ -715,5 +764,19 @@ function createNewHabitant() {
   color: #ecf0f1;
   font-size: 0.8rem;
   text-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+}
+
+.logement-info {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  padding: 1rem;
+  text-align: center;
+
+  .occupation-info {
+    font-size: 1.5rem;
+    color: #ecf0f1;
+    font-weight: bold;
+    margin-top: 0.5rem;
+  }
 }
 </style> 

@@ -49,6 +49,11 @@ export interface Habitant {
   affectation: Affectation
   competences: Competences
   bonheur: number // Score de bonheur sur 100
+  logement: {
+    levelId: number
+    position: 'left' | 'right'
+    roomIndex: number
+  } | null
 }
 
 export interface Equipment {
@@ -231,17 +236,17 @@ interface RoomConfigBase {
   energyConsumption: number // Consommation d'énergie par semaine
 }
 
-interface StorageRoomConfig extends RoomConfigBase {
+export interface StorageRoomConfig extends RoomConfigBase {
   capacityPerWorker: {
     [key in ResourceKey]?: number
   }
 }
 
-interface DortoryRoomConfig extends RoomConfigBase {
+export interface DortoryRoomConfig extends RoomConfigBase {
   capacityPerResident: number
 }
 
-interface ProductionRoomConfig extends RoomConfigBase {
+export interface ProductionRoomConfig extends RoomConfigBase {
   productionPerWorker: {
     [key in ResourceKey]?: number
   }
@@ -265,7 +270,7 @@ interface ProductionRoomConfig extends RoomConfigBase {
   }
 }
 
-type RoomConfig = StorageRoomConfig | DortoryRoomConfig | ProductionRoomConfig
+export type RoomConfig = StorageRoomConfig | DortoryRoomConfig | ProductionRoomConfig
 
 export const ROOM_CONFIGS: { [key: string]: RoomConfig } = {
   entrepot: {
@@ -822,6 +827,13 @@ const HAPPINESS_CONFIG = {
   MANQUE_VETEMENTS: -20,
   MANQUE_MEDICAMENTS: -20,
   
+  // Plafonds de bonheur par type de logement
+  SANS_LOGEMENT: 50,
+  DORTOIR: 80,
+  QUARTIERS: 90,
+  APPARTEMENT: 95,
+  SUITE: 100,
+  
   // Valeur par défaut
   DEFAULT: 50
 }
@@ -1026,7 +1038,8 @@ export const useGameStore = defineStore('game', () => {
         sante: 100, // Santé initiale à 100%
         affectation: { type: null },
         competences: generateRandomCompetences(),
-        bonheur: 50 // Score de bonheur par défaut
+        bonheur: 50, // Score de bonheur par défaut
+        logement: null
       }
     })
 
@@ -1475,6 +1488,9 @@ export const useGameStore = defineStore('game', () => {
       const currentWeek = Math.floor(currentGameTime)
       const weeksElapsed = currentWeek - previousWeek
 
+      // Mettre à jour le bonheur à chaque cycle
+      updateHappiness()
+
       if (weeksElapsed > 0) {
         // Faire vieillir les habitants
         habitants.value?.forEach(habitant => {
@@ -1590,8 +1606,6 @@ export const useGameStore = defineStore('game', () => {
           }
           return true
         })
-
-        updateHappiness()
 
         // Vérifier les incubations
         checkAndFinalizeIncubation()
@@ -1736,6 +1750,8 @@ export const useGameStore = defineStore('game', () => {
   // Ajout de la fonction de calcul du bonheur
   function calculateHappiness(habitantId: string): number {
     let score = HAPPINESS_CONFIG.DEFAULT
+    const habitant = habitants.value.find(h => h.id === habitantId)
+    if (!habitant) return score
 
     // Vérification des ressources disponibles
     if (resources.value.eau.amount > 0) {
@@ -1762,12 +1778,45 @@ export const useGameStore = defineStore('game', () => {
       score += HAPPINESS_CONFIG.MANQUE_MEDICAMENTS
     }
 
-    // Limiter le score entre 0 et 100
-    return Math.max(0, Math.min(100, score))
+    // Appliquer le plafond de bonheur en fonction du type de logement
+    let bonheurMax = HAPPINESS_CONFIG.SANS_LOGEMENT
+    
+    if (habitant.logement) {
+      const level = levels.value.find(l => l.id === habitant.logement?.levelId)
+      if (level) {
+        const room = habitant.logement.position === 'left'
+          ? level.leftRooms[habitant.logement.roomIndex]
+          : level.rightRooms[habitant.logement.roomIndex]
+        
+        if (room) {
+          switch (room.type) {
+            case 'dortoir':
+              bonheurMax = HAPPINESS_CONFIG.DORTOIR
+              break
+            case 'quartiers':
+              bonheurMax = HAPPINESS_CONFIG.QUARTIERS
+              break
+            case 'appartement':
+              bonheurMax = HAPPINESS_CONFIG.APPARTEMENT
+              break
+            case 'suite':
+              bonheurMax = HAPPINESS_CONFIG.SUITE
+              break
+          }
+        }
+      }
+    } else {
+      // Pénalité pour absence de logement
+      score = Math.min(score, HAPPINESS_CONFIG.SANS_LOGEMENT)
+    }
+
+    // Limiter le score entre 0 et le plafond de bonheur
+    return Math.max(0, Math.min(bonheurMax, score))
   }
 
   // Mise à jour de la fonction updateHappiness
   function updateHappiness() {
+    console.log('updateHappiness')
     habitants.value.forEach(habitant => {
       habitant.bonheur = calculateHappiness(habitant.id)
     })
@@ -2098,18 +2147,6 @@ export const useGameStore = defineStore('game', () => {
     const habitant = habitants.value.find(h => h.id === habitantId)
     if (!habitant) return false
 
-    // Vérifier si l'habitant n'est pas un enfant
-    if (isEnfant(habitant.age)) {
-      window.dispatchEvent(new CustomEvent('excavation-complete', {
-        detail: {
-          title: 'Affectation impossible',
-          message: 'Les enfants de moins de 7 ans ne peuvent pas travailler.',
-          type: 'error'
-        }
-      }))
-      return false
-    }
-
     const level = levels.value.find(l => l.id === levelId)
     if (!level) return false
 
@@ -2119,45 +2156,113 @@ export const useGameStore = defineStore('game', () => {
     const config = ROOM_CONFIGS[room.type]
     if (!config) return false
 
-    // Vérifier si la salle n'est pas déjà pleine
-    if (room.occupants.length >= (config.maxWorkers || 0)) return false
+    // Vérifier si c'est une salle de logement
+    const isLogementRoom = ['dortoir', 'quartiers', 'appartement', 'suite'].includes(room.type)
 
-    // Si l'habitant était déjà dans une salle, le retirer proprement
-    if (habitant.affectation.type === 'salle') {
-      const oldLevel = levels.value.find(l => l.id === habitant.affectation.levelId)
-      if (oldLevel) {
-        const oldRoom = habitant.affectation.position === 'left' 
-          ? oldLevel.leftRooms[habitant.affectation.roomIndex!]
-          : oldLevel.rightRooms[habitant.affectation.roomIndex!]
-        if (oldRoom) {
-          // Vérifier si c'est une infirmerie avec une incubation en cours
-          if (oldRoom.type === 'infirmerie') {
-            const nurserie = oldRoom.equipments.find(e => e.type === 'nurserie')
-            if (nurserie?.nurserieState?.isIncubating && oldRoom.occupants.length <= 1) {
-              return false // Empêcher le retrait du dernier travailleur pendant l'incubation
-            }
+    if (isLogementRoom) {
+      // Pour les logements, pas besoin de vérifier l'âge
+      // Vérifier si la salle n'est pas déjà pleine
+      const capacityConfig = config as DortoryRoomConfig
+      if (room.occupants.length >= (capacityConfig.capacityPerResident * (room.gridSize || 1))) {
+        window.dispatchEvent(new CustomEvent('excavation-complete', {
+          detail: {
+            title: 'Affectation impossible',
+            message: 'Ce logement est déjà plein.',
+            type: 'error'
           }
-          oldRoom.occupants = oldRoom.occupants.filter(id => id !== habitantId)
+        }))
+        return false
+      }
+
+      // Si l'habitant avait déjà un logement, le libérer
+      if (habitant.logement) {
+        const oldLevel = levels.value.find(l => l.id === habitant.logement.levelId)
+        if (oldLevel) {
+          const oldRoom = habitant.logement.position === 'left' 
+            ? oldLevel.leftRooms[habitant.logement.roomIndex]
+            : oldLevel.rightRooms[habitant.logement.roomIndex]
+          if (oldRoom) {
+            oldRoom.occupants = oldRoom.occupants.filter(id => id !== habitantId)
+          }
         }
       }
-    }
 
-    // Affecter l'habitant à la nouvelle salle
-    room.occupants.push(habitantId)
-    habitant.affectation = {
-      type: 'salle',
-      levelId,
-      position,
-      roomIndex
-    }
+      // Affecter l'habitant au nouveau logement
+      room.occupants.push(habitantId)
+      habitant.logement = {
+        levelId,
+        position,
+        roomIndex
+      }
+      return true
+    } else {
+      // Pour les autres salles, vérifier l'âge
+      if (isEnfant(habitant.age)) {
+        window.dispatchEvent(new CustomEvent('excavation-complete', {
+          detail: {
+            title: 'Affectation impossible',
+            message: 'Les enfants de moins de 7 ans ne peuvent pas travailler.',
+            type: 'error'
+          }
+        }))
+        return false
+      }
 
-    updateRoomProduction()
+      // Vérifier si la salle n'est pas déjà pleine
+      if (room.occupants.length >= (config.maxWorkers || 0)) return false
+
+      // Si l'habitant était déjà dans une salle, le retirer proprement
+      if (habitant.affectation.type === 'salle') {
+        const oldLevel = levels.value.find(l => l.id === habitant.affectation.levelId)
+        if (oldLevel) {
+          const oldRoom = habitant.affectation.position === 'left' 
+            ? oldLevel.leftRooms[habitant.affectation.roomIndex!]
+            : oldLevel.rightRooms[habitant.affectation.roomIndex!]
+          if (oldRoom) {
+            // Vérifier si c'est une infirmerie avec une incubation en cours
+            if (oldRoom.type === 'infirmerie') {
+              const nurserie = oldRoom.equipments.find(e => e.type === 'nurserie')
+              if (nurserie?.nurserieState?.isIncubating && oldRoom.occupants.length <= 1) {
+                return false // Empêcher le retrait du dernier travailleur pendant l'incubation
+              }
+            }
+            oldRoom.occupants = oldRoom.occupants.filter(id => id !== habitantId)
+          }
+        }
+      }
+
+      // Affecter l'habitant à la nouvelle salle
+      room.occupants.push(habitantId)
+      habitant.affectation = {
+        type: 'salle',
+        levelId,
+        position,
+        roomIndex
+      }
+
+      updateRoomProduction()
+    }
     return true
   }
 
   function retirerHabitantSalle(habitantId: string): boolean {
     const habitant = habitants.value.find(h => h.id === habitantId)
     if (!habitant) return false
+
+    // Vérifier si l'habitant est dans un logement
+    if (habitant.logement) {
+      const level = levels.value.find(l => l.id === habitant.logement.levelId)
+      if (level) {
+        const room = habitant.logement.position === 'left'
+          ? level.leftRooms[habitant.logement.roomIndex]
+          : level.rightRooms[habitant.logement.roomIndex]
+        if (room) {
+          room.occupants = room.occupants.filter(id => id !== habitantId)
+        }
+      }
+      habitant.logement = null
+      return true
+    }
 
     // Si l'habitant n'est pas affecté à une salle, rien à faire
     if (habitant.affectation.type !== 'salle') return false
@@ -2441,7 +2546,8 @@ export const useGameStore = defineStore('game', () => {
                     sante: 100, // Santé initiale à 100%
                     affectation: { type: null },
                     competences: generateRandomCompetences(),
-                    bonheur: 50 // Score de bonheur par défaut
+                    bonheur: 50, // Score de bonheur par défaut
+                    logement: null
                   }
 
                   habitants.value.push(newHabitant)

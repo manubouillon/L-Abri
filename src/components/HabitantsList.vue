@@ -91,6 +91,17 @@
               </template>
             </span>
           </div>
+          <div class="logement">
+            <span class="label">Logement:</span>
+            <span class="value">
+              <template v-if="habitant.logement">
+                {{ getLogementInfo(habitant.logement) }}
+              </template>
+              <template v-else>
+                Sans logement
+              </template>
+            </span>
+          </div>
         </div>
       </div>
     </div>
@@ -133,6 +144,21 @@ function getRoomInfo(affectation: Habitant['affectation']): string {
   const room = affectation.position === 'left'
     ? level.leftRooms[affectation.roomIndex!]
     : level.rightRooms[affectation.roomIndex!]
+
+  if (!room) return 'Inconnu'
+
+  return `${room.type} (Niveau ${level.id + 1})`
+}
+
+function getLogementInfo(logement: Habitant['logement']): string {
+  if (!logement) return 'Sans logement'
+  
+  const level = store.levels.find(l => l.id === logement.levelId)
+  if (!level) return 'Inconnu'
+
+  const room = logement.position === 'left'
+    ? level.leftRooms[logement.roomIndex]
+    : level.rightRooms[logement.roomIndex]
 
   if (!room) return 'Inconnu'
 
@@ -278,6 +304,24 @@ function formatAge(age: number): string {
 }
 
 .affectation {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  .label {
+    color: #bdc3c7;
+  }
+
+  .value {
+    color: #ecf0f1;
+    font-weight: bold;
+  }
+}
+
+.logement {
   margin-top: 1rem;
   padding-top: 1rem;
   border-top: 1px solid rgba(255, 255, 255, 0.1);

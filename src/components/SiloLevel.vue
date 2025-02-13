@@ -28,15 +28,24 @@
               <div class="room-info" @click="openRoomInfo(room)">
                 <span class="room-type">{{ room.type }}</span>
                 <span class="room-size" v-if="room.gridSize && room.gridSize > 1">x{{ room.gridSize }}</span>
-                <div class="room-occupants">
-                  <span 
-                    v-for="(occupant, index) in room.occupants" 
-                    :key="index"
-                    class="occupant"
-                  >
-                    👤
-                  </span>
-                </div>
+                
+                <template v-if="isLogementRoom(room)">
+                  <div class="room-occupancy">
+                    {{ room.occupants.length }} / {{ getRoomCapacity(room) }} 🧍‍♂️
+                  </div>
+                </template>
+                <template v-else>
+                  <div class="room-occupants">
+                    <span 
+                      v-for="(occupant, index) in room.occupants" 
+                      :key="index"
+                      class="occupant"
+                    >
+                      👤
+                    </span>
+                  </div>
+                </template>
+
                 <div class="fuel-gauge-container">
                   <div v-if="room.type === 'generateur' || room.type === 'derrick'" class="fuel-gauge">
                     <div class="fuel-bar" :style="{ width: `${room.fuelLevel || 0}%` }"></div>
@@ -134,15 +143,24 @@
               <div class="room-info" @click="openRoomInfo(room)">
                 <span class="room-type">{{ room.type }}</span>
                 <span class="room-size" v-if="room.gridSize && room.gridSize > 1">x{{ room.gridSize }}</span>
-                <div class="room-occupants">
-                  <span 
-                    v-for="(occupant, index) in room.occupants" 
-                    :key="index"
-                    class="occupant"
-                  >
-                    👤
-                  </span>
-                </div>
+                
+                <template v-if="isLogementRoom(room)">
+                  <div class="room-occupancy">
+                    {{ room.occupants.length }} / {{ getRoomCapacity(room) }} 🧍‍♂️
+                  </div>
+                </template>
+                <template v-else>
+                  <div class="room-occupants">
+                    <span 
+                      v-for="(occupant, index) in room.occupants" 
+                      :key="index"
+                      class="occupant"
+                    >
+                      👤
+                    </span>
+                  </div>
+                </template>
+
                 <div class="fuel-gauge-container">
                   <div v-if="room.type === 'generateur' || room.type === 'derrick'" class="fuel-gauge">
                     <div class="fuel-bar" :style="{ width: `${room.fuelLevel || 0}%` }"></div>
@@ -239,8 +257,8 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useGameStore, ROOMS_PER_SIDE } from '../stores/gameStore'
-import type { Level, Room } from '../stores/gameStore'
+import { useGameStore, ROOMS_PER_SIDE, ROOM_CONFIGS } from '../stores/gameStore'
+import type { Level, Room, DortoryRoomConfig } from '../stores/gameStore'
 import RoomTypeModal from './RoomTypeModal.vue'
 import RoomInfoModal from './RoomInfoModal.vue'
 import { storeToRefs } from 'pinia'
@@ -451,6 +469,16 @@ function getIncubationProgress(room: Room): number {
 
 function getBarrelCount(): number {
   return store.getItemQuantity('baril-petrole');
+}
+
+function isLogementRoom(room: Room): boolean {
+  return ['dortoir', 'quartiers', 'appartement', 'suite'].includes(room.type)
+}
+
+function getRoomCapacity(room: Room): number {
+  if (!isLogementRoom(room)) return 0
+  const config = ROOM_CONFIGS[room.type] as DortoryRoomConfig
+  return config.capacityPerResident * (room.gridSize || 1)
 }
 
 onMounted(() => {
@@ -867,8 +895,17 @@ onMounted(() => {
   }
 }
 
+.room-occupancy {
+  font-size: 0.8rem;
+  color: #ecf0f1;
+  text-align: center;
+  margin: 0.25rem 0;
+  padding: 0.25rem;
+  border-radius: 4px;
+}
+
 // Styles spécifiques pour chaque type de salle
-@each $type in (entrepot, dortoir, cuisine, station-traitement, generateur, infirmerie, serre, raffinerie, derrick) {
+@each $type in (entrepot, dortoir, cuisine, station-traitement, generateur, infirmerie, serre, raffinerie, derrick, quartiers, appartement, suite) {
   .room-type-#{$type} {
     --room-color: var(--room-#{$type}-color);
   }
