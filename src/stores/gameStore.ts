@@ -171,7 +171,8 @@ export const ROOM_MERGE_CONFIG: { [key: string]: { useMultiplier: boolean } } = 
   infirmerie: { useMultiplier: true },
   serre: { useMultiplier: true },
   raffinerie: { useMultiplier: true },
-  derrick: { useMultiplier: true }
+  derrick: { useMultiplier: true },
+  'salle-controle': { useMultiplier: false }
 }
 
 export const INITIAL_LEVELS = GAME_CONFIG.INITIAL_LEVELS // Nombre de niveaux au départ
@@ -356,17 +357,31 @@ export const ROOM_CONFIGS: { [key: string]: RoomConfig } = {
     resourceProduction: {
       'baril-petrole': 2 // Produit 2 barils de pétrole par semaine par travailleur
     }
+  } as ProductionRoomConfig,
+  'salle-controle': {
+    maxWorkers: 4,
+    energyConsumption: 8, // 8 unités d'énergie par semaine
+    productionPerWorker: {
+      energie: -1 // Consommation d'énergie par travailleur
+    }
   } as ProductionRoomConfig
 } as const
 
 const PRENOMS = [
-  'Jean', 'Pierre', 'Luc', 'Louis', 'Thomas', 'Paul', 'Nicolas', 'Antoine', // Prénoms masculins
-  'Marie', 'Sophie', 'Emma', 'Julie', 'Claire', 'Alice', 'Laura', 'Léa' // Prénoms féminins
+  'Jean', 'Pierre', 'Luc', 'Louis', 'Thomas', 'Paul', 'Nicolas', 'Antoine',
+  'Michel', 'François', 'Henri', 'Marcel', 'André', 'Philippe', 'Jacques', 'Robert',
+  'Daniel', 'Joseph', 'Claude', 'Georges', 'Roger', 'Bernard', 'Alain', 'René', // Prénoms masculins
+  'Marie', 'Sophie', 'Emma', 'Julie', 'Claire', 'Alice', 'Laura', 'Léa',
+  'Anne', 'Catherine', 'Isabelle', 'Jeanne', 'Marguerite', 'Françoise', 'Hélène', 'Louise',
+  'Madeleine', 'Thérèse', 'Suzanne', 'Monique', 'Simone', 'Yvette', 'Nicole', 'Denise' // Prénoms féminins
 ]
 
 const NOMS = [
-  'Martin', 'Bernard', 'Dubois', 'Thomas', 'Robert', 'Richard', 'Petit',
-  'Durand', 'Leroy', 'Moreau', 'Simon', 'Laurent', 'Lefebvre', 'Michel'
+  'Martin', 'Bernard', 'Dubois', 'Thomas', 'Robert', 'Richard', 'Petit', 'Durand',
+  'Leroy', 'Moreau', 'Simon', 'Laurent', 'Lefebvre', 'Michel', 'Garcia', 'David',
+  'Bertrand', 'Roux', 'Vincent', 'Fournier', 'Morel', 'Girard', 'Andre', 'Lefevre',
+  'Mercier', 'Dupont', 'Lambert', 'Bonnet', 'Francois', 'Martinez', 'Legrand', 'Garnier',
+  'Faure', 'Rousseau', 'Blanc', 'Guerin', 'Muller', 'Henry', 'Roussel', 'Nicolas'
 ]
 
 function generateRandomName(): { nom: string, genre: 'H' | 'F', age: number } {
@@ -741,6 +756,13 @@ export const ROOM_CONSTRUCTION_COSTS: { [key: string]: { [key in ItemType]?: num
     'lingot-acier': 25,
     'lingot-cuivre': 20,
     'lingot-silicium': 15
+  },
+  'salle-controle': {
+    'lingot-fer': 60,
+    'lingot-acier': 40,
+    'lingot-cuivre': 30,
+    'lingot-silicium': 25,
+    'lingot-or': 15
   }
 }
 
@@ -934,21 +956,33 @@ export const useGameStore = defineStore('game', () => {
 
   // Actions
   function initGame() {
-    levels.value = Array.from({ length: INITIAL_LEVELS }, (_, i) => ({
-      id: i,
-      isStairsExcavated: i === 0,
-      leftRooms: createInitialRooms('left', i, i === 0),
-      rightRooms: createInitialRooms('right', i, i === 0)
+    // Créer les niveaux avec un niveau 0 supplémentaire
+    levels.value = Array(INITIAL_LEVELS + 1).fill(null).map((_, index) => ({
+      id: index,
+      isStairsExcavated: index <= 1, // Les niveaux 0 et 1 sont excavés
+      leftRooms: createInitialRooms('left', index, index <= 1),
+      rightRooms: createInitialRooms('right', index, index <= 1)
     }))
 
-    // Initialiser le premier niveau avec des salles excavées
-    const firstLevel = levels.value[0]
-    firstLevel.leftRooms.forEach(room => {
+    // Initialiser la salle de contrôle au niveau 0
+    if (levels.value[0]) {
+      const room = levels.value[0].leftRooms[0]
       room.isExcavated = true
-    })
-    firstLevel.rightRooms.forEach(room => {
-      room.isExcavated = true
-    })
+      room.isBuilt = true
+      room.type = 'salle-controle'
+      room.gridSize = 2
+    }
+
+    // Initialiser le niveau 1 avec des salles excavées
+    const firstLevel = levels.value[1]
+    if (firstLevel) {
+      firstLevel.leftRooms.forEach(room => {
+        room.isExcavated = true
+      })
+      firstLevel.rightRooms.forEach(room => {
+        room.isExcavated = true
+      })
+    }
 
     // Initialiser les habitants
     habitants.value = Array.from({ length: 5 }, (_, i) => {

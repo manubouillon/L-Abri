@@ -132,6 +132,13 @@ const roomTypes = [
     icon: '🛢️',
     description: 'Extrait du pétrole pour alimenter les générateurs',
     category: 'production'
+  },
+  {
+    id: 'salle-controle',
+    name: 'Salle de contrôle',
+    icon: '🎮',
+    description: 'Permet de contrôler et surveiller l\'ensemble de l\'abri',
+    category: 'production'
   }
 ]
 
@@ -287,7 +294,8 @@ defineEmits<{
     infirmerie: var(--room-infirmerie-color),
     serre: var(--room-serre-color),
     raffinerie: var(--room-raffinerie-color),
-    derrick: var(--room-derrick-color)
+    derrick: var(--room-derrick-color),
+    salle-controle: var(--room-salle-controle-color)
   ) {
     &.room-type-#{$type} {
       border-color: $color;

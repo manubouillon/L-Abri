@@ -36,6 +36,7 @@
   --room-production-color: #8e44ad;
   --room-raffinerie-color: #9b59b6;
   --room-derrick-color: #8e44ad;
+  --room-salle-controle-color: #2980b9;
 }
 
 * {
@@ -115,4 +116,24 @@ button:disabled {
   color: #ecf0f1;
   overflow-y: auto;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.silo-levels {
+  margin:30px;
+}
+
+.silo-exterieur {
+  position:absolute;
+  top:0;
+  left:0;
+  right:0;
+  bottom:0;
+  background-color: #95a5a6;
+  height: 200px;
+  width: 100%;
+}
+
+.silo-background {
+  border-top:solid 3px #27ae60;
+  top:200px;
 }

@@ -4,6 +4,7 @@
     :class="{
       'stairs-excavated': level.isStairsExcavated
     }"
+    :data-level="level.id"
   >
     <div class="level-content" v-if="level.isStairsExcavated">
       <div class="level-rooms">
@@ -96,7 +97,7 @@
         <!-- Escalier central -->
         <div class="stairs">
           <div class="stairs-inner">
-            <span class="level-number">{{ level.id + 1 }}</span>
+            <span class="level-number">Niveau {{ level.id }}</span>
           </div>
           <div class="stairs-overlay" v-if="!level.isStairsExcavated && canExcavateStairs">
             <template v-if="!isExcavatingStairs && habitantsLibres.length > 0 && hasAdultAvailable">
@@ -461,7 +462,6 @@ onMounted(() => {
 .silo-level {
   position: relative;
   height: 150px;
-  margin: 10px;
   transition: all 0.3s ease;
   
   &.stairs-excavated {
@@ -479,15 +479,31 @@ onMounted(() => {
   flex: 1;
   display: grid;
   grid-template-columns: 1fr 80px 1fr;
-  gap: 1rem;
   align-items: stretch;
+
+  // Bordures grises pour le niveau 0
+  [data-level="0"] & {
+    .room.is-excavated, .room.is-built {
+      border-top: 3px solid #95a5a6;
+    }
+
+    .left-side .room:first-child.is-excavated,
+    .left-side .room:first-child.is-built {
+      border-left: 3px solid #95a5a6;
+    }
+
+    .right-side .room:last-child.is-excavated,
+    .right-side .room:last-child.is-built {
+      border-right: 3px solid #95a5a6;
+    }
+  }
 }
 
 .rooms-side {
   display: grid;
   grid-template-columns: repeat(var(--rooms-per-side), 1fr);
-  gap: 0.5rem;
   position: relative;
+  border-radius: 8px;
   
   &.left-side {
     justify-content: end;
@@ -501,26 +517,6 @@ onMounted(() => {
     min-width: 0;
     width: 100%;
     position: relative;
-
-    &.grid-size-2 {
-      grid-column: span 2;
-      width: calc(100%) !important;
-    }
-
-    &.grid-size-3 {
-      grid-column: span 3;
-      width: calc(100%) !important;
-    }
-
-    &.grid-size-4 {
-      grid-column: span 4;
-      width: calc(100%) !important;
-    }
-
-    &.grid-size-5 {
-      grid-column: span 5;
-      width: calc(100%) !important;
-    }
   }
 }
 
@@ -533,12 +529,14 @@ onMounted(() => {
   min-height: 100px;
   
   &.is-excavated {
-    background-color: #37474f;
+    background-color: #2c3e50;
     border: 2px solid #34495e;
     border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   }
   
   &.is-built {
+    background-color: #34495e;
     border: 2px solid var(--room-color, #34495e);
     cursor: pointer;
   }
@@ -555,6 +553,26 @@ onMounted(() => {
     border-top-left-radius: 0;
     border-bottom-left-radius: 0;
     margin-left: -2px;
+  }
+
+  &.grid-size-2 {
+    grid-column: span 2;
+    width: calc(100%) !important;
+  }
+
+  &.grid-size-3 {
+    grid-column: span 3;
+    width: calc(100%) !important;
+  }
+
+  &.grid-size-4 {
+    grid-column: span 4;
+    width: calc(100%) !important;
+  }
+
+  &.grid-size-5 {
+    grid-column: span 5;
+    width: calc(100%) !important;
   }
 
   @each $type in (entrepot, dortoir, cuisine, station-traitement, generateur, infirmerie, serre, raffinerie, derrick) {
@@ -696,19 +714,22 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #34495e;
+  background-color: #2c3e50;
+  border: 2px solid #34495e;
   border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   position: relative;
+  text-align: center;
   
   .stairs-inner {
     width: 40px;
     height: 80%;
     background: repeating-linear-gradient(
       0deg,
-      #2c3e50,
-      #2c3e50 10px,
+      #34495e,
       #34495e 10px,
-      #34495e 20px
+      #2c3e50 10px,
+      #2c3e50 20px
     );
     display: flex;
     align-items: center;

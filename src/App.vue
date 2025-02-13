@@ -28,6 +28,7 @@
 
       <div class="silo-container" @wheel="handleScroll">
         <div class="silo-view" :style="{ transform: `translateY(${scrollPosition}px)` }">
+          <div class="silo-exterieur"></div>
           <div class="silo-background"></div>
           <div class="silo-levels">
             <SiloLevel
