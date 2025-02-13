@@ -78,6 +78,13 @@ const roomTypes = [
     category: 'stockage'
   },
   {
+    id: 'cuve',
+    name: 'Cuve',
+    icon: '🛢️',
+    description: 'Stocke de l\'eau ou du pétrole en grande quantité',
+    category: 'stockage'
+  },
+  {
     id: 'dortoir',
     name: 'Dortoir',
     icon: '🛏️',
@@ -308,6 +315,7 @@ defineEmits<{
 
   @each $type, $color in (
     entrepot: var(--room-entrepot-color),
+    cuve: var(--room-cuve-color),
     dortoir: var(--room-dortoir-color),
     quartiers: var(--room-quartiers-color),
     appartement: var(--room-appartement-color),

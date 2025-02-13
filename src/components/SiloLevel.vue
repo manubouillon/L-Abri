@@ -19,7 +19,8 @@
               'is-built': room.isBuilt,
               [`room-type-${room.type}`]: room.isBuilt,
               'no-border-right': !shouldShowRightBorder(room, 'left'),
-              [`grid-size-${room.gridSize || 1}`]: room.isBuilt
+              [`grid-size-${room.gridSize || 1}`]: room.isBuilt,
+              'has-stairs': room.stairsPosition === 'left'
             }"
             :style="getRoomStyle(room)"
             @click="handleRoomClick('left', room)"
@@ -45,6 +46,16 @@
                     </span>
                   </div>
                 </template>
+
+                <!-- Barre de progression pour les cuves -->
+                <div v-if="room.type === 'cuve'" class="tank-gauge">
+                  <div 
+                    class="tank-bar" 
+                    :class="{ 'water': hasCuveEau(room), 'oil': !hasCuveEau(room) }"
+                    :style="{ width: `${room.fuelLevel || 0}%` }"
+                  ></div>
+                  <span class="tank-text">{{ Math.floor(room.fuelLevel || 0) }}%</span>
+                </div>
 
                 <div class="fuel-gauge-container">
                   <div v-if="room.type === 'generateur' || room.type === 'derrick'" class="fuel-gauge">
@@ -134,7 +145,8 @@
               'is-built': room.isBuilt,
               [`room-type-${room.type}`]: room.isBuilt,
               'no-border-left': !shouldShowLeftBorder(room, 'right'),
-              [`grid-size-${room.gridSize || 1}`]: room.isBuilt
+              [`grid-size-${room.gridSize || 1}`]: room.isBuilt,
+              'has-stairs': room.stairsPosition === 'right'
             }"
             :style="getRoomStyle(room)"
             @click="handleRoomClick('right', room)"
@@ -160,6 +172,16 @@
                     </span>
                   </div>
                 </template>
+
+                <!-- Barre de progression pour les cuves -->
+                <div v-if="room.type === 'cuve'" class="tank-gauge">
+                  <div 
+                    class="tank-bar" 
+                    :class="{ 'water': hasCuveEau(room), 'oil': !hasCuveEau(room) }"
+                    :style="{ width: `${room.fuelLevel || 0}%` }"
+                  ></div>
+                  <span class="tank-text">{{ Math.floor(room.fuelLevel || 0) }}%</span>
+                </div>
 
                 <div class="fuel-gauge-container">
                   <div v-if="room.type === 'generateur' || room.type === 'derrick'" class="fuel-gauge">
@@ -481,6 +503,10 @@ function getRoomCapacity(room: Room): number {
   return config.capacityPerResident * (room.gridSize || 1)
 }
 
+function hasCuveEau(room: Room): boolean {
+  return room.equipments.some(e => e.type === 'cuve-eau' && !e.isUnderConstruction)
+}
+
 onMounted(() => {
   document.documentElement.style.setProperty('--rooms-per-side', ROOMS_PER_SIDE.toString())
 })
@@ -602,7 +628,7 @@ onMounted(() => {
     width: calc(100%) !important;
   }
 
-  @each $type in (entrepot, dortoir, cuisine, station-traitement, generateur, infirmerie, serre, raffinerie, derrick, salle-controle, quartiers, appartement, suite) {
+  @each $type in (entrepot, cuve, dortoir, cuisine, station-traitement, generateur, infirmerie, serre, raffinerie, derrick, salle-controle, quartiers, appartement, suite) {
     &.room-type-#{$type} {
       --room-color: var(--room-#{$type}-color);
       border-color: var(--room-#{$type}-color);
@@ -905,7 +931,7 @@ onMounted(() => {
 }
 
 // Styles spécifiques pour chaque type de salle
-@each $type in (entrepot, dortoir, cuisine, station-traitement, generateur, infirmerie, serre, raffinerie, derrick, quartiers, appartement, suite) {
+@each $type in (entrepot, cuve, dortoir, cuisine, station-traitement, generateur, infirmerie, serre, raffinerie, derrick, salle-controle, quartiers, appartement, suite) {
   .room-type-#{$type} {
     --room-color: var(--room-#{$type}-color);
   }
@@ -956,6 +982,41 @@ onMounted(() => {
 
   &:hover {
     opacity: 1;
+  }
+}
+
+// Styles pour la barre de progression des cuves
+.tank-gauge {
+  width: 80%;
+  height: 8px;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
+  margin: 0.25rem auto;
+
+  .tank-bar {
+    height: 100%;
+    transition: width 0.3s ease;
+    
+    &.water {
+      background-color: #3498db; // Bleu pour l'eau
+    }
+    
+    &.oil {
+      background-color: #8e44ad; // Violet pour le pétrole (même que le derrick)
+    }
+  }
+
+  .tank-text {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    color: #ecf0f1;
+    font-size: 0.6rem;
+    text-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+    white-space: nowrap;
   }
 }
 </style> 

@@ -103,7 +103,7 @@ export const ROOM_CATEGORIES: RoomCategory[] = [
   {
     id: 'stockage',
     name: 'Stockage',
-    rooms: ['entrepot']
+    rooms: ['entrepot', 'cuve']
   },
   {
     id: 'logements',
@@ -153,16 +153,22 @@ export const GAME_CONFIG = {
   // Configuration des salles pré-construites au démarrage
   INITIAL_ROOMS: [
     {
-      levelId: 0, // Premier niveau
+      levelId: 0, // RDC
       rooms: [
         { position: 'left', index: 0, type: 'generateur', gridSize: 2, workers: 1 },
-        { position: 'left', index: 4, type: 'entrepot', gridSize: 2, workers: 0 },
         
         //{ position: 'left', index: 4, type: 'raffinerie', gridSize: 1, workers: 1 },
         { position: 'right', index: 0, type: 'dortoir', gridSize: 2, workers: 0 },
         //{ position: 'right', index: 2, type: 'station-traitement', gridSize: 1, workers: 1 },
         //{ position: 'right', index: 3, type: 'serre', gridSize: 1, workers: 1 }
         { position: 'right', index: 4, type: 'salle-controle', gridSize: 2, workers: 0 }
+      ]
+    },
+    {
+      levelId: 1, // Premier niveau
+      rooms: [
+        { position: 'left', index: 0, type: 'cuve', gridSize: 1, workers: 0 },
+        { position: 'left', index: 5, type: 'entrepot', gridSize: 2, workers: 0 },
       ]
     }
   ]
@@ -182,7 +188,8 @@ export const ROOM_MERGE_CONFIG: { [key: string]: { useMultiplier: boolean } } = 
   serre: { useMultiplier: true },
   raffinerie: { useMultiplier: true },
   derrick: { useMultiplier: true },
-  'salle-controle': { useMultiplier: false }
+  'salle-controle': { useMultiplier: false },
+  cuve: { useMultiplier: false }
 }
 
 export const INITIAL_LEVELS = GAME_CONFIG.INITIAL_LEVELS // Nombre de niveaux au départ
@@ -389,7 +396,11 @@ export const ROOM_CONFIGS: { [key: string]: RoomConfig } = {
     productionPerWorker: {
       energie: -1 // Consommation d'énergie par travailleur
     }
-  } as ProductionRoomConfig
+  } as ProductionRoomConfig,
+  cuve: {
+    maxWorkers: 0,
+    energyConsumption: 2, // 2 unités d'énergie par semaine
+  } as StorageRoomConfig
 } as const
 
 const PRENOMS = [
@@ -808,6 +819,12 @@ export const ROOM_CONSTRUCTION_COSTS: { [key: string]: { [key in ItemType]?: num
     'lingot-cuivre': 30,
     'lingot-silicium': 25,
     'lingot-or': 15
+  },
+  cuve: {
+    'lingot-fer': 30,
+    'lingot-acier': 15,
+    'lingot-cuivre': 12,
+    'lingot-silicium': 8
   }
 }
 
@@ -924,9 +941,11 @@ export const useGameStore = defineStore('game', () => {
       position: side,
       index,
       isExcavated: isFirstLevel,
-      equipments: [],
-      gridSize: 1
-    }))
+      equipments: [] as Equipment[],
+      gridSize: 1,
+      fuelLevel: undefined,
+      nextMineralsToProcess: undefined
+    } as Room))
 
     // Si c'est le premier niveau, appliquer la configuration des salles pré-construites
     if (isFirstLevel) {
@@ -941,6 +960,17 @@ export const useGameStore = defineStore('game', () => {
             // Initialiser le niveau de carburant pour le générateur
             if (room.type === 'generateur') {
               room.fuelLevel = 100
+            }
+            // Ajouter automatiquement la cuve à eau dans la cuve
+            if (room.type === 'cuve') {
+              room.fuelLevel = 100
+              room.equipments.push({
+                id: `${room.id}-cuve-eau`,
+                type: 'cuve-eau',
+                isUnderConstruction: false,
+                constructionStartTime: 0,
+                constructionDuration: EQUIPMENT_CONFIG.cuve['cuve-eau'].constructionTime
+              })
             }
           }
         })
@@ -1281,8 +1311,8 @@ export const useGameStore = defineStore('game', () => {
         // 2.1 Ajouter la consommation d'énergie de la salle
         resources.value.energie.consumption += config.energyConsumption * gridSize
 
-        // 2.2 Ajouter la consommation d'eau des serres
-        if (room.type === 'serre') {
+        // 2.2 Ajouter la consommation d'eau si applicable
+        if ('waterConsumption' in config) {
           const waterConsumption = (config as ProductionRoomConfig).waterConsumption || 0
           resources.value.eau.consumption += waterConsumption * gridSize
         }
@@ -1290,22 +1320,23 @@ export const useGameStore = defineStore('game', () => {
         // 2.3 Gérer la production des salles
         if ('productionPerWorker' in config) {
           const nbWorkers = room.occupants.length
+          if (nbWorkers === 0) return
 
-          // Gestion spéciale pour le générateur
-          if (room.type === 'generateur') {
-            // Initialiser le niveau de carburant s'il n'existe pas
-            if (room.fuelLevel === undefined) {
-              room.fuelLevel = 0
-            }
+          // Vérifier si la salle a un équipement qui améliore la production
+          let productionBonus = 1
+          if (room.type === 'cuisine' && room.equipments?.some(e => e.type === 'cuisine-avancee' && !e.isUnderConstruction)) {
+            productionBonus = 1.5 // +50% de production
+          }
 
-            // Si le réservoir est vide, essayer de le remplir
+          if (room.type === 'generateur' && room.fuelLevel !== undefined) {
+            // Vérifier s'il y a du carburant disponible
             if (room.fuelLevel <= 0) {
+              // Essayer de remplir avec un baril de pétrole
               const barilPetrole = inventory.value.find(item => item.type === 'baril-petrole' && item.quantity > 0)
               if (barilPetrole) {
-                console.log('Consommation d\'un baril de pétrole')
                 const success = removeItem(barilPetrole.id, 1)
                 if (success) {
-                  console.log('Baril de pétrole retiré, création d\'un baril vide')
+                  // Ajouter un baril vide
                   const addSuccess = addItem('baril-vide', 1)
                   console.log('Création du baril vide:', addSuccess ? 'réussie' : 'échouée')
                   room.fuelLevel = 100 // Remplir le réservoir
@@ -1320,7 +1351,7 @@ export const useGameStore = defineStore('game', () => {
                 // Assez de carburant, production normale
                 Object.entries(config.productionPerWorker).forEach(([resource, amount]) => {
                   if (amount && resource in resources.value) {
-                    resources.value[resource as ResourceKey].production += amount * nbWorkers * gridSize * mergeMultiplier
+                    resources.value[resource as ResourceKey].production += amount * nbWorkers * gridSize * mergeMultiplier * productionBonus
                   }
                 })
                 room.fuelLevel -= fuelNeeded
@@ -1329,7 +1360,7 @@ export const useGameStore = defineStore('game', () => {
                 const ratio = room.fuelLevel / fuelNeeded
                 Object.entries(config.productionPerWorker).forEach(([resource, amount]) => {
                   if (amount && resource in resources.value) {
-                    resources.value[resource as ResourceKey].production += amount * nbWorkers * gridSize * mergeMultiplier * ratio
+                    resources.value[resource as ResourceKey].production += amount * nbWorkers * gridSize * mergeMultiplier * ratio * productionBonus
                   }
                 })
                 room.fuelLevel = 0
@@ -1361,7 +1392,7 @@ export const useGameStore = defineStore('game', () => {
             // Production normale pour les autres salles
             Object.entries(config.productionPerWorker).forEach(([resource, amount]) => {
               if (amount && resource in resources.value) {
-                resources.value[resource as ResourceKey].production += amount * nbWorkers * gridSize * mergeMultiplier
+                resources.value[resource as ResourceKey].production += amount * nbWorkers * gridSize * mergeMultiplier * productionBonus
               }
             })
           }
@@ -2132,12 +2163,20 @@ export const useGameStore = defineStore('game', () => {
   }
 
   // Configuration des équipements disponibles par type de salle
-  const EQUIPMENT_CONFIG: { [key: string]: { [key: string]: { constructionTime: number, description: string, incubationTime?: number } } } = {
+  const EQUIPMENT_CONFIG: { [key: string]: { [key: string]: { constructionTime: number, description: string, incubationTime?: number, nom: string } } } = {
     infirmerie: {
       nurserie: {
+        nom: "Nurserie",
         constructionTime: 2, // 2 semaines pour construire
         description: "Permet de créer de nouveaux habitants. Les enfants de moins de 7 ans ne peuvent pas travailler.",
         incubationTime: 36 // 9 mois = 36 semaines
+      }
+    },
+    cuve: {
+      'cuve-eau': {
+        nom: "Cuve à eau",
+        constructionTime: 1, // 1 semaine pour construire
+        description: "Augmente la capacité de stockage d'eau de la salle."
       }
     }
   }

@@ -64,6 +64,27 @@
           </div>
 
           <div class="room-info">
+            <div v-if="props.room.type === 'cuve'" class="tank-info">
+              <h3>Contenu de la cuve</h3>
+              <div class="tank-content">
+                <div class="content-type">
+                  <span 
+                    class="droplet-icon" 
+                    :class="{ 'water': hasCuveEau, 'oil': !hasCuveEau }"
+                  >💧</span>
+                  {{ hasCuveEau ? 'Eau' : 'Pétrole' }}
+                </div>
+                <div class="tank-gauge">
+                  <div 
+                    class="tank-bar" 
+                    :class="{ 'water': hasCuveEau, 'oil': !hasCuveEau }"
+                    :style="{ width: `${props.room.fuelLevel || 0}%` }"
+                  ></div>
+                  <span class="tank-text">{{ Math.floor(props.room.fuelLevel || 0) }}%</span>
+                </div>
+              </div>
+            </div>
+
             <div class="production" v-if="isProductionRoom">
               <h3>Production par travailleur</h3>
               <div 
@@ -147,7 +168,7 @@
                 class="equipment-item"
               >
                 <div class="equipment-info">
-                  <h4>{{ type }}</h4>
+                  <h4>{{ config.nom }}</h4>
                   <p>{{ config.description }}</p>
                   <p class="construction-time">
                     Temps de construction: {{ config.constructionTime }} semaines
@@ -172,7 +193,7 @@
                 class="equipment-item"
               >
                 <div class="equipment-info">
-                  <h4>{{ equipment.type }}</h4>
+                  <h4>{{ store.EQUIPMENT_CONFIG[props.room.type]?.[equipment.type]?.nom || equipment.type }}</h4>
                   <template v-if="equipment.isUnderConstruction">
                     <div class="construction-progress">
                       <div 
@@ -424,6 +445,11 @@ function createNewHabitant() {
     }
   }, 1000)
 }
+
+// Vérifie si la cuve contient de l'eau
+const hasCuveEau = computed(() => 
+  props.room.equipments.some(e => e.type === 'cuve-eau' && !e.isUnderConstruction)
+)
 </script>
 
 <style lang="scss" scoped>
@@ -777,6 +803,73 @@ function createNewHabitant() {
     color: #ecf0f1;
     font-weight: bold;
     margin-top: 0.5rem;
+  }
+}
+
+.tank-info {
+  margin: 1rem 0;
+  padding: 1rem;
+  background-color: rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+
+  .tank-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .content-type {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.1rem;
+    
+    .droplet-icon {
+      font-size: 1.2rem;
+      
+      &.water {
+        color: #3498db;
+        filter: drop-shadow(0 0 2px #3498db);
+      }
+      
+      &.oil {
+        color: #8e44ad;
+        filter: drop-shadow(0 0 2px #8e44ad);
+      }
+    }
+  }
+
+  .tank-gauge {
+    width: 100%;
+    height: 12px;
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 6px;
+    position: relative;
+    overflow: hidden;
+
+    .tank-bar {
+      height: 100%;
+      transition: width 0.3s ease;
+      
+      &.water {
+        background-color: #3498db;
+      }
+      
+      &.oil {
+        background-color: #8e44ad;
+      }
+    }
+
+    .tank-text {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      color: #ecf0f1;
+      font-size: 0.8rem;
+      text-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+      white-space: nowrap;
+    }
   }
 }
 </style> 
