@@ -5,7 +5,16 @@
       <h1>L'Abri</h1>
       <div class="game-info">
         <div class="happiness">
-          Bonheur: {{ globalHappiness }}%
+          Bonheur: {{ globalHappiness }}% 
+          {{ globalHappiness >= 90 ? '🥰' : 
+             globalHappiness >= 80 ? '😊' :
+             globalHappiness >= 70 ? '😌' :
+             globalHappiness >= 60 ? '🙂' :
+             globalHappiness >= 50 ? '😐' :
+             globalHappiness >= 40 ? '😕' :
+             globalHappiness >= 30 ? '😟' :
+             globalHappiness >= 20 ? '😢' :
+             globalHappiness >= 10 ? '😭' : '😡' }}
         </div>
       </div>
       <div class="game-controls">
