@@ -480,23 +480,6 @@ onMounted(() => {
   display: grid;
   grid-template-columns: 1fr 80px 1fr;
   align-items: stretch;
-
-  // Bordures grises pour le niveau 0
-  [data-level="0"] & {
-    .room.is-excavated, .room.is-built {
-      border-top: 3px solid #95a5a6;
-    }
-
-    .left-side .room:first-child.is-excavated,
-    .left-side .room:first-child.is-built {
-      border-left: 3px solid #95a5a6;
-    }
-
-    .right-side .room:last-child.is-excavated,
-    .right-side .room:last-child.is-built {
-      border-right: 3px solid #95a5a6;
-    }
-  }
 }
 
 .rooms-side {
@@ -507,10 +490,18 @@ onMounted(() => {
   
   &.left-side {
     justify-content: end;
+
+    .room:first-child.is-excavated {
+      border-left: 5px solid var(--border-exterior-color);
+    }
   }
   
   &.right-side {
     justify-content: start;
+
+    .room:last-child.is-excavated {
+      border-right: 5px solid var(--border-exterior-color);
+    }
   }
 
   .room {
@@ -533,12 +524,20 @@ onMounted(() => {
     border: 2px solid #34495e;
     border-radius: 4px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+
+    &[data-level="0"] {
+      border-top: 5px solid var(--border-exterior-color);
+    }
   }
   
   &.is-built {
     background-color: #34495e;
     border: 2px solid var(--room-color, #34495e);
     cursor: pointer;
+
+    &[data-level="0"] {
+      border-top: 5px solid var(--border-exterior-color);
+    }
   }
 
   &.no-border-right {
@@ -575,7 +574,7 @@ onMounted(() => {
     width: calc(100%) !important;
   }
 
-  @each $type in (entrepot, dortoir, cuisine, station-traitement, generateur, infirmerie, serre, raffinerie, derrick) {
+  @each $type in (entrepot, dortoir, cuisine, station-traitement, generateur, infirmerie, serre, raffinerie, derrick, salle-controle) {
     &.room-type-#{$type} {
       --room-color: var(--room-#{$type}-color);
       border-color: var(--room-#{$type}-color);
@@ -720,6 +719,14 @@ onMounted(() => {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   position: relative;
   text-align: center;
+
+  &:has(~ .rooms-side.right-side:empty) {
+    border-right: 3px solid var(--border-exterior-color);
+  }
+
+  &:has(~ .rooms-side.left-side:empty) {
+    border-left: 3px solid var(--border-exterior-color);
+  }
   
   .stairs-inner {
     width: 40px;

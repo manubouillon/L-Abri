@@ -150,12 +150,14 @@ export const GAME_CONFIG = {
     {
       levelId: 0, // Premier niveau
       rooms: [
-        { position: 'left', index: 0, type: 'dortoir', gridSize: 2, workers: 0 },
-        { position: 'left', index: 2, type: 'entrepot', gridSize: 1, workers: 0 },
+        { position: 'left', index: 0, type: 'generateur', gridSize: 2, workers: 1 },
+        { position: 'left', index: 4, type: 'entrepot', gridSize: 2, workers: 0 },
+        
         //{ position: 'left', index: 4, type: 'raffinerie', gridSize: 1, workers: 1 },
-        { position: 'right', index: 0, type: 'generateur', gridSize: 2, workers: 1 },
-        { position: 'right', index: 2, type: 'station-traitement', gridSize: 1, workers: 1 },
-        { position: 'right', index: 3, type: 'serre', gridSize: 1, workers: 1 }
+        { position: 'right', index: 0, type: 'dortoir', gridSize: 2, workers: 0 },
+        //{ position: 'right', index: 2, type: 'station-traitement', gridSize: 1, workers: 1 },
+        //{ position: 'right', index: 3, type: 'serre', gridSize: 1, workers: 1 }
+        { position: 'right', index: 4, type: 'salle-controle', gridSize: 2, workers: 0 }
       ]
     }
   ]
@@ -288,14 +290,14 @@ export const ROOM_CONFIGS: { [key: string]: RoomConfig } = {
     maxWorkers: 2,
     energyConsumption: 4, // 4 unités d'énergie par semaine
     productionPerWorker: {
-      eau: 2
+      eau: 8
     }
   } as ProductionRoomConfig,
   generateur: {
     maxWorkers: 2,
     energyConsumption: 0, // La salle d'énergie ne consomme pas d'énergie
     productionPerWorker: {
-      energie: 5
+      energie: 8
     },
     fuelConsumption: 10 // Consomme 10% du réservoir par semaine par travailleur
   } as ProductionRoomConfig,
@@ -963,15 +965,6 @@ export const useGameStore = defineStore('game', () => {
       leftRooms: createInitialRooms('left', index, index <= 1),
       rightRooms: createInitialRooms('right', index, index <= 1)
     }))
-
-    // Initialiser la salle de contrôle au niveau 0
-    if (levels.value[0]) {
-      const room = levels.value[0].leftRooms[0]
-      room.isExcavated = true
-      room.isBuilt = true
-      room.type = 'salle-controle'
-      room.gridSize = 2
-    }
 
     // Initialiser le niveau 1 avec des salles excavées
     const firstLevel = levels.value[1]

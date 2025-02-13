@@ -215,7 +215,6 @@ body {
 }
 
 .resources-panel {
-  width: 250px;
   overflow-y: auto;
 }
 
