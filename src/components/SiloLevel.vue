@@ -47,6 +47,10 @@
                   </div>
                 </template>
 
+                <div v-if="room.type === 'cuve'" class="water-icon">
+                  💧
+                </div>
+
                 <!-- Barre de progression pour les cuves -->
                 <div v-if="room.type === 'cuve'" class="tank-gauge">
                   <div 
@@ -1018,5 +1022,13 @@ onMounted(() => {
     text-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
     white-space: nowrap;
   }
+}
+
+.water-icon {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 1.5em;
+  margin: 5px 0;
 }
 </style> 

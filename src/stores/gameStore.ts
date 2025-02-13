@@ -400,6 +400,7 @@ export const ROOM_CONFIGS: { [key: string]: RoomConfig } = {
   cuve: {
     maxWorkers: 0,
     energyConsumption: 2, // 2 unités d'énergie par semaine
+    capacityPerWorker: {} // La cuve n'utilise pas de travailleurs pour le stockage
   } as StorageRoomConfig
 } as const
 
@@ -1279,6 +1280,22 @@ export const useGameStore = defineStore('game', () => {
       resource.capacity = 200 // Capacité de base
     })
 
+    // Calculer la capacité totale d'eau basée sur les cuves
+    let waterCapacity = 0 // Capacité initiale à 0
+    levels.value?.forEach(level => {
+      const allRooms = [...level.leftRooms, ...level.rightRooms]
+      allRooms.forEach(room => {
+        if (room.isBuilt && room.type === 'cuve') {
+          const hasCuveEau = room.equipments.some(e => e.type === 'cuve-eau' && !e.isUnderConstruction)
+          if (hasCuveEau) {
+            const gridSize = room.gridSize || 1
+            waterCapacity += 200 * gridSize // Ajoute la capacité de la cuve multipliée par sa taille
+          }
+        }
+      })
+    })
+    resources.value.eau.capacity = Math.max(200, waterCapacity) // On garde un minimum de 200 comme capacité de base
+
     // 1. Calculer les consommations de base des habitants
     const baseConsumptions = {
       energie: population.value * 2, // 2 unités d'énergie par habitant
@@ -1498,8 +1515,23 @@ export const useGameStore = defineStore('game', () => {
     for (let i = 0; i < weeksElapsed; i++) {
       Object.entries(resources.value).forEach(([key, resource]) => {
         const net = resource.production - resource.consumption
-        const newAmount = Math.max(0, Math.min(resource.amount + net, resource.capacity))
-        resources.value[key as ResourceKey].amount = newAmount
+        
+        if (key === 'eau') {
+          // Gestion spéciale pour l'eau
+          if (net > 0) {
+            // Production d'eau : ajouter aux cuves
+            const added = addWater(net)
+            resources.value.eau.amount = Math.min(resources.value.eau.capacity, resources.value.eau.amount + added)
+          } else if (net < 0) {
+            // Consommation d'eau : retirer des cuves
+            const removed = removeWater(-net)
+            resources.value.eau.amount = Math.max(0, resources.value.eau.amount - removed)
+          }
+        } else {
+          // Gestion normale pour les autres ressources
+          const newAmount = Math.max(0, Math.min(resource.amount + net, resource.capacity))
+          resources.value[key as ResourceKey].amount = newAmount
+        }
       })
     }
   }
@@ -2747,6 +2779,65 @@ export const useGameStore = defineStore('game', () => {
     return true
   }
 
+  const WATER_TANK_RATIO = 2 // 1% de fuelLevel = 2 unités d'eau
+
+  function findWaterTanks(): Room[] {
+    const tanks: Room[] = []
+    levels.value.forEach(level => {
+      const allRooms = [...level.leftRooms, ...level.rightRooms]
+      allRooms.forEach(room => {
+        if (room.isBuilt && room.type === 'cuve' && 
+            room.equipments.some(e => e.type === 'cuve-eau' && !e.isUnderConstruction)) {
+          tanks.push(room)
+        }
+      })
+    })
+    return tanks
+  }
+
+  function addWater(amount: number): number {
+    const tanks = findWaterTanks()
+    if (tanks.length === 0) return 0 // Pas de cuve disponible
+
+    // Trouver la cuve la moins remplie
+    const leastFilledTank = tanks.reduce((min, tank) => 
+      (tank.fuelLevel || 0) < (min.fuelLevel || 0) ? tank : min
+    , tanks[0])
+
+    const tankCapacity = 100 // Capacité maximale en pourcentage
+    const currentLevel = leastFilledTank.fuelLevel || 0
+    const spaceLeft = tankCapacity - currentLevel
+    const waterToAdd = Math.min(amount, spaceLeft * WATER_TANK_RATIO)
+
+    if (waterToAdd > 0) {
+      leastFilledTank.fuelLevel = currentLevel + (waterToAdd / WATER_TANK_RATIO)
+      return waterToAdd
+    }
+
+    return 0
+  }
+
+  function removeWater(amount: number): number {
+    const tanks = findWaterTanks()
+    if (tanks.length === 0) return 0 // Pas de cuve disponible
+
+    // Trouver la cuve la plus remplie
+    const mostFilledTank = tanks.reduce((max, tank) => 
+      (tank.fuelLevel || 0) > (max.fuelLevel || 0) ? tank : max
+    , tanks[0])
+
+    const currentLevel = mostFilledTank.fuelLevel || 0
+    const waterAvailable = currentLevel * WATER_TANK_RATIO
+    const waterToRemove = Math.min(amount, waterAvailable)
+
+    if (waterToRemove > 0) {
+      mostFilledTank.fuelLevel = currentLevel - (waterToRemove / WATER_TANK_RATIO)
+      return waterToRemove
+    }
+
+    return 0
+  }
+
   return {
     // État
     resources,
@@ -2804,6 +2895,9 @@ export const useGameStore = defineStore('game', () => {
     getCurrentState,
     loadState,
     globalHappiness,
-    HAPPINESS_CONFIG
+    HAPPINESS_CONFIG,
+    findWaterTanks,
+    addWater,
+    removeWater
   }
 }) 
