@@ -162,6 +162,13 @@ const roomTypes = [
     category: 'production'
   },
   {
+    id: 'atelier',
+    name: 'Atelier',
+    icon: '⚒️',
+    description: 'Produit des objets manufacturés',
+    category: 'production'
+  },
+  {
     id: 'salle-controle',
     name: 'Salle de contrôle',
     icon: '🎮',
@@ -174,16 +181,18 @@ function getRoomsByCategory(categoryId: string) {
   return roomTypes.filter(room => room.category === categoryId)
 }
 
+function isItemType(resource: string): resource is ItemType {
+  return Object.prototype.hasOwnProperty.call(ITEMS_CONFIG, resource)
+}
+
 function canAffordRoom(type: string): boolean {
   const costs = ROOM_CONSTRUCTION_COSTS[type]
   if (!costs) return true
 
-  for (const [resource, amount] of Object.entries(costs)) {
-    if (store.getItemQuantity(resource) < amount) {
-      return false
-    }
-  }
-  return true
+  return Object.entries(costs).every(([resource, amount]) => {
+    if (!isItemType(resource)) return true
+    return store.getItemQuantity(resource) >= amount
+  })
 }
 
 function getConstructionCosts(type: string): string {
@@ -191,7 +200,11 @@ function getConstructionCosts(type: string): string {
   if (!costs) return 'Gratuit'
 
   return Object.entries(costs)
-    .map(([resource, amount]) => `${ITEMS_CONFIG[resource].name}: ${amount}`)
+    .filter(([resource]) => isItemType(resource))
+    .map(([resource, amount]) => {
+      const itemConfig = ITEMS_CONFIG[resource as ItemType]
+      return `${itemConfig.name}: ${amount}`
+    })
     .join(', ')
 }
 
@@ -200,12 +213,14 @@ function getMissingResources(type: string): Record<ItemType, number> {
   if (!costs) return {} as Record<ItemType, number>
 
   const missing: Record<ItemType, number> = {} as Record<ItemType, number>
-  for (const [resource, amount] of Object.entries(costs)) {
-    const currentAmount = store.getItemQuantity(resource as ItemType)
-    if (currentAmount < amount) {
-      missing[resource as ItemType] = amount - currentAmount
+  Object.entries(costs).forEach(([resource, amount]) => {
+    if (isItemType(resource)) {
+      const currentAmount = store.getItemQuantity(resource)
+      if (currentAmount < amount) {
+        missing[resource] = amount - currentAmount
+      }
     }
-  }
+  })
   return missing
 }
 
@@ -327,6 +342,7 @@ defineEmits<{
     serre: var(--room-serre-color),
     raffinerie: var(--room-raffinerie-color),
     derrick: var(--room-derrick-color),
+    atelier: var(--room-atelier-color),
     salle-controle: var(--room-salle-controle-color)
   ) {
     &.room-type-#{$type} {

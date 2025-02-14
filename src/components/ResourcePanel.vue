@@ -53,10 +53,10 @@
         
         <div class="resource-details">
           <div class="production">
-            +{{ resource.production.toFixed(1) }}/semaine
+            +{{ (resource.production ?? 0).toFixed(1) }}/semaine
           </div>
           <div class="consumption">
-            -{{ resource.consumption.toFixed(1) }}/semaine
+            -{{ (resource.consumption ?? 0).toFixed(1) }}/semaine
           </div>
         </div>
       </div>

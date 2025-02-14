@@ -133,7 +133,7 @@ export const ROOM_CATEGORIES: RoomCategory[] = [
   {
     id: 'production',
     name: 'Production',
-    rooms: ['raffinerie', 'derrick']
+    rooms: ['raffinerie', 'derrick', 'atelier']
   }
 ]
 
@@ -189,7 +189,8 @@ export const ROOM_MERGE_CONFIG: { [key: string]: { useMultiplier: boolean } } = 
   raffinerie: { useMultiplier: true },
   derrick: { useMultiplier: true },
   'salle-controle': { useMultiplier: false },
-  cuve: { useMultiplier: false }
+  cuve: { useMultiplier: false },
+  atelier: { useMultiplier: true }
 }
 
 export const INITIAL_LEVELS = GAME_CONFIG.INITIAL_LEVELS // Nombre de niveaux au départ
@@ -398,10 +399,18 @@ export const ROOM_CONFIGS: { [key: string]: RoomConfig } = {
     }
   } as ProductionRoomConfig,
   cuve: {
-    maxWorkers: 0,
-    energyConsumption: 2, // 2 unités d'énergie par semaine
-    capacityPerWorker: {} // La cuve n'utilise pas de travailleurs pour le stockage
-  } as StorageRoomConfig
+    'lingot-fer': 30,
+    'lingot-acier': 15,
+    'lingot-cuivre': 12,
+    'lingot-silicium': 8
+  },
+  atelier: {
+    maxWorkers: 2,
+    energyConsumption: 3,
+    productionPerWorker: {
+      vetements: 0 // Production de base sans équipement
+    }
+  } as ProductionRoomConfig
 } as const
 
 const PRENOMS = [
@@ -478,68 +487,64 @@ export interface Item {
 }
 
 export type ItemCategory = 'biologique' | 'ressource' | 'nourriture' | 'conteneur' | 'ressource-brute'
-export type ItemType = 'embryon-humain' | 'baril-petrole' | 'baril-vide' | 'avoine' | 'nourriture-conserve' | 
-  'minerai-fer' | 'minerai-charbon' | 'minerai-silicium' | 'minerai-cuivre' | 'minerai-or' | 'minerai-calcaire' |
-  'lingot-fer' | 'lingot-acier' | 'lingot-cuivre' | 'lingot-silicium' | 'lingot-or' | 'laitue' | 'tomates' | 'soie'
+export type ItemType = 
+  | 'minerai-fer' | 'minerai-cuivre' | 'minerai-silicium' | 'minerai-or'
+  | 'minerai-charbon' | 'minerai-calcaire'
+  | 'lingot-fer' | 'lingot-cuivre' | 'lingot-silicium' | 'lingot-or' | 'lingot-acier'
+  | 'baril-petrole' | 'baril-vide'
+  | 'laitue' | 'tomates' | 'avoine' | 'nourriture-conserve'
+  | 'soie' | 'vetements' | 'embryon-humain'
 
-export interface ItemConfig {
+export interface BaseItemConfig {
   name: string
   stackSize: number
   description: string
   category: ItemCategory
-  ratio?: number
-  qualite?: number
 }
+
+export interface FoodItemConfig extends BaseItemConfig {
+  category: 'nourriture'
+  ratio: number
+  qualite: number
+}
+
+export interface ResourceItemConfig extends BaseItemConfig {
+  category: 'ressource' | 'ressource-brute'
+}
+
+export interface BiologicalItemConfig extends BaseItemConfig {
+  category: 'biologique'
+}
+
+export interface ContainerItemConfig extends BaseItemConfig {
+  category: 'conteneur'
+}
+
+export type ItemConfig = FoodItemConfig | ResourceItemConfig | BiologicalItemConfig | ContainerItemConfig
 
 export const ITEMS_CONFIG: { [key in ItemType]: ItemConfig } = {
   'embryon-humain': {
     name: 'Embryon humain',
-    stackSize: 10,
+    stackSize: 1,
     description: 'Un embryon humain cryogénisé',
     category: 'biologique'
-  },
+  } as BiologicalItemConfig,
   'avoine': {
     name: 'Avoine',
     stackSize: 1000,
     description: 'Des grains d\'avoine cultivés dans les serres.',
     category: 'nourriture',
     ratio: 5,
-    qualite: 2
-  },
+    qualite: 1
+  } as FoodItemConfig,
   'tomates': {
     name: 'Tomates',
     stackSize: 1000,
     description: 'Des tomates fraîches cultivées dans les serres.',
     category: 'nourriture',
     ratio: 3,
-    qualite: 3
-  },
-  'soie': {
-    name: 'Soie',
-    stackSize: 500,
-    description: 'De la soie qui peut être transformée en vêtements.',
-    category: 'ressource-brute'
-  },
-  'baril-petrole': {
-    name: 'Baril de pétrole',
-    stackSize: 100,
-    description: 'Un baril contenant du pétrole brut.',
-    category: 'ressource'
-  },
-  'baril-vide': {
-    name: 'Baril vide',
-    stackSize: 100,
-    description: 'Un baril vide pouvant contenir des liquides.',
-    category: 'conteneur'
-  },
-  'nourriture-conserve': {
-    name: 'Boîtes de conserve',
-    stackSize: 1000,
-    description: 'De la nourriture en conserve, peut être stockée longtemps.',
-    category: 'nourriture',
-    ratio: 1,
-    qualite: 7
-  },
+    qualite: 2
+  } as FoodItemConfig,
   'laitue': {
     name: 'Laitue',
     stackSize: 1000,
@@ -547,74 +552,106 @@ export const ITEMS_CONFIG: { [key in ItemType]: ItemConfig } = {
     category: 'nourriture',
     ratio: 10,
     qualite: 1
-  },
+  } as FoodItemConfig,
+  'nourriture-conserve': {
+    name: 'Conserves',
+    stackSize: 1000,
+    description: 'De la nourriture en conserve.',
+    category: 'nourriture',
+    ratio: 1,
+    qualite: 1
+  } as FoodItemConfig,
+  'soie': {
+    name: 'Soie',
+    stackSize: 100,
+    description: 'De la soie brute produite par les vers à soie',
+    category: 'ressource'
+  } as ResourceItemConfig,
+  'baril-petrole': {
+    name: 'Baril de pétrole',
+    stackSize: 10,
+    description: 'Un baril rempli de pétrole.',
+    category: 'conteneur'
+  } as ContainerItemConfig,
+  'baril-vide': {
+    name: 'Baril vide',
+    stackSize: 10,
+    description: 'Un baril vide qui peut contenir du pétrole.',
+    category: 'conteneur'
+  } as ContainerItemConfig,
   'minerai-fer': {
     name: 'Minerai de fer',
     stackSize: 1000,
-    description: 'Minerai de fer brut extrait des profondeurs.',
+    description: 'Du minerai de fer brut.',
     category: 'ressource-brute'
-  },
+  } as ResourceItemConfig,
   'minerai-charbon': {
     name: 'Charbon',
     stackSize: 1000,
-    description: 'Charbon extrait des profondeurs.',
+    description: 'Du charbon brut.',
     category: 'ressource-brute'
-  },
+  } as ResourceItemConfig,
   'minerai-silicium': {
     name: 'Minerai de silicium',
     stackSize: 1000,
-    description: 'Minerai de silicium brut extrait des profondeurs.',
+    description: 'Du minerai de silicium brut.',
     category: 'ressource-brute'
-  },
+  } as ResourceItemConfig,
   'minerai-cuivre': {
     name: 'Minerai de cuivre',
     stackSize: 1000,
-    description: 'Minerai de cuivre brut extrait des profondeurs.',
+    description: 'Du minerai de cuivre brut.',
     category: 'ressource-brute'
-  },
+  } as ResourceItemConfig,
   'minerai-or': {
     name: 'Minerai d\'or',
     stackSize: 1000,
-    description: 'Minerai d\'or brut extrait des profondeurs.',
+    description: 'Du minerai d\'or brut.',
     category: 'ressource-brute'
-  },
+  } as ResourceItemConfig,
   'minerai-calcaire': {
     name: 'Calcaire',
     stackSize: 1000,
-    description: 'Calcaire extrait des profondeurs.',
+    description: 'Du calcaire brut.',
     category: 'ressource-brute'
-  },
+  } as ResourceItemConfig,
   'lingot-fer': {
     name: 'Lingot de fer',
-    stackSize: 1000,
-    description: 'Lingot de fer raffiné.',
+    stackSize: 100,
+    description: 'Un lingot de fer pur',
     category: 'ressource'
-  },
+  } as ResourceItemConfig,
   'lingot-acier': {
     name: 'Lingot d\'acier',
-    stackSize: 50,
-    description: 'Un lingot d\'acier, alliage de fer et de carbone',
+    stackSize: 100,
+    description: 'Un lingot d\'acier',
     category: 'ressource'
-  },
+  } as ResourceItemConfig,
   'lingot-cuivre': {
     name: 'Lingot de cuivre',
-    stackSize: 1000,
-    description: 'Lingot de cuivre raffiné.',
+    stackSize: 100,
+    description: 'Un lingot de cuivre pur',
     category: 'ressource'
-  },
+  } as ResourceItemConfig,
   'lingot-silicium': {
     name: 'Lingot de silicium',
-    stackSize: 1000,
-    description: 'Lingot de silicium raffiné.',
+    stackSize: 100,
+    description: 'Un lingot de silicium pur',
     category: 'ressource'
-  },
+  } as ResourceItemConfig,
   'lingot-or': {
     name: 'Lingot d\'or',
-    stackSize: 50,
+    stackSize: 100,
     description: 'Un lingot d\'or pur',
     category: 'ressource'
-  }
-}
+  } as ResourceItemConfig,
+  vetements: {
+    name: 'Vêtements',
+    stackSize: 50,
+    description: 'Des vêtements pour les habitants',
+    category: 'ressource'
+  } as ResourceItemConfig
+} as const
 
 export const ITEM_CATEGORIES: { [key in ItemCategory]: {
   name: string
@@ -863,8 +900,14 @@ export const ROOM_CONSTRUCTION_COSTS: { [key: string]: { [key in ItemType]?: num
     'lingot-acier': 15,
     'lingot-cuivre': 12,
     'lingot-silicium': 8
+  },
+  atelier: {
+    'lingot-fer': 35,
+    'lingot-acier': 20,
+    'lingot-cuivre': 15,
+    'lingot-silicium': 10
   }
-}
+} as const
 
 // Configuration des points de bonheur
 const HAPPINESS_CONFIG = {
@@ -1590,6 +1633,38 @@ export const useGameStore = defineStore('game', () => {
           // Production de base de laitue
           addItem('laitue', baseProduction)
         }
+
+        // Dans la boucle de traitement des salles
+        if (room.type === 'atelier' && room.occupants.length > 0) {
+
+          console.log('atelier', room)
+
+          const nbWorkers = room.occupants.length
+          const gridSize = room.gridSize || 1
+          const mergeMultiplier = GAME_CONFIG.MERGE_MULTIPLIERS[Math.min(gridSize, 6) as keyof typeof GAME_CONFIG.MERGE_MULTIPLIERS] || 1
+          
+          // Vérifier si l'atelier a l'équipement de couture
+          const hasAtelierCouture = room.equipments?.some(e => e.type === 'atelier-couture' && !e.isUnderConstruction)
+          
+          if (hasAtelierCouture) {
+            // Vérifier la disponibilité de soie
+            const soieDisponible = getItemQuantity('soie')
+            if (soieDisponible > 0) {
+              // Production de vêtements (2 par travailleur)
+              const productionBase = 2 * nbWorkers * gridSize * mergeMultiplier * weeksElapsed
+              const productionPossible = Math.min(productionBase, Math.floor(soieDisponible / 2)) // 2 unités de soie pour 1 vêtement
+              
+              console.log('soieDisponible', soieDisponible)
+              console.log('productionPossible', productionPossible)
+
+              if (productionPossible > 0) {
+                removeItem('soie', productionPossible * 2)
+                addItem('vetements', productionPossible)
+                resources.value.vetements.production += productionPossible / weeksElapsed
+              }
+            }
+          }
+        }
       })
     })
   }
@@ -1600,7 +1675,7 @@ export const useGameStore = defineStore('game', () => {
     
     for (const item of foodItems) {
       const itemConfig = ITEMS_CONFIG[item.type as keyof typeof ITEMS_CONFIG]
-      if (itemConfig && itemConfig.ratio) {
+      if (itemConfig && isFoodItem(itemConfig)) {
         totalFood += item.quantity / itemConfig.ratio
       }
     }
@@ -1634,7 +1709,6 @@ export const useGameStore = defineStore('game', () => {
         // Si consommation de nourriture
         if (net < 0) {
           const foodNeeded = -net
-          console.log('Nourriture nécessaire:', foodNeeded)
           
           // Récupérer tous les types de nourriture disponibles avec leurs configurations
           const foodItems = inventory.value
@@ -1643,27 +1717,18 @@ export const useGameStore = defineStore('game', () => {
               item,
               config: ITEMS_CONFIG[item.type as keyof typeof ITEMS_CONFIG]
             }))
-            .filter(({ config }) => config && config.ratio)
-          
-          console.log('Types de nourriture disponibles:', foodItems.map(({ item, config }) => ({
-            type: item.type,
-            quantity: item.quantity,
-            ratio: config.ratio
-          })))
+            .filter(({ config }) => config && isFoodItem(config))
           
           if (foodItems.length > 0) {
             // Calculer la nourriture nécessaire par type
             const foodPerType = foodNeeded / foodItems.length
-            console.log('Nourriture nécessaire par type:', foodPerType)
             
             // Consommer chaque type de nourriture
             foodItems.forEach(({ item, config }) => {
-              if (config.ratio) {
+              if (isFoodItem(config)) {
                 const itemsToConsume = Math.ceil(foodPerType * config.ratio)
-                console.log(`Consommation calculée pour ${item.type}:`, itemsToConsume)
                 if (itemsToConsume > 0) {
                   const actualConsumption = Math.min(itemsToConsume, item.quantity)
-                  console.log(`Consommation réelle pour ${item.type}:`, actualConsumption)
                   removeItem(item.id, actualConsumption)
                 }
               }
@@ -2368,6 +2433,13 @@ export const useGameStore = defineStore('game', () => {
         constructionTime: 3,
         description: "Permet d'élever des vers à soie pour produire de la soie brute."
       }
+    },
+    atelier: {
+      'atelier-couture': {
+        nom: "👔 Atelier de couture",
+        constructionTime: 2,
+        description: "Permet de produire des vêtements à partir de soie."
+      }
     }
   }
 
@@ -2845,18 +2917,42 @@ export const useGameStore = defineStore('game', () => {
     return true;
   }
 
-  function removeItem(itemId: string, quantity: number = 1): boolean {
-    const itemIndex = inventory.value.findIndex(item => item.id === itemId)
-    if (itemIndex === -1) return false
+  function removeItem(itemIdOrType: string, quantity: number = 1): boolean {
+    console.log('removeItem', itemIdOrType, quantity)
 
-    const item = inventory.value[itemIndex]
-    if (item.quantity < quantity) return false
+    // Trouver tous les items correspondants (par ID ou par type) et retirer les stacks vides
+    const matchingItems = inventory.value.filter(item => 
+      (item.id === itemIdOrType || item.type === itemIdOrType) && item.quantity > 0
+    ).sort((a, b) => b.quantity - a.quantity) // Trier par quantité décroissante
 
-    item.quantity -= quantity
-    if (item.quantity === 0) {
-      inventory.value.splice(itemIndex, 1)
+    if (matchingItems.length === 0) {
+      console.log('Item non trouvé:', itemIdOrType)
+      console.log('Inventaire actuel:', inventory.value)
+      return false
     }
 
+    // Calculer la quantité totale disponible
+    const totalAvailable = matchingItems.reduce((sum, item) => sum + item.quantity, 0)
+    if (totalAvailable < quantity) {
+      console.log('Quantité insuffisante:', totalAvailable, '<', quantity)
+      return false
+    }
+
+    let remainingToRemove = quantity
+
+    // Retirer la quantité nécessaire des stacks et purger les stacks vides
+    for (const item of matchingItems) {
+      if (remainingToRemove <= 0) break
+
+      const amountToRemove = Math.min(remainingToRemove, item.quantity)
+      item.quantity -= amountToRemove
+      remainingToRemove -= amountToRemove
+    }
+
+    // Purger tous les stacks vides
+    inventory.value = inventory.value.filter(item => item.quantity > 0)
+
+    console.log('Inventaire après modification:', inventory.value)
     saveGame()
     return true
   }
@@ -2992,6 +3088,20 @@ export const useGameStore = defineStore('game', () => {
     }
 
     return 0
+  }
+
+  function isFoodItem(item: ItemConfig): item is FoodItemConfig {
+    return item.category === 'nourriture'
+  }
+
+  function calculateFoodQuality(item: Item): number {
+    const itemConfig = ITEMS_CONFIG[item.type as keyof typeof ITEMS_CONFIG]
+    return isFoodItem(itemConfig) ? itemConfig.qualite : 1
+  }
+
+  function getFoodRatio(itemType: ItemType): number {
+    const itemConfig = ITEMS_CONFIG[itemType]
+    return isFoodItem(itemConfig) ? itemConfig.ratio : 1
   }
 
   return {

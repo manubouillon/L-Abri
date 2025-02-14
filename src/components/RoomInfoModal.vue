@@ -42,7 +42,7 @@
               <div class="formula-row">
                 <span class="label">Production de base par travailleur:</span>
                 <span v-for="(amount, resource) in baseProduction" :key="resource">
-                  {{ resource }}: {{ amount }}/s
+                  {{ String(resource) }}: {{ String(amount) }}/semaine
                 </span>
               </div>
               <div class="formula-row">
@@ -94,7 +94,7 @@
                 class="production-item"
               >
                 <span class="resource">{{ resource }}:</span>
-                <span class="amount">+{{ amount }}/s</span>
+                <span class="amount">+{{ amount }}/semaine</span>
               </div>
             </div>
 
@@ -264,7 +264,16 @@ const isProductionRoom = computed(() => {
 const baseProduction = computed(() => {
   if (!isProductionRoom.value) return {}
   const config = store.ROOM_CONFIGS[props.room.type] as ProductionRoomConfig
-  return config.productionPerWorker
+  
+  // Si c'est un atelier avec équipement de couture, la production de base est de 2 vêtements
+  if (props.room.type === 'atelier') {
+    const hasAtelierCouture = props.room.equipments?.some(e => e.type === 'atelier-couture' && !e.isUnderConstruction)
+    if (hasAtelierCouture) {
+      return { vetements: 2, 'soie (consommation)': 4 } // 2 unités de soie pour 1 vêtement
+    }
+  }
+  
+  return config.productionPerWorker as Record<string, number>
 })
 
 const isStorageRoom = computed(() => {
@@ -295,9 +304,20 @@ const getTotalProduction = computed(() => {
   const mergeMultiplier = getMergeMultiplier.value
 
   const productions = []
-  for (const [resource, amount] of Object.entries(config.productionPerWorker)) {
+  for (const [resource, amount] of Object.entries(baseProduction.value)) {
     const total = amount * nbWorkers * gridSize * mergeMultiplier
-    productions.push(`${resource}: ${total.toFixed(1)}/s`)
+    if (resource.includes('consommation')) {
+      productions.push(`${resource}: -${total.toFixed(1)}/semaine`)
+    } else {
+      productions.push(`${resource}: +${total.toFixed(1)}/semaine`)
+    }
+  }
+
+  if (props.room.type === 'atelier') {
+    const soieDisponible = store.getItemQuantity('soie')
+    if (soieDisponible === 0) {
+      productions.push('(Production arrêtée: pas de soie disponible)')
+    }
   }
 
   return productions.join(', ')
