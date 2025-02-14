@@ -343,7 +343,7 @@ export const ROOM_CONFIGS: { [key: string]: RoomConfig } = {
     energyConsumption: 4, // 4 unités d'énergie par semaine
     waterConsumption: 2, // 2 unités d'eau par semaine
     productionPerWorker: {
-      nourriture: 1.5
+      laitue: 2
     }
   } as ProductionRoomConfig,
   raffinerie: {
@@ -478,7 +478,7 @@ export interface Item {
 export type ItemCategory = 'biologique' | 'ressource' | 'nourriture' | 'conteneur' | 'ressource-brute'
 export type ItemType = 'embryon-humain' | 'baril-petrole' | 'baril-vide' | 'cereales' | 'nourriture-conserve' | 
   'minerai-fer' | 'minerai-charbon' | 'minerai-silicium' | 'minerai-cuivre' | 'minerai-or' | 'minerai-calcaire' |
-  'lingot-fer' | 'lingot-acier' | 'lingot-cuivre' | 'lingot-silicium' | 'lingot-or'
+  'lingot-fer' | 'lingot-acier' | 'lingot-cuivre' | 'lingot-silicium' | 'lingot-or' | 'laitue'
 
 export const ITEMS_CONFIG = {
   'embryon-humain': {
@@ -509,6 +509,12 @@ export const ITEMS_CONFIG = {
     name: 'Nourriture en conserve',
     stackSize: 1000,
     description: 'De la nourriture en conserve, peut être stockée longtemps.',
+    category: 'nourriture'
+  },
+  'laitue': {
+    name: 'Laitue',
+    stackSize: 1000,
+    description: 'De la laitue fraîche cultivée dans les serres.',
     category: 'nourriture'
   },
   'minerai-fer': {
@@ -1355,7 +1361,6 @@ export const useGameStore = defineStore('game', () => {
                 if (success) {
                   // Ajouter un baril vide
                   const addSuccess = addItem('baril-vide', 1)
-                  console.log('Création du baril vide:', addSuccess ? 'réussie' : 'échouée')
                   room.fuelLevel = 100 // Remplir le réservoir
                 }
               }
@@ -1410,6 +1415,20 @@ export const useGameStore = defineStore('game', () => {
             Object.entries(config.productionPerWorker).forEach(([resource, amount]) => {
               if (amount && resource in resources.value) {
                 resources.value[resource as ResourceKey].production += amount * nbWorkers * gridSize * mergeMultiplier * productionBonus
+              }
+            })
+
+            // Production normale pour les autres salles
+            Object.entries(config.productionPerWorker).forEach(([resource, amount]) => {
+              if (amount) {
+                if (resource in resources.value) {
+                  resources.value[resource as ResourceKey].production += amount * nbWorkers * gridSize * mergeMultiplier * productionBonus
+                } else {
+                  const itemsProduced = Math.floor(amount * nbWorkers * gridSize * mergeMultiplier * productionBonus)
+                  if (itemsProduced > 0) {
+                    addItem(resource as ItemType, itemsProduced)
+                  }
+                }
               }
             })
           }
@@ -1853,7 +1872,6 @@ export const useGameStore = defineStore('game', () => {
 
   // Mise à jour de la fonction updateHappiness
   function updateHappiness() {
-    console.log('updateHappiness')
     habitants.value.forEach(habitant => {
       habitant.bonheur = calculateHappiness(habitant.id)
     })
@@ -2292,8 +2310,6 @@ export const useGameStore = defineStore('game', () => {
 
   function retirerHabitantSalle(habitantId: string, roomId: string): boolean {
     
-    console.log("retirerHabitantSalle", habitantId, roomId)
-    
     const habitant = habitants.value.find(h => h.id === habitantId)
     if (!habitant) return false
 
@@ -2622,8 +2638,6 @@ export const useGameStore = defineStore('game', () => {
 
   // Fonctions de gestion de l'inventaire
   function addItem(type: ItemType, quantity: number = 1): boolean {
-    console.log('Tentative d\'ajout d\'item:', type, quantity);
-    console.log('Espace d\'inventaire:', inventorySpace.value);
 
     // Vérifier si on ne dépasse pas la taille du stack
     const config = ITEMS_CONFIG[type];
@@ -2641,12 +2655,10 @@ export const useGameStore = defineStore('game', () => {
       );
 
       if (existingItem) {
-        console.log('Stack existant trouvé:', existingItem);
         const spaceInStack = existingItem.stackSize - existingItem.quantity;
         const toAdd = Math.min(remainingQuantity, spaceInStack);
         existingItem.quantity += toAdd;
         remainingQuantity -= toAdd;
-        console.log('Ajouté au stack existant:', toAdd);
       } else {
         // Créer un nouveau stack
         const stackSize = Math.min(remainingQuantity, config.stackSize);
@@ -2660,7 +2672,6 @@ export const useGameStore = defineStore('game', () => {
         };
         inventory.value.push(newItem);
         remainingQuantity -= stackSize;
-        console.log('Nouveau stack créé:', newItem);
       }
     }
 

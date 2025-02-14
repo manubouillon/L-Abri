@@ -73,8 +73,6 @@ function isValidItem(item: any): item is Item {
 
 // Ajouter un log pour déboguer
 const filteredItems = computed(() => {
-  console.log('Tous les items:', inventoryItems.value)
-  console.log('Items valides:', inventoryItems.value.filter(isValidItem))
   if (!selectedCategory.value) {
     return inventoryItems.value.filter(isValidItem)
   }
