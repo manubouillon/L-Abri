@@ -381,7 +381,7 @@ function retirerHabitant(habitantId: string) {
       return
     }
   }
-  store.retirerHabitantSalle(habitantId)
+  store.retirerHabitantSalle(habitantId, props.room.id)
 }
 
 function ajouterHabitant() {

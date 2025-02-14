@@ -2290,51 +2290,56 @@ export const useGameStore = defineStore('game', () => {
     return true
   }
 
-  function retirerHabitantSalle(habitantId: string): boolean {
+  function retirerHabitantSalle(habitantId: string, roomId: string): boolean {
+    
+    console.log("retirerHabitantSalle", habitantId, roomId)
+    
     const habitant = habitants.value.find(h => h.id === habitantId)
     if (!habitant) return false
 
-    // Vérifier si l'habitant est dans un logement
-    if (habitant.logement) {
-      const level = levels.value.find(l => l.id === habitant.logement.levelId)
-      if (level) {
-        const room = habitant.logement.position === 'left'
-          ? level.leftRooms[habitant.logement.roomIndex]
-          : level.rightRooms[habitant.logement.roomIndex]
-        if (room) {
-          room.occupants = room.occupants.filter(id => id !== habitantId)
-        }
+    // Trouver la salle spécifiée
+    let targetRoom: Room | null = null
+    let targetLevel: Level | null = null
+
+    for (const level of levels.value) {
+      const allRooms = [...level.leftRooms, ...level.rightRooms]
+      const room = allRooms.find(r => r.id === roomId)
+      if (room) {
+        targetRoom = room
+        targetLevel = level
+        break
       }
-      habitant.logement = null
-      return true
     }
 
-    // Si l'habitant n'est pas affecté à une salle, rien à faire
-    if (habitant.affectation.type !== 'salle') return false
+    if (!targetRoom || !targetLevel) return false
 
-    const level = levels.value.find(l => l.id === habitant.affectation.levelId)
-    if (!level) {
-      // Si le niveau n'existe pas, on réinitialise juste l'affectation
-      habitant.affectation = { type: null }
-      return true
+    // Vérifier si c'est une salle de logement
+    const isLogementRoom = ['dortoir', 'quartiers', 'appartement', 'suite'].includes(targetRoom.type)
+
+    if (isLogementRoom) {
+      // Pour un logement, vérifier si l'habitant y est logé
+      if (habitant.logement && 
+          habitant.logement.levelId === targetLevel.id && 
+          habitant.logement.position === targetRoom.position && 
+          habitant.logement.roomIndex === targetRoom.index) {
+        targetRoom.occupants = targetRoom.occupants.filter(id => id !== habitantId)
+        habitant.logement = null
+        return true
+      }
+    } else {
+      // Pour une salle de travail, vérifier si l'habitant y est affecté
+      if (habitant.affectation.type === 'salle' && 
+          habitant.affectation.levelId === targetLevel.id && 
+          habitant.affectation.position === targetRoom.position && 
+          habitant.affectation.roomIndex === targetRoom.index) {
+        targetRoom.occupants = targetRoom.occupants.filter(id => id !== habitantId)
+        habitant.affectation = { type: null }
+        updateRoomProduction()
+        return true
+      }
     }
 
-    const room = habitant.affectation.position === 'left'
-      ? level.leftRooms[habitant.affectation.roomIndex!]
-      : level.rightRooms[habitant.affectation.roomIndex!]
-  
-    if (!room) {
-      // Si la salle n'existe pas, on réinitialise juste l'affectation
-      habitant.affectation = { type: null }
-      return true
-    }
-
-    // Retirer l'habitant de la salle
-    room.occupants = room.occupants.filter(id => id !== habitantId)
-    habitant.affectation = { type: null }
-
-    updateRoomProduction()
-    return true
+    return false
   }
 
   // Nouvelle version moins agressive de la vérification de cohérence

@@ -246,7 +246,7 @@ function getHabitantName(habitantId: string): string {
 }
 
 function retirerHabitant(habitantId: string) {
-  store.retirerHabitantSalle(habitantId)
+  store.retirerHabitantSalle(habitantId, props.room.id)
 }
 
 function ajouterHabitant() {
