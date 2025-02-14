@@ -31,27 +31,16 @@
       <div class="details-section">
         <h3>Stocks Disponibles</h3>
         <div class="food-stocks">
-          <div v-for="item in availableFoodItems" :key="item.type" class="food-stock-item">
-            <div class="stock-info">
-              <div class="stock-name">{{ item.type === 'nourriture-conserve' ? 'Boîtes de conserve' : 
-                                       item.type === 'laitue' ? 'Laitue' : 
-                                       item.type === 'avoine' ? 'Avoine' : item.type }}</div>
-              <div class="stock-quantity">{{ item.quantity }} unités</div>
+          <div v-for="item in availableFoodItems" :key="item.type" class="food-item">
+            <div class="food-name">{{ item.type === 'nourriture-conserve' ? 'Boîtes de conserve' : 
+                                   item.type === 'laitue' ? 'Laitue' : 
+                                   item.type === 'avoine' ? 'Avoine' : 
+                                   item.type === 'tomates' ? 'Tomates' : item.type }}</div>
+            <div class="food-quality">
+              <span class="quality-stars">{{ '★'.repeat(getFoodQuality(item.type)) }}</span>
+              <span class="quality-empty">{{ '☆'.repeat(10 - getFoodQuality(item.type)) }}</span>
             </div>
-            <div class="stock-details">
-              <div class="quality-info">
-                Qualité: {{ getFoodQuality(item.type) }}/10
-                <div class="quality-bar">
-                  <div 
-                    class="quality-fill"
-                    :style="{ width: getFoodQuality(item.type) * 10 + '%' }"
-                  ></div>
-                </div>
-              </div>
-              <div class="ratio-info">
-                Ratio: 1:{{ getFoodRatio(item.type) }}
-              </div>
-            </div>
+            <div class="stock-quantity">{{ item.quantity }} unités</div>
           </div>
         </div>
       </div>
@@ -109,10 +98,27 @@ const { resources, levels, population, inventory, gameSpeed } = storeToRefs(stor
 const { ROOM_CONFIGS, ITEMS_CONFIG } = store
 
 const availableFoodItems = computed(() => {
-  return inventory.value.filter(item => 
-    item.category === 'nourriture' && 
-    item.quantity > 0
-  )
+  // Créer un Map pour regrouper les items par type
+  const foodMap = new Map<string, Item>()
+  
+  inventory.value
+    .filter(item => item.category === 'nourriture')
+    .forEach(item => {
+      if (foodMap.has(item.type)) {
+        // Si le type existe déjà, ajouter la quantité
+        const existingItem = foodMap.get(item.type)!
+        existingItem.quantity += item.quantity
+      } else {
+        // Sinon, créer une nouvelle entrée
+        foodMap.set(item.type, {
+          ...item,
+          id: `combined-${item.type}`
+        })
+      }
+    })
+  
+  // Convertir le Map en tableau et ne garder que les items avec une quantité > 0
+  return Array.from(foodMap.values()).filter(item => item.quantity > 0)
 })
 
 const productionRooms = computed(() => {
@@ -169,6 +175,8 @@ function getFoodQuality(type: string): number {
     return ITEMS_CONFIG['laitue'].qualite || 0
   } else if (type === 'avoine') {
     return ITEMS_CONFIG['avoine'].qualite || 0
+  } else if (type === 'tomates') {
+    return ITEMS_CONFIG['tomates'].qualite || 0
   }
   return 0
 }
@@ -313,47 +321,21 @@ h4 {
 .food-stocks {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-}
-
-.food-stock-item {
+  gap: 0.8rem;
   background-color: #333;
   padding: 1rem;
   border-radius: 4px;
 }
 
-.stock-info {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 0.5rem;
+.food-stocks .food-item {
+  background-color: #2a2a2a;
+  padding: 0.5rem;
+  border-radius: 4px;
 }
 
-.stock-details {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.quality-info {
-  flex: 1;
-}
-
-.quality-bar {
-  height: 4px;
-  background-color: #444;
-  border-radius: 2px;
-  margin-top: 4px;
-}
-
-.quality-fill {
-  height: 100%;
-  background-color: #ffd700;
-  border-radius: 2px;
-  transition: width 0.3s ease;
-}
-
-.ratio-info {
-  margin-left: 1rem;
+.stock-quantity {
+  min-width: 100px;
+  text-align: right;
 }
 
 .rooms-list {

@@ -343,7 +343,7 @@ export const ROOM_CONFIGS: { [key: string]: RoomConfig } = {
     energyConsumption: 4, // 4 unités d'énergie par semaine
     waterConsumption: 2, // 2 unités d'eau par semaine
     productionPerWorker: {
-      laitue: 2
+      laitue: 2 // Production de base de laitue
     }
   } as ProductionRoomConfig,
   raffinerie: {
@@ -480,7 +480,7 @@ export interface Item {
 export type ItemCategory = 'biologique' | 'ressource' | 'nourriture' | 'conteneur' | 'ressource-brute'
 export type ItemType = 'embryon-humain' | 'baril-petrole' | 'baril-vide' | 'avoine' | 'nourriture-conserve' | 
   'minerai-fer' | 'minerai-charbon' | 'minerai-silicium' | 'minerai-cuivre' | 'minerai-or' | 'minerai-calcaire' |
-  'lingot-fer' | 'lingot-acier' | 'lingot-cuivre' | 'lingot-silicium' | 'lingot-or' | 'laitue'
+  'lingot-fer' | 'lingot-acier' | 'lingot-cuivre' | 'lingot-silicium' | 'lingot-or' | 'laitue' | 'tomates' | 'soie'
 
 export interface ItemConfig {
   name: string
@@ -498,6 +498,28 @@ export const ITEMS_CONFIG: { [key in ItemType]: ItemConfig } = {
     description: 'Un embryon humain cryogénisé',
     category: 'biologique'
   },
+  'avoine': {
+    name: 'Avoine',
+    stackSize: 1000,
+    description: 'Des grains d\'avoine cultivés dans les serres.',
+    category: 'nourriture',
+    ratio: 5,
+    qualite: 2
+  },
+  'tomates': {
+    name: 'Tomates',
+    stackSize: 1000,
+    description: 'Des tomates fraîches cultivées dans les serres.',
+    category: 'nourriture',
+    ratio: 3,
+    qualite: 3
+  },
+  'soie': {
+    name: 'Soie',
+    stackSize: 500,
+    description: 'De la soie qui peut être transformée en vêtements.',
+    category: 'ressource-brute'
+  },
   'baril-petrole': {
     name: 'Baril de pétrole',
     stackSize: 100,
@@ -509,14 +531,6 @@ export const ITEMS_CONFIG: { [key in ItemType]: ItemConfig } = {
     stackSize: 100,
     description: 'Un baril vide pouvant contenir des liquides.',
     category: 'conteneur'
-  },
-  'avoine': {
-    name: 'Avoine',
-    stackSize: 1000,
-    description: 'Des grains d\'avoine cultivés dans les serres.',
-    category: 'nourriture',
-    ratio: 5,
-    qualite: 2
   },
   'nourriture-conserve': {
     name: 'Boîtes de conserve',
@@ -1543,6 +1557,39 @@ export const useGameStore = defineStore('game', () => {
             }))
           }
         }
+
+        // Dans la boucle de traitement des salles
+        if (room.type === 'serre' && room.occupants.length > 0) {
+          const nbWorkers = room.occupants.length
+          const gridSize = room.gridSize || 1
+          
+          // Vérifier les équipements de culture
+          const hasTomates = room.equipments?.some(e => e.type === 'culture-tomates' && !e.isUnderConstruction)
+          const hasAvoine = room.equipments?.some(e => e.type === 'culture-avoine' && !e.isUnderConstruction)
+          const hasVersSoie = room.equipments?.some(e => e.type === 'vers-soie' && !e.isUnderConstruction)
+          
+          // Production de base (laitue)
+          const baseProduction = 2 * nbWorkers * gridSize * mergeMultiplier * weeksElapsed
+          
+          // Ajouter la production de chaque culture
+          if (hasTomates) {
+            const tomatoProduction = Math.floor(1.5 * nbWorkers * gridSize * mergeMultiplier * weeksElapsed)
+            addItem('tomates', tomatoProduction)
+          }
+          
+          if (hasAvoine) {
+            const avoineProduction = Math.floor(2 * nbWorkers * gridSize * mergeMultiplier * weeksElapsed)
+            addItem('avoine', avoineProduction)
+          }
+          
+          if (hasVersSoie) {
+            const soieProduction = Math.floor(0.5 * nbWorkers * gridSize * mergeMultiplier * weeksElapsed)
+            addItem('soie', soieProduction)
+          }
+          
+          // Production de base de laitue
+          addItem('laitue', baseProduction)
+        }
       })
     })
   }
@@ -2303,6 +2350,23 @@ export const useGameStore = defineStore('game', () => {
         nom: "Cuve à eau",
         constructionTime: 1, // 1 semaine pour construire
         description: "Augmente la capacité de stockage d'eau de la salle."
+      }
+    },
+    serre: {
+      'culture-tomates': {
+        nom: "Culture de tomates",
+        constructionTime: 2,
+        description: "Permet de cultiver des tomates dans la serre. Augmente la production de nourriture."
+      },
+      'culture-avoine': {
+        nom: "Culture d'avoine",
+        constructionTime: 2,
+        description: "Permet de cultiver de l'avoine dans la serre. Augmente la production de nourriture."
+      },
+      'vers-soie': {
+        nom: "Élevage de vers à soie",
+        constructionTime: 3,
+        description: "Permet d'élever des vers à soie pour produire de la soie brute."
       }
     }
   }
