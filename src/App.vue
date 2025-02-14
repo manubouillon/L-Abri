@@ -22,6 +22,10 @@
             ({{ habitants.filter(h => !h.logement).length }} sans abri 🏠❌)
           </span>
         </div>
+
+        <div class="food-quality">
+          Qualité nourriture: {{ averageFoodQuality }}/10 {{ foodQualityEmoji }}
+        </div>
       </div>
       <div class="game-controls">
         <button @click="showSaveModal = true">Sauvegarde</button>
@@ -78,7 +82,7 @@ import NotificationSystem from './components/NotificationSystem.vue'
 
 // État du jeu
 const gameStore = useGameStore()
-const { levels, inventorySpace, gameSpeed, globalHappiness, habitants } = storeToRefs(gameStore)
+const { levels, inventorySpace, gameSpeed, globalHappiness, habitants, averageFoodQuality, foodQualityEmoji } = storeToRefs(gameStore)
 const isPaused = ref(false)
 const scrollPosition = ref(0)
 const showHabitantsList = ref(false)
@@ -202,12 +206,17 @@ body {
     gap: 1rem;
     color: #ecf0f1;
     font-size: 1.1em;
-  }
 
-  .happiness {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+    .happiness, .population, .food-quality {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .warning {
+      color: #e74c3c;
+      font-size: 0.9em;
+    }
   }
 
   .game-controls {

@@ -9,7 +9,12 @@
         class="resource-item"
       >
         <div class="resource-header">
-          <span class="resource-name">{{ name }}</span>
+          <span class="resource-name">
+            {{ name }}
+            <span v-if="name === 'nourriture'" class="food-quality">
+              {{ foodQualityEmoji }}
+            </span>
+          </span>
           <span class="resource-amount">{{ Math.floor(resource.amount) }}/{{ resource.capacity }}</span>
           <button v-if="name === 'energie'" 
                   class="details-button"
@@ -99,7 +104,7 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useGameStore } from '../stores/gameStore'
 import EnergyDetailsModal from './EnergyDetailsModal.vue'
 import WaterDetailsModal from './WaterDetailsModal.vue'
@@ -115,7 +120,7 @@ const showFoodDetails = ref(false)
 const showClothesDetails = ref(false)
 const showMedicineDetails = ref(false)
 const gameStore = useGameStore()
-const { globalHappiness } = storeToRefs(gameStore)
+const { globalHappiness, averageFoodQuality, foodQualityEmoji } = storeToRefs(gameStore)
 </script>
 
 <style lang="scss" scoped>
@@ -150,6 +155,12 @@ const { globalHappiness } = storeToRefs(gameStore)
   .resource-name {
     text-transform: capitalize;
     font-weight: bold;
+
+    .food-quality {
+      font-size: 0.9em;
+      opacity: 0.8;
+      margin-left: 0.5rem;
+    }
   }
 }
 

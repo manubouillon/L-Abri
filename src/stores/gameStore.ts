@@ -473,14 +473,25 @@ export interface Item {
   stackSize: number
   description: string
   category: ItemCategory
+  ratio?: number
+  qualite?: number
 }
 
 export type ItemCategory = 'biologique' | 'ressource' | 'nourriture' | 'conteneur' | 'ressource-brute'
-export type ItemType = 'embryon-humain' | 'baril-petrole' | 'baril-vide' | 'cereales' | 'nourriture-conserve' | 
+export type ItemType = 'embryon-humain' | 'baril-petrole' | 'baril-vide' | 'avoine' | 'nourriture-conserve' | 
   'minerai-fer' | 'minerai-charbon' | 'minerai-silicium' | 'minerai-cuivre' | 'minerai-or' | 'minerai-calcaire' |
   'lingot-fer' | 'lingot-acier' | 'lingot-cuivre' | 'lingot-silicium' | 'lingot-or' | 'laitue'
 
-export const ITEMS_CONFIG = {
+export interface ItemConfig {
+  name: string
+  stackSize: number
+  description: string
+  category: ItemCategory
+  ratio?: number
+  qualite?: number
+}
+
+export const ITEMS_CONFIG: { [key in ItemType]: ItemConfig } = {
   'embryon-humain': {
     name: 'Embryon humain',
     stackSize: 10,
@@ -499,23 +510,29 @@ export const ITEMS_CONFIG = {
     description: 'Un baril vide pouvant contenir des liquides.',
     category: 'conteneur'
   },
-  'cereales': {
-    name: 'Céréales',
+  'avoine': {
+    name: 'Avoine',
     stackSize: 1000,
-    description: 'Des céréales cultivées dans les serres.',
-    category: 'nourriture'
+    description: 'Des grains d\'avoine cultivés dans les serres.',
+    category: 'nourriture',
+    ratio: 5,
+    qualite: 2
   },
   'nourriture-conserve': {
-    name: 'Nourriture en conserve',
+    name: 'Boîtes de conserve',
     stackSize: 1000,
     description: 'De la nourriture en conserve, peut être stockée longtemps.',
-    category: 'nourriture'
+    category: 'nourriture',
+    ratio: 1,
+    qualite: 7
   },
   'laitue': {
     name: 'Laitue',
     stackSize: 1000,
     description: 'De la laitue fraîche cultivée dans les serres.',
-    category: 'nourriture'
+    category: 'nourriture',
+    ratio: 10,
+    qualite: 1
   },
   'minerai-fer': {
     name: 'Minerai de fer',
@@ -583,7 +600,7 @@ export const ITEMS_CONFIG = {
     description: 'Un lingot d\'or pur',
     category: 'ressource'
   }
-} as const
+}
 
 export const ITEM_CATEGORIES: { [key in ItemCategory]: {
   name: string
@@ -872,7 +889,7 @@ export const useGameStore = defineStore('game', () => {
   const excavationsInProgress = ref<ExcavationProgress[]>([])
   const habitants = ref<Habitant[]>([])
   const excavations = ref<Excavation[]>([])
-  const gameSpeed = ref(1) // Ajout de la vitesse du jeu
+  const gameSpeed = ref(1)
   const resources = ref<{ [key: string]: Resource }>({
     energie: { amount: 0, capacity: 200, production: 0, consumption: 0 },
     eau: { amount: 0, capacity: 200, production: 0, consumption: 0 },
@@ -883,13 +900,48 @@ export const useGameStore = defineStore('game', () => {
 
   // Inventaire
   const inventory = ref<Item[]>([])
-  const inventoryCapacity = ref(1000) // Capacité totale de l'inventaire en nombre d'items
+  const inventoryCapacity = ref(1000)
 
   // Getters
   const resourcesList = computed(() => Object.entries(resources.value))
   const excavatedLevels = computed(() => levels.value.filter(l => l.isStairsExcavated))
   const builtRooms = computed(() => levels.value.flatMap(l => [...l.leftRooms, ...l.rightRooms].filter(r => r.isBuilt)))
-  
+
+  // Calcul de la qualité moyenne de la nourriture
+  const averageFoodQuality = computed(() => {
+    // Récupérer les types uniques de nourriture disponible
+    const uniqueFoodTypes = new Set(
+      inventory.value
+        .filter(item => item.category === 'nourriture' && item.quantity > 0)
+        .map(item => item.type)
+    )
+    
+    if (uniqueFoodTypes.size === 0) return 0
+    
+    // Calculer la somme des qualités pour chaque type unique
+    const totalQuality = Array.from(uniqueFoodTypes).reduce((sum, type) => {
+      const itemConfig = ITEMS_CONFIG[type as keyof typeof ITEMS_CONFIG]
+      const quality = itemConfig?.qualite || 0
+      return sum + quality
+    }, 0)
+    
+    // Retourner la somme des qualités
+    return totalQuality
+  })
+
+  // Emoji pour la qualité de la nourriture
+  const foodQualityEmoji = computed(() => {
+    const quality = averageFoodQuality.value
+    return quality >= 15 ? '🎯' :
+           quality >= 12 ? '🏆' :
+           quality >= 9 ? '⭐' :
+           quality >= 7 ? '👍' :
+           quality >= 5 ? '😐' :
+           quality >= 3 ? '👎' :
+           quality >= 2 ? '⚠️' :
+           quality >= 1 ? '💀' : '❌'
+  })
+
   const formattedTime = computed(() => {
     const weeks = gameTime.value
     const years = Math.floor(weeks / 52)
@@ -1120,14 +1172,16 @@ export const useGameStore = defineStore('game', () => {
       category: ITEMS_CONFIG['nourriture-conserve'].category
     }
     
-    const cereales: Item = {
-      id: `cereales-${Date.now()}-1`,
-      type: 'cereales',
+    /*
+    const avoine: Item = {
+      id: `avoine-${Date.now()}-1`,
+      type: 'avoine',
       quantity: 500,
-      stackSize: ITEMS_CONFIG['cereales'].stackSize,
-      description: ITEMS_CONFIG['cereales'].description,
-      category: ITEMS_CONFIG['cereales'].category
+      stackSize: ITEMS_CONFIG['avoine'].stackSize,
+      description: ITEMS_CONFIG['avoine'].description,
+      category: ITEMS_CONFIG['avoine'].category
     }
+    */
     
     /*
     const barilsVides: Item = {
@@ -1236,7 +1290,7 @@ export const useGameStore = defineStore('game', () => {
     ]
     
     // Ajouter les items à l'inventaire
-    inventory.value.push(embryons, barilsPetrole, nourritureConserve, cereales, ...lingotsInitiaux, ...mineraisInitiaux)
+    inventory.value.push(embryons, barilsPetrole, nourritureConserve, ...lingotsInitiaux, ...mineraisInitiaux)
 
     // Réinitialiser les autres valeurs
     gameTime.value = 0
@@ -1313,7 +1367,7 @@ export const useGameStore = defineStore('game', () => {
 
     // Appliquer les consommations de base
     Object.entries(baseConsumptions).forEach(([resource, amount]) => {
-      resources.value[resource as ResourceKey].consumption = amount
+      resources.value[resource as ResourceKey].consumption = amount * weeksElapsed
     })
 
     // 2. Calculer les productions et consommations des salles
@@ -1332,12 +1386,12 @@ export const useGameStore = defineStore('game', () => {
           : 1
 
         // 2.1 Ajouter la consommation d'énergie de la salle
-        resources.value.energie.consumption += config.energyConsumption * gridSize
+        resources.value.energie.consumption += config.energyConsumption * gridSize * weeksElapsed
 
         // 2.2 Ajouter la consommation d'eau si applicable
         if ('waterConsumption' in config) {
           const waterConsumption = (config as ProductionRoomConfig).waterConsumption || 0
-          resources.value.eau.consumption += waterConsumption * gridSize
+          resources.value.eau.consumption += waterConsumption * gridSize * weeksElapsed
         }
 
         // 2.3 Gérer la production des salles
@@ -1373,7 +1427,7 @@ export const useGameStore = defineStore('game', () => {
                 // Assez de carburant, production normale
                 Object.entries(config.productionPerWorker).forEach(([resource, amount]) => {
                   if (amount && resource in resources.value) {
-                    resources.value[resource as ResourceKey].production += amount * nbWorkers * gridSize * mergeMultiplier * productionBonus
+                    resources.value[resource as ResourceKey].production += amount * nbWorkers * gridSize * mergeMultiplier * productionBonus * weeksElapsed
                   }
                 })
                 room.fuelLevel -= fuelNeeded
@@ -1382,7 +1436,7 @@ export const useGameStore = defineStore('game', () => {
                 const ratio = room.fuelLevel / fuelNeeded
                 Object.entries(config.productionPerWorker).forEach(([resource, amount]) => {
                   if (amount && resource in resources.value) {
-                    resources.value[resource as ResourceKey].production += amount * nbWorkers * gridSize * mergeMultiplier * ratio * productionBonus
+                    resources.value[resource as ResourceKey].production += amount * nbWorkers * gridSize * mergeMultiplier * ratio * productionBonus * weeksElapsed
                   }
                 })
                 room.fuelLevel = 0
@@ -1413,18 +1467,11 @@ export const useGameStore = defineStore('game', () => {
           } else {
             // Production normale pour les autres salles
             Object.entries(config.productionPerWorker).forEach(([resource, amount]) => {
-              if (amount && resource in resources.value) {
-                resources.value[resource as ResourceKey].production += amount * nbWorkers * gridSize * mergeMultiplier * productionBonus
-              }
-            })
-
-            // Production normale pour les autres salles
-            Object.entries(config.productionPerWorker).forEach(([resource, amount]) => {
               if (amount) {
                 if (resource in resources.value) {
-                  resources.value[resource as ResourceKey].production += amount * nbWorkers * gridSize * mergeMultiplier * productionBonus
+                  resources.value[resource as ResourceKey].production += amount * nbWorkers * gridSize * mergeMultiplier * productionBonus * weeksElapsed
                 } else {
-                  const itemsProduced = Math.floor(amount * nbWorkers * gridSize * mergeMultiplier * productionBonus)
+                  const itemsProduced = Math.floor(amount * nbWorkers * gridSize * mergeMultiplier * productionBonus * weeksElapsed)
                   if (itemsProduced > 0) {
                     addItem(resource as ItemType, itemsProduced)
                   }
@@ -1500,33 +1547,88 @@ export const useGameStore = defineStore('game', () => {
     })
   }
 
+  function calculateTotalFood(): number {
+    let totalFood = 0
+    const foodItems = inventory.value.filter(item => item.category === 'nourriture')
+    
+    for (const item of foodItems) {
+      const itemConfig = ITEMS_CONFIG[item.type as keyof typeof ITEMS_CONFIG]
+      if (itemConfig && itemConfig.ratio) {
+        totalFood += item.quantity / itemConfig.ratio
+      }
+    }
+    
+    return totalFood
+  }
+
   function updateResources(weeksElapsed: number) {
     // Mettre à jour les productions et consommations
     updateRoomProduction(weeksElapsed)
 
-    // Appliquer les changements pour chaque semaine écoulée
-    for (let i = 0; i < weeksElapsed; i++) {
-      Object.entries(resources.value).forEach(([key, resource]) => {
-        const net = resource.production - resource.consumption
-        
-        if (key === 'eau') {
-          // Gestion spéciale pour l'eau
-          if (net > 0) {
-            // Production d'eau : ajouter aux cuves
-            const added = addWater(net)
-            resources.value.eau.amount = Math.min(resources.value.eau.capacity, resources.value.eau.amount + added)
-          } else if (net < 0) {
-            // Consommation d'eau : retirer des cuves
-            const removed = removeWater(-net)
-            resources.value.eau.amount = Math.max(0, resources.value.eau.amount - removed)
-          }
-        } else {
-          // Gestion normale pour les autres ressources
-          const newAmount = Math.max(0, Math.min(resource.amount + net, resource.capacity))
-          resources.value[key as ResourceKey].amount = newAmount
+    // Appliquer les changements une seule fois car ils sont déjà multipliés par weeksElapsed
+    Object.entries(resources.value).forEach(([key, resource]) => {
+      const net = resource.production - resource.consumption
+      
+      if (key === 'eau') {
+        // Gestion spéciale pour l'eau
+        if (net > 0) {
+          // Production d'eau : ajouter aux cuves
+          const added = addWater(net)
+          resources.value.eau.amount = Math.min(resources.value.eau.capacity, resources.value.eau.amount + added)
+        } else if (net < 0) {
+          // Consommation d'eau : retirer des cuves
+          const removed = removeWater(-net)
+          resources.value.eau.amount = Math.max(0, resources.value.eau.amount - removed)
         }
-      })
-    }
+      } else if (key === 'nourriture') {
+        // Gestion spéciale pour la nourriture
+        resources.value.nourriture.amount = calculateTotalFood()
+        
+        // Si consommation de nourriture
+        if (net < 0) {
+          const foodNeeded = -net
+          console.log('Nourriture nécessaire:', foodNeeded)
+          
+          // Récupérer tous les types de nourriture disponibles avec leurs configurations
+          const foodItems = inventory.value
+            .filter(item => item.category === 'nourriture' && item.quantity > 0)
+            .map(item => ({
+              item,
+              config: ITEMS_CONFIG[item.type as keyof typeof ITEMS_CONFIG]
+            }))
+            .filter(({ config }) => config && config.ratio)
+          
+          console.log('Types de nourriture disponibles:', foodItems.map(({ item, config }) => ({
+            type: item.type,
+            quantity: item.quantity,
+            ratio: config.ratio
+          })))
+          
+          if (foodItems.length > 0) {
+            // Calculer la nourriture nécessaire par type
+            const foodPerType = foodNeeded / foodItems.length
+            console.log('Nourriture nécessaire par type:', foodPerType)
+            
+            // Consommer chaque type de nourriture
+            foodItems.forEach(({ item, config }) => {
+              if (config.ratio) {
+                const itemsToConsume = Math.ceil(foodPerType * config.ratio)
+                console.log(`Consommation calculée pour ${item.type}:`, itemsToConsume)
+                if (itemsToConsume > 0) {
+                  const actualConsumption = Math.min(itemsToConsume, item.quantity)
+                  console.log(`Consommation réelle pour ${item.type}:`, actualConsumption)
+                  removeItem(item.id, actualConsumption)
+                }
+              }
+            })
+          }
+        }
+      } else {
+        // Gestion normale pour les autres ressources
+        const newAmount = Math.max(0, Math.min(resource.amount + net, resource.capacity))
+        resources.value[key as ResourceKey].amount = newAmount
+      }
+    })
   }
 
   function update(speed: number) {
@@ -2849,6 +2951,8 @@ export const useGameStore = defineStore('game', () => {
     isExcavationInProgress,
     getExcavationProgress,
     getExcavationInfo,
+    averageFoodQuality,
+    foodQualityEmoji,
     
     // Actions
     update,
