@@ -4,7 +4,8 @@
       <div v-if="props.room.type === 'raffinerie'">
         <RefineryDetailsModal 
           :room="props.room"
-          @close="$emit('close')" 
+          @close="$emit('close')"
+          @update-recipe="updateRefineryRecipe"
         />
       </div>
       <div v-else>
@@ -234,7 +235,7 @@
 import { ref, computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useGameStore } from '../stores/gameStore'
-import type { Room, Equipment, DortoryRoomConfig, ProductionRoomConfig, StorageRoomConfig } from '../stores/gameStore'
+import type { Room, Equipment, DortoryRoomConfig, ProductionRoomConfig, StorageRoomConfig, ItemType } from '../stores/gameStore'
 import NurserieInterface from './NurserieInterface.vue'
 import RefineryDetailsModal from './RefineryDetailsModal.vue'
 
@@ -450,6 +451,15 @@ function createNewHabitant() {
 const hasCuveEau = computed(() => 
   props.room.equipments.some(e => e.type === 'cuve-eau' && !e.isUnderConstruction)
 )
+
+function updateRefineryRecipe(recipe: { 
+  input: { type: ItemType, amount: number }[],
+  output: { type: ItemType, amount: number }
+} | null) {
+  if (props.room.type === 'raffinerie') {
+    props.room.nextMineralsToProcess = recipe || undefined
+  }
+}
 </script>
 
 <style lang="scss" scoped>

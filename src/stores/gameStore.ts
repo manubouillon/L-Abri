@@ -1426,7 +1426,7 @@ export const useGameStore = defineStore('game', () => {
         }
 
         // Gestion spéciale de la raffinerie
-        if (room.type === 'raffinerie' && room.occupants.length > 0) {
+        if (room.type === 'raffinerie' && room.occupants.length > 0 && room.nextMineralsToProcess) {
           const nbWorkers = room.occupants.length
           const gridSize = room.gridSize || 1
           const mergeMultiplier = mergeConfig?.useMultiplier 
@@ -1435,72 +1435,46 @@ export const useGameStore = defineStore('game', () => {
 
           // Calculer le nombre total de minerais pouvant être traités
           const totalProcessingCapacity = (config as any).mineralsProcessingPerWorker * nbWorkers * gridSize * mergeMultiplier
+          const batchesToProcess = weeksElapsed // Une conversion par semaine écoulée
 
-          // Trouver les prochains minerais à traiter
-          const conversionRules = (config as any).conversionRules
-          let remainingCapacity = totalProcessingCapacity
+          // Vérifier si la conversion actuelle est possible
+          const canProcess = room.nextMineralsToProcess.input.every(({ type, amount }) => {
+            const needed = amount * batchesToProcess
+            const available = getItemQuantity(type)
+            return available >= needed
+          })
 
-          // Réinitialiser les prochains minerais à traiter
-          room.nextMineralsToProcess = {
-            input: [],
-            output: { type: 'lingot-fer', amount: 0 } // Valeur par défaut, sera mise à jour
-          }
+          // Si la conversion est possible, l'effectuer
+          if (canProcess) {
+            const { input, output } = room.nextMineralsToProcess
+            
+            // Retirer les ressources d'entrée
+            input.forEach(({ type, amount }) => {
+              const toRemove = amount * batchesToProcess
+              const items = inventory.value.filter(item => item.type === type)
+              let remaining = toRemove
 
-          // Vérifier chaque règle de conversion
-          for (const [inputType, rule] of Object.entries(conversionRules)) {
-            if (remainingCapacity <= 0) break
-
-            const inputItem = inventory.value.find(item => item.type === inputType && item.quantity > 0)
-            if (!inputItem) continue
-
-            if (rule.requires) {
-              // Cas spécial pour l'acier qui nécessite du fer et du charbon
-              const canProcess = Object.entries(rule.requires).every(([reqType, reqAmount]) => {
-                const reqItem = inventory.value.find(item => item.type === reqType && item.quantity >= reqAmount)
-                return reqItem !== undefined
-              })
-
-              if (canProcess) {
-                const maxPossible = Math.min(
-                  remainingCapacity,
-                  inputItem.quantity,
-                  ...Object.entries(rule.requires).map(([reqType, reqAmount]) => {
-                    const reqItem = inventory.value.find(item => item.type === reqType)
-                    return reqItem ? Math.floor(reqItem.quantity / reqAmount) : 0
-                  })
-                )
-
-                if (maxPossible > 0) {
-                  room.nextMineralsToProcess = {
-                    input: [
-                      { type: inputType as ItemType, amount: maxPossible },
-                      ...Object.entries(rule.requires).map(([reqType, reqAmount]) => ({
-                        type: reqType as ItemType,
-                        amount: maxPossible * reqAmount
-                      }))
-                    ],
-                    output: {
-                      type: rule.output,
-                      amount: Math.floor(maxPossible * rule.ratio)
-                    }
-                  }
-                  remainingCapacity -= maxPossible
-                }
+              for (const item of items) {
+                if (remaining <= 0) break
+                const remove = Math.min(remaining, item.quantity)
+                removeItem(item.id, remove)
+                remaining -= remove
               }
-            } else {
-              // Cas simple de conversion 1:1
-              const maxPossible = Math.min(remainingCapacity, inputItem.quantity)
-              if (maxPossible > 0) {
-                room.nextMineralsToProcess = {
-                  input: [{ type: inputType as ItemType, amount: maxPossible }],
-                  output: {
-                    type: rule.output,
-                    amount: Math.floor(maxPossible * rule.ratio)
-                  }
-                }
-                remainingCapacity -= maxPossible
+            })
+
+            // Ajouter les ressources de sortie
+            const outputAmount = output.amount * batchesToProcess
+            addItem(output.type, outputAmount)
+
+            // Émettre un événement pour mettre à jour l'interface
+            window.dispatchEvent(new CustomEvent('conversion-update', {
+              detail: {
+                type: 'success',
+                input: input,
+                output: output,
+                amount: batchesToProcess
               }
-            }
+            }))
           }
         }
       })
@@ -1705,8 +1679,8 @@ export const useGameStore = defineStore('game', () => {
                 })
               }
 
-              // Si la conversion actuelle n'est pas possible, chercher une autre conversion faisable
-              if (!canProcess) {
+              // Ne chercher une nouvelle recette que si aucune n'est sélectionnée
+              if (!room.nextMineralsToProcess) {
                 const config = ROOM_CONFIGS.raffinerie
                 const conversionRules = (config as any).conversionRules
 

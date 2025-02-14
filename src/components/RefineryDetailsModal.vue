@@ -176,6 +176,14 @@ const selectedHabitant = ref('')
 const selectedResource = ref<ItemType | null>(null)
 const activeTab = ref('info')
 
+const emit = defineEmits<{
+  (e: 'close'): void
+  (e: 'update-recipe', recipe: { 
+    input: { type: ItemType, amount: number }[],
+    output: { type: ItemType, amount: number }
+  } | null): void
+}>()
+
 // Ajouter un watcher pour initialiser la sélection en fonction de la recette actuelle
 watch(() => props.room.nextMineralsToProcess, (newValue) => {
   if (newValue && newValue.input.length > 0) {
@@ -291,17 +299,28 @@ function canConvertResource(inputType: string, rule: ConversionRule & { inputTyp
 }
 
 function selectResource(type: string, rule: ConversionRule & { inputType: string }) {
-  // Si une recette est déjà active, vérifier si elle a assez de ressources
-  if (props.room.nextMineralsToProcess) {
-    const currentInputType = props.room.nextMineralsToProcess.input[0].type
-    const currentRule = conversionRulesList.value.find(r => r.inputType === currentInputType)
-    if (currentRule && canConvertResource(currentInputType, currentRule)) {
-      // Si la recette actuelle a assez de ressources, ne rien faire
-      return
-    }
-  }
-  // Sinon, changer pour la nouvelle recette
+  // Mettre à jour la sélection locale
   selectedResource.value = type as ItemType
+  
+  // Émettre la nouvelle recette si on a les ressources nécessaires
+  if (canConvertResource(type, rule)) {
+    emit('update-recipe', {
+      input: [
+        { type: type as ItemType, amount: 1 },
+        ...(rule.requires ? Object.entries(rule.requires).map(([reqType, reqAmount]) => ({
+          type: reqType as ItemType,
+          amount: reqAmount as number
+        })) : [])
+      ],
+      output: {
+        type: rule.output as ItemType,
+        amount: rule.ratio as number
+      }
+    })
+  } else {
+    // Si on n'a pas les ressources, on émet null pour arrêter la production
+    emit('update-recipe', null)
+  }
 }
 </script>
 
