@@ -925,6 +925,13 @@ const HAPPINESS_CONFIG = {
   MANQUE_VETEMENTS: -20,
   MANQUE_MEDICAMENTS: -20,
   
+  // Bonus/Malus qualité nourriture (sur 10)
+  QUALITE_NOURRITURE_EXCELLENTE: 10, // 9-10
+  QUALITE_NOURRITURE_BONNE: 5, // 7-8
+  QUALITE_NOURRITURE_MOYENNE: 0, // 5-6
+  QUALITE_NOURRITURE_MAUVAISE: -5, // 3-4
+  QUALITE_NOURRITURE_TERRIBLE: -10, // 0-2
+  
   // Plafonds de bonheur par type de logement
   SANS_LOGEMENT: 50,
   DORTOIR: 80,
@@ -1637,8 +1644,6 @@ export const useGameStore = defineStore('game', () => {
         // Dans la boucle de traitement des salles
         if (room.type === 'atelier' && room.occupants.length > 0) {
 
-          console.log('atelier', room)
-
           const nbWorkers = room.occupants.length
           const gridSize = room.gridSize || 1
           const mergeMultiplier = GAME_CONFIG.MERGE_MULTIPLIERS[Math.min(gridSize, 6) as keyof typeof GAME_CONFIG.MERGE_MULTIPLIERS] || 1
@@ -1654,9 +1659,6 @@ export const useGameStore = defineStore('game', () => {
               const productionBase = 2 * nbWorkers * gridSize * mergeMultiplier * weeksElapsed
               const productionPossible = Math.min(productionBase, Math.floor(soieDisponible / 2)) // 2 unités de soie pour 1 vêtement
               
-              console.log('soieDisponible', soieDisponible)
-              console.log('productionPossible', productionPossible)
-
               if (productionPossible > 0) {
                 removeItem('soie', productionPossible * 2)
                 addItem('vetements', productionPossible)
@@ -2032,6 +2034,19 @@ export const useGameStore = defineStore('game', () => {
 
     if (resources.value.nourriture.amount > 0) {
       score += HAPPINESS_CONFIG.NOURRITURE
+      // Ajouter le bonus/malus de qualité de nourriture
+      const qualite = Math.min(10, Math.max(0, averageFoodQuality.value))
+      if (qualite >= 9) {
+        score += HAPPINESS_CONFIG.QUALITE_NOURRITURE_EXCELLENTE
+      } else if (qualite >= 7) {
+        score += HAPPINESS_CONFIG.QUALITE_NOURRITURE_BONNE
+      } else if (qualite >= 5) {
+        score += HAPPINESS_CONFIG.QUALITE_NOURRITURE_MOYENNE
+      } else if (qualite >= 3) {
+        score += HAPPINESS_CONFIG.QUALITE_NOURRITURE_MAUVAISE
+      } else {
+        score += HAPPINESS_CONFIG.QUALITE_NOURRITURE_TERRIBLE
+      }
     } else {
       score += HAPPINESS_CONFIG.MANQUE_NOURRITURE
     }
@@ -2918,7 +2933,6 @@ export const useGameStore = defineStore('game', () => {
   }
 
   function removeItem(itemIdOrType: string, quantity: number = 1): boolean {
-    console.log('removeItem', itemIdOrType, quantity)
 
     // Trouver tous les items correspondants (par ID ou par type) et retirer les stacks vides
     const matchingItems = inventory.value.filter(item => 
@@ -2927,7 +2941,6 @@ export const useGameStore = defineStore('game', () => {
 
     if (matchingItems.length === 0) {
       console.log('Item non trouvé:', itemIdOrType)
-      console.log('Inventaire actuel:', inventory.value)
       return false
     }
 
@@ -2952,7 +2965,6 @@ export const useGameStore = defineStore('game', () => {
     // Purger tous les stacks vides
     inventory.value = inventory.value.filter(item => item.quantity > 0)
 
-    console.log('Inventaire après modification:', inventory.value)
     saveGame()
     return true
   }
