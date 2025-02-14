@@ -16,6 +16,12 @@
              globalHappiness >= 20 ? '😢' :
              globalHappiness >= 10 ? '😭' : '😡' }}
         </div>
+        <div class="population">
+          Population: {{ habitants.length }} 🧑
+          <span v-if="habitants.filter(h => !h.logement).length > 0" class="warning">
+            ({{ habitants.filter(h => !h.logement).length }} sans abri 🏠❌)
+          </span>
+        </div>
       </div>
       <div class="game-controls">
         <button @click="showSaveModal = true">Sauvegarde</button>
@@ -72,7 +78,7 @@ import NotificationSystem from './components/NotificationSystem.vue'
 
 // État du jeu
 const gameStore = useGameStore()
-const { levels, inventorySpace, gameSpeed, globalHappiness } = storeToRefs(gameStore)
+const { levels, inventorySpace, gameSpeed, globalHappiness, habitants } = storeToRefs(gameStore)
 const isPaused = ref(false)
 const scrollPosition = ref(0)
 const showHabitantsList = ref(false)
