@@ -42,7 +42,7 @@
               <div class="formula-row">
                 <span class="label">Production de base par travailleur:</span>
                 <span v-for="(amount, resource) in baseProduction" :key="resource">
-                  {{ String(resource) }}: {{ String(amount) }}/semaine
+                  {{ String(resource) }}: {{ String(amount) }}/s
                 </span>
               </div>
               <div class="formula-row">
@@ -265,11 +265,38 @@ const baseProduction = computed(() => {
   if (!isProductionRoom.value) return {}
   const config = store.ROOM_CONFIGS[props.room.type] as ProductionRoomConfig
   
-  // Si c'est un atelier avec équipement de couture, la production de base est de 2 vêtements
+  // Si c'est une serre, gérer les différentes cultures
+  if (props.room.type === 'serre') {
+    const production: Record<string, number> = {
+      'laitue': 2 // Production de base de laitue
+    }
+    
+    // Vérifier les équipements de culture
+    const hasTomates = props.room.equipments?.some(e => e.type === 'culture-tomates' && !e.isUnderConstruction)
+    const hasAvoine = props.room.equipments?.some(e => e.type === 'culture-avoine' && !e.isUnderConstruction)
+    const hasVersSoie = props.room.equipments?.some(e => e.type === 'vers-soie' && !e.isUnderConstruction)
+    
+    if (hasTomates) {
+      production['tomates'] = 1.5
+    }
+    if (hasAvoine) {
+      production['avoine'] = 2
+    }
+    if (hasVersSoie) {
+      production['soie'] = 0.5
+    }
+    
+    return production
+  }
+  
+  // Si c'est un atelier avec équipement de couture
   if (props.room.type === 'atelier') {
     const hasAtelierCouture = props.room.equipments?.some(e => e.type === 'atelier-couture' && !e.isUnderConstruction)
     if (hasAtelierCouture) {
-      return { vetements: 2, 'soie (consommation)': 4 } // 2 unités de soie pour 1 vêtement
+      return { 
+        'vetements': 2,
+        'soie (consommation)': 4
+      }
     }
   }
   
@@ -304,19 +331,39 @@ const getTotalProduction = computed(() => {
   const mergeMultiplier = getMergeMultiplier.value
 
   const productions = []
-  for (const [resource, amount] of Object.entries(baseProduction.value)) {
-    const total = amount * nbWorkers * gridSize * mergeMultiplier
-    if (resource.includes('consommation')) {
-      productions.push(`${resource}: -${total.toFixed(1)}/semaine`)
-    } else {
+  
+  // Pour la serre, afficher toutes les productions
+  if (props.room.type === 'serre') {
+    for (const [resource, amount] of Object.entries(baseProduction.value)) {
+      const total = amount * nbWorkers * gridSize * mergeMultiplier
       productions.push(`${resource}: +${total.toFixed(1)}/semaine`)
     }
+    // Ajouter la consommation d'eau
+    const waterConsumption = 2 * gridSize // 2 unités d'eau par cellule de serre
+    productions.push(`eau: -${waterConsumption.toFixed(1)}/semaine`)
   }
-
-  if (props.room.type === 'atelier') {
-    const soieDisponible = store.getItemQuantity('soie')
-    if (soieDisponible === 0) {
-      productions.push('(Production arrêtée: pas de soie disponible)')
+  // Pour l'atelier, gérer la production de vêtements
+  else if (props.room.type === 'atelier') {
+    const hasAtelierCouture = props.room.equipments?.some(e => e.type === 'atelier-couture' && !e.isUnderConstruction)
+    if (hasAtelierCouture) {
+      const soieDisponible = store.getItemQuantity('soie')
+      const productionBase = 2 * nbWorkers * gridSize * mergeMultiplier
+      productions.push(`vêtements: +${productionBase.toFixed(1)}/semaine`)
+      productions.push(`soie: -${(productionBase * 2).toFixed(1)}/semaine`)
+      if (soieDisponible === 0) {
+        productions.push('(Production arrêtée: pas de soie disponible)')
+      }
+    }
+  }
+  // Pour les autres salles
+  else {
+    for (const [resource, amount] of Object.entries(baseProduction.value)) {
+      const total = amount * nbWorkers * gridSize * mergeMultiplier
+      if (resource.includes('consommation')) {
+        productions.push(`${resource}: -${total.toFixed(1)}/semaine`)
+      } else {
+        productions.push(`${resource}: +${total.toFixed(1)}/semaine`)
+      }
     }
   }
 

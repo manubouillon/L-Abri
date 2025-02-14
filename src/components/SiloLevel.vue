@@ -424,6 +424,8 @@ function getHabitantGenre(habitantId: string): 'H' | 'F' {
 }
 
 function getRoomProduction(room: Room): string {
+  if (!room.isBuilt || room.occupants.length === 0) return ''
+  
   const config = store.ROOM_CONFIGS[room.type]
   if (!config || !('productionPerWorker' in config)) return ''
 
@@ -434,34 +436,145 @@ function getRoomProduction(room: Room): string {
     ? store.GAME_CONFIG.MERGE_MULTIPLIERS[Math.min(gridSize, 6) as keyof typeof store.GAME_CONFIG.MERGE_MULTIPLIERS] || 1
     : 1
 
-  const productions = []
-  for (const [resource, amount] of Object.entries(config.productionPerWorker)) {
-    const total = amount * nbWorkers * gridSize * mergeMultiplier
-    productions.push(`${resource}: ${total.toFixed(1)}/s`)
+  // Pour la serre
+  if (room.type === 'serre') {
+    const productions = []
+    // Production de base (laitue)
+    const laitueProduction = 2 * nbWorkers * gridSize * mergeMultiplier
+    productions.push(`🥬${laitueProduction.toFixed(0)}/s`)
+
+    // Vérifier les équipements
+    const hasTomates = room.equipments?.some(e => e.type === 'culture-tomates' && !e.isUnderConstruction)
+    const hasAvoine = room.equipments?.some(e => e.type === 'culture-avoine' && !e.isUnderConstruction)
+    const hasVersSoie = room.equipments?.some(e => e.type === 'vers-soie' && !e.isUnderConstruction)
+
+    if (hasTomates) {
+      const tomatoProduction = 1.5 * nbWorkers * gridSize * mergeMultiplier
+      productions.push(`🍅${tomatoProduction.toFixed(0)}/s`)
+    }
+    if (hasAvoine) {
+      const avoineProduction = 2 * nbWorkers * gridSize * mergeMultiplier
+      productions.push(`🌾${avoineProduction.toFixed(0)}/s`)
+    }
+    if (hasVersSoie) {
+      const soieProduction = 0.5 * nbWorkers * gridSize * mergeMultiplier
+      productions.push(`🪱${soieProduction.toFixed(0)}/s`)
+    }
+
+    return productions.join(' ')
+  }
+  
+  // Pour l'atelier
+  if (room.type === 'atelier') {
+    const hasAtelierCouture = room.equipments?.some(e => e.type === 'atelier-couture' && !e.isUnderConstruction)
+    if (hasAtelierCouture) {
+      const production = 2 * nbWorkers * gridSize * mergeMultiplier
+      return `👔${production.toFixed(0)}/s`
+    }
+    return ''
   }
 
-  return `${nbWorkers}👥 × ${gridSize}📦 × ${mergeMultiplier}✨ = ${productions.join(', ')}`
+  // Pour les autres salles
+  const productionPerWorker = config.productionPerWorker as Record<string, number>
+  const resourceIcons: Record<string, string> = {
+    energie: '⚡',
+    eau: '💧',
+    nourriture: '🥫',
+    medicaments: '💊'
+  }
+
+  return Object.entries(productionPerWorker)
+    .map(([resource, amount]) => {
+      const total = amount * nbWorkers * gridSize * mergeMultiplier
+      if (total <= 0) return ''
+      const icon = resourceIcons[resource] || ''
+      return `${icon}${total.toFixed(0)}/s`
+    })
+    .filter(Boolean)
+    .join(' ')
 }
 
 function getRoomProductionSimple(room: Room): string {
-  const config = store.ROOM_CONFIGS[room.type]
-  if (!config || !('productionPerWorker' in config)) return ''
-
-  const nbWorkers = room.occupants.length
-  if (nbWorkers === 0) return ''
-
-  const productions = []
-  for (const [resource, amount] of Object.entries(config.productionPerWorker)) {
+  if (!room.isBuilt || room.occupants.length === 0) return ''
+  
+  // Pour la serre
+  if (room.type === 'serre') {
+    const productions = []
+    const nbWorkers = room.occupants.length
     const gridSize = room.gridSize || 1
     const mergeConfig = store.ROOM_MERGE_CONFIG[room.type]
     const mergeMultiplier = mergeConfig?.useMultiplier 
       ? store.GAME_CONFIG.MERGE_MULTIPLIERS[Math.min(gridSize, 6) as keyof typeof store.GAME_CONFIG.MERGE_MULTIPLIERS] || 1
       : 1
-    const total = amount * nbWorkers * gridSize * mergeMultiplier
-    productions.push(`${resource}: ${total.toFixed(1)}/s`)
+
+    // Production de base (laitue)
+    const laitueProduction = 2 * nbWorkers * gridSize * mergeMultiplier
+    productions.push(`🥬${laitueProduction.toFixed(0)}/s`)
+
+    // Vérifier les équipements
+    const hasTomates = room.equipments?.some(e => e.type === 'culture-tomates' && !e.isUnderConstruction)
+    const hasAvoine = room.equipments?.some(e => e.type === 'culture-avoine' && !e.isUnderConstruction)
+    const hasVersSoie = room.equipments?.some(e => e.type === 'vers-soie' && !e.isUnderConstruction)
+
+    if (hasTomates) {
+      const tomatoProduction = 1.5 * nbWorkers * gridSize * mergeMultiplier
+      productions.push(`🍅${tomatoProduction.toFixed(0)}/s`)
+    }
+    if (hasAvoine) {
+      const avoineProduction = 2 * nbWorkers * gridSize * mergeMultiplier
+      productions.push(`🌾${avoineProduction.toFixed(0)}/s`)
+    }
+    if (hasVersSoie) {
+      const soieProduction = 0.5 * nbWorkers * gridSize * mergeMultiplier
+      productions.push(`🪱${soieProduction.toFixed(0)}/s`)
+    }
+
+    return productions.join(' ')
+  }
+  
+  // Pour l'atelier
+  if (room.type === 'atelier') {
+    const hasAtelierCouture = room.equipments?.some(e => e.type === 'atelier-couture' && !e.isUnderConstruction)
+    if (hasAtelierCouture) {
+      const nbWorkers = room.occupants.length
+      const gridSize = room.gridSize || 1
+      const mergeConfig = store.ROOM_MERGE_CONFIG[room.type]
+      const mergeMultiplier = mergeConfig?.useMultiplier 
+        ? store.GAME_CONFIG.MERGE_MULTIPLIERS[Math.min(gridSize, 6) as keyof typeof store.GAME_CONFIG.MERGE_MULTIPLIERS] || 1
+        : 1
+      const production = 2 * nbWorkers * gridSize * mergeMultiplier
+      return `👔${production.toFixed(0)}/s`
+    }
+    return ''
   }
 
-  return productions.join(', ')
+  // Pour les autres salles
+  const config = store.ROOM_CONFIGS[room.type]
+  if (!config || !('productionPerWorker' in config)) return ''
+
+  const nbWorkers = room.occupants.length
+  const gridSize = room.gridSize || 1
+  const mergeConfig = store.ROOM_MERGE_CONFIG[room.type]
+  const mergeMultiplier = mergeConfig?.useMultiplier 
+    ? store.GAME_CONFIG.MERGE_MULTIPLIERS[Math.min(gridSize, 6) as keyof typeof store.GAME_CONFIG.MERGE_MULTIPLIERS] || 1
+    : 1
+
+  const resourceIcons: Record<string, string> = {
+    energie: '⚡',
+    eau: '💧',
+    nourriture: '🥫',
+    medicaments: '💊'
+  }
+
+  return Object.entries(config.productionPerWorker)
+    .map(([resource, amount]) => {
+      const total = amount * nbWorkers * gridSize * mergeMultiplier
+      if (total <= 0) return ''
+      const icon = resourceIcons[resource] || ''
+      return `${icon}${total.toFixed(0)}/s`
+    })
+    .filter(Boolean)
+    .join(' ')
 }
 
 function openRoomInfo(room: Room) {
