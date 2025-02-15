@@ -1396,6 +1396,12 @@ export const useGameStore = defineStore('game', () => {
     saveGame()
   }
 
+  function calculateTotalClothes(): number {
+    return inventory.value
+      .filter(item => item.type === 'vetements')
+      .reduce((total, item) => total + item.quantity, 0)
+  }
+
   function updateRoomProduction(weeksElapsed: number = 0) {
     // Réinitialiser toutes les productions et consommations
     Object.values(resources.value).forEach(resource => {
@@ -1404,34 +1410,20 @@ export const useGameStore = defineStore('game', () => {
       resource.capacity = 200 // Capacité de base
     })
 
-    // Calculer la capacité totale d'eau basée sur les cuves
-    let waterCapacity = 0 // Capacité initiale à 0
-    levels.value?.forEach(level => {
-      const allRooms = [...level.leftRooms, ...level.rightRooms]
-      allRooms.forEach(room => {
-        if (room.isBuilt && room.type === 'cuve') {
-          const hasCuveEau = room.equipments.some(e => e.type === 'cuve-eau' && !e.isUnderConstruction)
-          if (hasCuveEau) {
-            const gridSize = room.gridSize || 1
-            waterCapacity += 200 * gridSize // Ajoute la capacité de la cuve multipliée par sa taille
-          }
-        }
-      })
-    })
-    resources.value.eau.capacity = Math.max(200, waterCapacity) // On garde un minimum de 200 comme capacité de base
-
     // 1. Calculer les consommations de base des habitants
     const baseConsumptions = {
       energie: population.value * 2, // 2 unités d'énergie par habitant
       eau: population.value * 1,     // 1 unité d'eau par habitant
       nourriture: population.value * 0.7, // 0.7 unité par habitant
-      vetements: population.value * 0.05,
+      vetements: population.value * 0.05, // 0.05 unité par habitant
       medicaments: 0
     }
 
     // Appliquer les consommations de base
     Object.entries(baseConsumptions).forEach(([resource, amount]) => {
-      resources.value[resource as ResourceKey].consumption = amount * weeksElapsed
+      if (amount > 0) { // Éviter les valeurs nulles ou négatives
+        resources.value[resource as ResourceKey].consumption = amount
+      }
     })
 
     // 2. Calculer les productions et consommations des salles
@@ -1450,12 +1442,16 @@ export const useGameStore = defineStore('game', () => {
           : 1
 
         // 2.1 Ajouter la consommation d'énergie de la salle
-        resources.value.energie.consumption += config.energyConsumption * gridSize * weeksElapsed
+        if (config.energyConsumption > 0) {
+          resources.value.energie.consumption += config.energyConsumption * gridSize
+        }
 
         // 2.2 Ajouter la consommation d'eau si applicable
         if ('waterConsumption' in config) {
           const waterConsumption = (config as ProductionRoomConfig).waterConsumption || 0
-          resources.value.eau.consumption += waterConsumption * gridSize * weeksElapsed
+          if (waterConsumption > 0) {
+            resources.value.eau.consumption += waterConsumption * gridSize
+          }
         }
 
         // 2.3 Gérer la production des salles
@@ -1469,6 +1465,79 @@ export const useGameStore = defineStore('game', () => {
             productionBonus = 1.5 // +50% de production
           }
 
+          // Gérer la production d'eau pour la station de traitement
+          if (room.type === 'station-traitement') {
+            const waterProduction = (config.productionPerWorker.eau || 0) * nbWorkers * gridSize * mergeMultiplier * productionBonus
+            if (waterProduction > 0) {
+              resources.value.eau.production += waterProduction
+            }
+          }
+
+          // Gérer la production de nourriture pour les serres
+          if (room.type === 'serre') {
+            // Production de base (laitue)
+            const laitueProduction = 2 * nbWorkers * gridSize * mergeMultiplier
+            if (laitueProduction > 0) {
+              addItem('laitue', Math.floor(laitueProduction))
+              const laitueConfig = ITEMS_CONFIG['laitue'] as FoodItemConfig
+              resources.value.nourriture.production += laitueProduction / laitueConfig.ratio
+            }
+
+            // Vérifier les équipements
+            const hasTomates = room.equipments?.some(e => e.type === 'culture-tomates' && !e.isUnderConstruction)
+            const hasAvoine = room.equipments?.some(e => e.type === 'culture-avoine' && !e.isUnderConstruction)
+            const hasVersSoie = room.equipments?.some(e => e.type === 'vers-soie' && !e.isUnderConstruction)
+
+            if (hasTomates) {
+              const tomatoProduction = 1.5 * nbWorkers * gridSize * mergeMultiplier
+              if (tomatoProduction > 0) {
+                addItem('tomates', Math.floor(tomatoProduction))
+                const tomatesConfig = ITEMS_CONFIG['tomates'] as FoodItemConfig
+                resources.value.nourriture.production += tomatoProduction / tomatesConfig.ratio
+              }
+            }
+
+            if (hasAvoine) {
+              const avoineProduction = 2 * nbWorkers * gridSize * mergeMultiplier
+              if (avoineProduction > 0) {
+                addItem('avoine', Math.floor(avoineProduction))
+                const avoineConfig = ITEMS_CONFIG['avoine'] as FoodItemConfig
+                resources.value.nourriture.production += avoineProduction / avoineConfig.ratio
+              }
+            }
+
+            if (hasVersSoie) {
+              const soieProduction = 0.5 * nbWorkers * gridSize * mergeMultiplier
+              if (soieProduction > 0) {
+                addItem('soie', Math.floor(soieProduction))
+              }
+            }
+          }
+
+          // Gérer la production de vêtements dans l'atelier
+          if (room.type === 'atelier') {
+            const hasAtelierCouture = room.equipments?.some(e => e.type === 'atelier-couture' && !e.isUnderConstruction)
+            if (hasAtelierCouture) {
+              // Vérifier s'il y a de la soie disponible
+              const soieDisponible = inventory.value.find(item => item.type === 'soie' && item.quantity > 0)
+              if (soieDisponible) {
+                const clothesProduction = 2 * nbWorkers * gridSize * mergeMultiplier
+                if (clothesProduction > 0) {
+                  // Consommer de la soie (1 soie = 2 vêtements)
+                  const soieNecessaire = Math.ceil(clothesProduction / 2)
+                  const soieUtilisee = Math.min(soieNecessaire, soieDisponible.quantity)
+                  if (soieUtilisee > 0) {
+                    removeItem(soieDisponible.id, soieUtilisee)
+                    const clothesProduits = soieUtilisee * 2
+                    addItem('vetements', clothesProduits)
+                    resources.value.vetements.production += clothesProduits
+                  }
+                }
+              }
+            }
+          }
+
+          // Gérer la production avec carburant (générateur)
           if (room.type === 'generateur' && room.fuelLevel !== undefined) {
             // Vérifier s'il y a du carburant disponible
             if (room.fuelLevel <= 0) {
@@ -1490,8 +1559,8 @@ export const useGameStore = defineStore('game', () => {
               if (room.fuelLevel >= fuelNeeded) {
                 // Assez de carburant, production normale
                 Object.entries(config.productionPerWorker).forEach(([resource, amount]) => {
-                  if (amount && resource in resources.value) {
-                    resources.value[resource as ResourceKey].production += amount * nbWorkers * gridSize * mergeMultiplier * productionBonus * weeksElapsed
+                  if (amount && resource in resources.value && amount > 0) {
+                    resources.value[resource as ResourceKey].production += amount * nbWorkers * gridSize * mergeMultiplier * productionBonus
                   }
                 })
                 room.fuelLevel -= fuelNeeded
@@ -1499,176 +1568,21 @@ export const useGameStore = defineStore('game', () => {
                 // Pas assez de carburant, production réduite
                 const ratio = room.fuelLevel / fuelNeeded
                 Object.entries(config.productionPerWorker).forEach(([resource, amount]) => {
-                  if (amount && resource in resources.value) {
-                    resources.value[resource as ResourceKey].production += amount * nbWorkers * gridSize * mergeMultiplier * ratio * productionBonus * weeksElapsed
+                  if (amount && resource in resources.value && amount > 0) {
+                    resources.value[resource as ResourceKey].production += amount * nbWorkers * gridSize * mergeMultiplier * ratio * productionBonus
                   }
                 })
                 room.fuelLevel = 0
-              }
-            }
-          } else if (room.type === 'derrick' && room.occupants.length > 0) {
-            // Initialiser le niveau de carburant s'il n'existe pas
-            if (room.fuelLevel === undefined) {
-              room.fuelLevel = 0
-            }
-
-            // Augmenter le fuelLevel
-            room.fuelLevel = Math.min(100, room.fuelLevel + (10 * nbWorkers * weeksElapsed))
-
-            // Si le fuelLevel est à 100%, essayer de produire un baril de pétrole
-            if (room.fuelLevel >= 100) {
-              // Chercher un baril vide
-              const barilVide = inventory.value.find(item => item.type === 'baril-vide' && item.quantity > 0)
-              if (barilVide) {
-                // Retirer le baril vide et ajouter un baril de pétrole
-                const success = removeItem(barilVide.id, 1)
-                if (success) {
-                  addItem('baril-petrole', 1)
-                  room.fuelLevel = 0 // Réinitialiser le fuelLevel
-                }
-              }
-            }
-          } else {
-            // Production normale pour les autres salles
-            Object.entries(config.productionPerWorker).forEach(([resource, amount]) => {
-              if (amount) {
-                if (resource in resources.value) {
-                  resources.value[resource as ResourceKey].production += amount * nbWorkers * gridSize * mergeMultiplier * productionBonus * weeksElapsed
-                } else {
-                  const itemsProduced = Math.floor(amount * nbWorkers * gridSize * mergeMultiplier * productionBonus * weeksElapsed)
-                  if (itemsProduced > 0) {
-                    addItem(resource as ItemType, itemsProduced)
-                  }
-                }
-              }
-            })
-          }
-        }
-
-        // 2.4 Gérer les capacités de stockage
-        if ('capacityPerWorker' in config) {
-          const nbWorkers = room.occupants.length
-          Object.entries(config.capacityPerWorker).forEach(([resource, amount]) => {
-            if (amount && resource in resources.value) {
-              resources.value[resource as ResourceKey].capacity += amount * nbWorkers * gridSize * mergeMultiplier
-            }
-          })
-        }
-
-        // Gestion spéciale de la raffinerie
-        if (room.type === 'raffinerie' && room.occupants.length > 0 && room.nextMineralsToProcess) {
-          const nbWorkers = room.occupants.length
-          const gridSize = room.gridSize || 1
-          const mergeMultiplier = mergeConfig?.useMultiplier 
-            ? GAME_CONFIG.MERGE_MULTIPLIERS[Math.min(gridSize, 6) as keyof typeof GAME_CONFIG.MERGE_MULTIPLIERS] || 1
-            : 1
-
-          // Calculer le nombre total de minerais pouvant être traités
-          const totalProcessingCapacity = (config as any).mineralsProcessingPerWorker * nbWorkers * gridSize * mergeMultiplier
-          const batchesToProcess = weeksElapsed // Une conversion par semaine écoulée
-
-          // Vérifier si la conversion actuelle est possible
-          const canProcess = room.nextMineralsToProcess.input.every(({ type, amount }) => {
-            const needed = amount * batchesToProcess
-            const available = getItemQuantity(type)
-            return available >= needed
-          })
-
-          // Si la conversion est possible, l'effectuer
-          if (canProcess) {
-            const { input, output } = room.nextMineralsToProcess
-            
-            // Retirer les ressources d'entrée
-            input.forEach(({ type, amount }) => {
-              const toRemove = amount * batchesToProcess
-              const items = inventory.value.filter(item => item.type === type)
-              let remaining = toRemove
-
-              for (const item of items) {
-                if (remaining <= 0) break
-                const remove = Math.min(remaining, item.quantity)
-                removeItem(item.id, remove)
-                remaining -= remove
-              }
-            })
-
-            // Ajouter les ressources de sortie
-            const outputAmount = output.amount * batchesToProcess
-            addItem(output.type, outputAmount)
-
-            // Émettre un événement pour mettre à jour l'interface
-            window.dispatchEvent(new CustomEvent('conversion-update', {
-              detail: {
-                type: 'success',
-                input: input,
-                output: output,
-                amount: batchesToProcess
-              }
-            }))
-          }
-        }
-
-        // Dans la boucle de traitement des salles
-        if (room.type === 'serre' && room.occupants.length > 0) {
-          const nbWorkers = room.occupants.length
-          const gridSize = room.gridSize || 1
-          
-          // Vérifier les équipements de culture
-          const hasTomates = room.equipments?.some(e => e.type === 'culture-tomates' && !e.isUnderConstruction)
-          const hasAvoine = room.equipments?.some(e => e.type === 'culture-avoine' && !e.isUnderConstruction)
-          const hasVersSoie = room.equipments?.some(e => e.type === 'vers-soie' && !e.isUnderConstruction)
-          
-          // Production de base (laitue)
-          const baseProduction = 2 * nbWorkers * gridSize * mergeMultiplier * weeksElapsed
-          
-          // Ajouter la production de chaque culture
-          if (hasTomates) {
-            const tomatoProduction = Math.floor(1.5 * nbWorkers * gridSize * mergeMultiplier * weeksElapsed)
-            addItem('tomates', tomatoProduction)
-          }
-          
-          if (hasAvoine) {
-            const avoineProduction = Math.floor(2 * nbWorkers * gridSize * mergeMultiplier * weeksElapsed)
-            addItem('avoine', avoineProduction)
-          }
-          
-          if (hasVersSoie) {
-            const soieProduction = Math.floor(0.5 * nbWorkers * gridSize * mergeMultiplier * weeksElapsed)
-            addItem('soie', soieProduction)
-          }
-          
-          // Production de base de laitue
-          addItem('laitue', baseProduction)
-        }
-
-        // Dans la boucle de traitement des salles
-        if (room.type === 'atelier' && room.occupants.length > 0) {
-
-          const nbWorkers = room.occupants.length
-          const gridSize = room.gridSize || 1
-          const mergeMultiplier = GAME_CONFIG.MERGE_MULTIPLIERS[Math.min(gridSize, 6) as keyof typeof GAME_CONFIG.MERGE_MULTIPLIERS] || 1
-          
-          // Vérifier si l'atelier a l'équipement de couture
-          const hasAtelierCouture = room.equipments?.some(e => e.type === 'atelier-couture' && !e.isUnderConstruction)
-          
-          if (hasAtelierCouture) {
-            // Vérifier la disponibilité de soie
-            const soieDisponible = getItemQuantity('soie')
-            if (soieDisponible > 0) {
-              // Production de vêtements (2 par travailleur)
-              const productionBase = 2 * nbWorkers * gridSize * mergeMultiplier * weeksElapsed
-              const productionPossible = Math.min(productionBase, Math.floor(soieDisponible / 2)) // 2 unités de soie pour 1 vêtement
-              
-              if (productionPossible > 0) {
-                removeItem('soie', productionPossible * 2)
-                addItem('vetements', productionPossible)
-                resources.value.vetements.production += productionPossible / weeksElapsed
               }
             }
           }
         }
       })
     })
+
+    // Mettre à jour la quantité totale de nourriture
+    resources.value.nourriture.amount = calculateTotalFood()
+    resources.value.vetements.amount = calculateTotalClothes()
   }
 
   function calculateTotalFood(): number {
@@ -1694,16 +1608,20 @@ export const useGameStore = defineStore('game', () => {
       const net = resource.production - resource.consumption
       
       if (key === 'eau') {
+        console.log(`Eau - Production: ${resource.production}, Consommation: ${resource.consumption}, Net: ${net}`)
         // Gestion spéciale pour l'eau
         if (net > 0) {
           // Production d'eau : ajouter aux cuves
           const added = addWater(net)
+          console.log(`Eau ajoutée aux cuves: ${added}`)
           resources.value.eau.amount = Math.min(resources.value.eau.capacity, resources.value.eau.amount + added)
         } else if (net < 0) {
           // Consommation d'eau : retirer des cuves
           const removed = removeWater(-net)
+          console.log(`Eau retirée des cuves: ${removed}`)
           resources.value.eau.amount = Math.max(0, resources.value.eau.amount - removed)
         }
+        console.log(`Nouveau montant d'eau: ${resources.value.eau.amount}`)
       } else if (key === 'nourriture') {
         // Gestion spéciale pour la nourriture
         resources.value.nourriture.amount = calculateTotalFood()
@@ -1735,6 +1653,25 @@ export const useGameStore = defineStore('game', () => {
                 }
               }
             })
+          }
+        }
+      } else if (key === 'vetements') {
+        // Gestion spéciale pour les vêtements
+        resources.value.vetements.amount = calculateTotalClothes()
+        
+        // Si consommation de vêtements
+        if (net < 0) {
+          const clothesNeeded = -net
+          const clothesItems = inventory.value.filter(item => item.type === 'vetements' && item.quantity > 0)
+          
+          if (clothesItems.length > 0) {
+            // Prendre le premier stack de vêtements disponible
+            const item = clothesItems[0]
+            const itemsToConsume = Math.ceil(clothesNeeded)
+            if (itemsToConsume > 0) {
+              const actualConsumption = Math.min(itemsToConsume, item.quantity)
+              removeItem(item.id, actualConsumption)
+            }
           }
         }
       } else {
@@ -2101,8 +2038,37 @@ export const useGameStore = defineStore('game', () => {
 
   // Mise à jour de la fonction updateHappiness
   function updateHappiness() {
-    habitants.value.forEach(habitant => {
-      habitant.bonheur = calculateHappiness(habitant.id)
+    habitants.value?.forEach(habitant => {
+      let bonheurTotal = 100 // Bonheur de base
+
+      // Vérifier si l'habitant a un logement
+      if (!habitant.logement) {
+        bonheurTotal -= 30 // -30 points si pas de logement
+      }
+
+      // Vérifier la nourriture
+      const nourritureParHabitant = resources.value.nourriture.amount / (habitants.value?.length || 1)
+      if (nourritureParHabitant < 1) {
+        bonheurTotal -= 40 // -40 points si pas assez de nourriture
+      }
+
+      // Vérifier l'eau
+      const eauParHabitant = resources.value.eau.amount / (habitants.value?.length || 1)
+      if (eauParHabitant < 1) {
+        bonheurTotal -= 40 // -40 points si pas assez d'eau
+      }
+
+      // Vérifier les vêtements
+      const vetementsParHabitant = resources.value.vetements.amount / (habitants.value?.length || 1)
+      if (vetementsParHabitant < 1) {
+        bonheurTotal -= 20 // -20 points si pas assez de vêtements
+      }
+
+      // Mettre à jour la consommation de vêtements
+      resources.value.vetements.consumption = habitants.value.length * 0.1 // Chaque habitant consomme 0.1 vêtement par semaine
+
+      // Limiter le bonheur entre 0 et 100
+      habitant.bonheur = Math.max(0, Math.min(100, bonheurTotal))
     })
   }
 
@@ -3051,17 +3017,24 @@ export const useGameStore = defineStore('game', () => {
       const allRooms = [...level.leftRooms, ...level.rightRooms]
       allRooms.forEach(room => {
         if (room.isBuilt && room.type === 'cuve' && 
-            room.equipments.some(e => e.type === 'cuve-eau' && !e.isUnderConstruction)) {
+            room.equipments?.some(e => e.type === 'cuve-eau' && !e.isUnderConstruction)) {
+          if (room.fuelLevel === undefined) {
+            room.fuelLevel = 0 // Initialiser le niveau si undefined
+          }
           tanks.push(room)
         }
       })
     })
+    console.log('Cuves d\'eau trouvées:', tanks.length)
     return tanks
   }
 
   function addWater(amount: number): number {
     const tanks = findWaterTanks()
-    if (tanks.length === 0) return 0 // Pas de cuve disponible
+    if (tanks.length === 0) {
+      console.log('Pas de cuve disponible pour stocker l\'eau')
+      return 0
+    }
 
     // Trouver la cuve la moins remplie
     const leastFilledTank = tanks.reduce((min, tank) => 
@@ -3075,6 +3048,7 @@ export const useGameStore = defineStore('game', () => {
 
     if (waterToAdd > 0) {
       leastFilledTank.fuelLevel = currentLevel + (waterToAdd / WATER_TANK_RATIO)
+      console.log(`Ajout de ${waterToAdd} unités d'eau, niveau cuve: ${leastFilledTank.fuelLevel}%`)
       return waterToAdd
     }
 

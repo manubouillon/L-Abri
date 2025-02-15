@@ -469,7 +469,7 @@ function getRoomProduction(room: Room): string {
     const hasAtelierCouture = room.equipments?.some(e => e.type === 'atelier-couture' && !e.isUnderConstruction)
     if (hasAtelierCouture) {
       const production = 2 * nbWorkers * gridSize * mergeMultiplier
-      return `👔${production.toFixed(0)}/s`
+      return `👔${production.toFixed(0)}/sem`
     }
     return ''
   }
@@ -488,7 +488,7 @@ function getRoomProduction(room: Room): string {
       const total = amount * nbWorkers * gridSize * mergeMultiplier
       if (total <= 0) return ''
       const icon = resourceIcons[resource] || ''
-      return `${icon}${total.toFixed(0)}/s`
+      return `${icon}${total.toFixed(0)}/sem`
     })
     .filter(Boolean)
     .join(' ')
@@ -543,7 +543,7 @@ function getRoomProductionSimple(room: Room): string {
         ? store.GAME_CONFIG.MERGE_MULTIPLIERS[Math.min(gridSize, 6) as keyof typeof store.GAME_CONFIG.MERGE_MULTIPLIERS] || 1
         : 1
       const production = 2 * nbWorkers * gridSize * mergeMultiplier
-      return `👔${production.toFixed(0)}/s`
+      return `👔${production.toFixed(0)}/sem`
     }
     return ''
   }
@@ -571,7 +571,7 @@ function getRoomProductionSimple(room: Room): string {
       const total = amount * nbWorkers * gridSize * mergeMultiplier
       if (total <= 0) return ''
       const icon = resourceIcons[resource] || ''
-      return `${icon}${total.toFixed(0)}/s`
+      return `${icon}${total.toFixed(0)}/sem`
     })
     .filter(Boolean)
     .join(' ')

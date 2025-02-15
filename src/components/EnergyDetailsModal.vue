@@ -47,7 +47,7 @@ const productions = computed(() => {
   store.levels.forEach(level => {
     const allRooms = [...level.leftRooms, ...level.rightRooms]
     allRooms.forEach(room => {
-      if (room.isBuilt && room.type === 'energie') {
+      if (room.isBuilt && room.type === 'generateur') {
         const config = store.ROOM_CONFIGS[room.type]
         if (!config || !('productionPerWorker' in config)) return
 
@@ -61,7 +61,7 @@ const productions = computed(() => {
         const production = config.productionPerWorker.energie! * nbWorkers * gridSize * mergeMultiplier
         if (production > 0) {
           prods.push({
-            description: `Salle d'énergie niveau ${level.id + 1} (${nbWorkers}👥 × ${gridSize}📦 × ${mergeMultiplier}✨)`,
+            description: `Générateur niveau ${level.id + 1} (${nbWorkers}👥 × ${gridSize}📦 × ${mergeMultiplier}✨)`,
             amount: production
           })
         }
@@ -79,7 +79,7 @@ const consumptions = computed(() => {
   store.levels.forEach(level => {
     const allRooms = [...level.leftRooms, ...level.rightRooms]
     allRooms.forEach(room => {
-      if (room.isBuilt && room.type !== 'energie') {
+      if (room.isBuilt && room.type !== 'generateur') {
         const config = store.ROOM_CONFIGS[room.type]
         if (!config) return
 

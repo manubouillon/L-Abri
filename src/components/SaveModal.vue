@@ -42,6 +42,8 @@ interface SaveGame {
 
 const saves = ref<SaveGame[]>([])
 
+const emit = defineEmits(['close'])
+
 onMounted(() => {
   loadSaves()
 })
@@ -80,6 +82,7 @@ function deleteSave(save: SaveGame) {
 function resetGame() {
   if (confirm('Êtes-vous sûr de vouloir réinitialiser le jeu ? Toute progression sera perdue.')) {
     gameStore.resetGame()
+    emit('close')
   }
 }
 
@@ -97,8 +100,6 @@ function formatDate(timestamp: number): string {
 function getMaxLevel(save: SaveGame): number {
   return save.gameState.levels.filter((l: any) => l.isStairsExcavated).length
 }
-
-defineEmits(['close'])
 </script>
 
 <style scoped>
