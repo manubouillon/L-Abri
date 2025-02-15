@@ -1576,6 +1576,34 @@ export const useGameStore = defineStore('game', () => {
               }
             }
           }
+
+          // Gérer la production de pétrole pour le derrick
+          if (room.type === 'derrick') {
+            const nbWorkers = room.occupants.length
+            if (nbWorkers > 0) {
+              const gridSize = room.gridSize || 1
+              const mergeConfig = ROOM_MERGE_CONFIG[room.type]
+              const mergeMultiplier = mergeConfig?.useMultiplier 
+                ? GAME_CONFIG.MERGE_MULTIPLIERS[Math.min(gridSize, 6) as keyof typeof GAME_CONFIG.MERGE_MULTIPLIERS] || 1
+                : 1
+
+              // Calculer la production potentielle de pétrole
+              const petroleProduction = 2 * nbWorkers * gridSize * mergeMultiplier
+
+              // Vérifier s'il y a des barils vides disponibles
+              const barilsVides = inventory.value.find(item => item.type === 'baril-vide' && item.quantity > 0)
+              if (barilsVides) {
+                // Limiter la production au nombre de barils vides disponibles
+                const productionPossible = Math.min(petroleProduction, barilsVides.quantity)
+                if (productionPossible > 0) {
+                  // Consommer les barils vides
+                  removeItem(barilsVides.id, productionPossible)
+                  // Produire les barils de pétrole
+                  addItem('baril-petrole', productionPossible)
+                }
+              }
+            }
+          }
         }
       })
     })
