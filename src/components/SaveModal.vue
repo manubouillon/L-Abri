@@ -1,5 +1,6 @@
 <template>
   <div class="modal-overlay" @click="$emit('close')">
+    <NotificationSystem ref="notificationSystem" />
     <div class="modal-content" @click.stop>
       <h2>Sauvegardes</h2>
       
@@ -31,8 +32,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useGameStore } from '../stores/gameStore'
+import NotificationSystem from './NotificationSystem.vue'
 
 const gameStore = useGameStore()
+const notificationSystem = ref<InstanceType<typeof NotificationSystem> | null>(null)
 
 interface SaveGame {
   timestamp: number
@@ -64,11 +67,22 @@ function createNewSave() {
   
   saves.value.push(newSave)
   localStorage.setItem('abriSavedGames', JSON.stringify(saves.value))
+  notificationSystem.value?.addNotification(
+    'Sauvegarde réussie',
+    'Votre partie a été sauvegardée avec succès',
+    'success'
+  )
 }
 
 function loadSave(save: SaveGame) {
   if (confirm('Êtes-vous sûr de vouloir charger cette sauvegarde ? Les données non sauvegardées seront perdues.')) {
     gameStore.loadState(save.gameState)
+    notificationSystem.value?.addNotification(
+      'Chargement réussi',
+      'La sauvegarde a été chargée avec succès',
+      'success'
+    )
+    emit('close')
   }
 }
 

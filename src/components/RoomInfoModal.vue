@@ -224,6 +224,15 @@
         </div>
 
         <div class="modal-actions">
+          <button 
+            v-if="!isLogementRoom"
+            class="toggle-button"
+            :class="{ 'disabled': props.room.isDisabled }"
+            @click="toggleRoom"
+          >
+            {{ props.room.isDisabled ? 'Activer' : 'Désactiver' }}
+            {{ props.room.isDisabled ? '🔌' : '⚡' }}
+          </button>
           <button @click="$emit('close')">Fermer</button>
         </div>
       </div>
@@ -527,6 +536,10 @@ function updateRefineryRecipe(recipe: {
     props.room.nextMineralsToProcess = recipe || undefined
   }
 }
+
+function toggleRoom() {
+  props.room.isDisabled = !props.room.isDisabled
+}
 </script>
 
 <style lang="scss" scoped>
@@ -655,8 +668,36 @@ function updateRefineryRecipe(recipe: {
 }
 
 .modal-actions {
-  margin-top: 1.5rem;
-  text-align: right;
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+
+  .toggle-button {
+    background-color: #34495e;
+    color: #ecf0f1;
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+
+    &:hover {
+      background-color: #2c3e50;
+    }
+
+    &.disabled {
+      background-color: #c0392b;
+      &:hover {
+        background-color: #e74c3c;
+      }
+    }
+  }
 
   button {
     background-color: #3498db;

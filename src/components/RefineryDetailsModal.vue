@@ -138,7 +138,17 @@
       </div>
     </div>
 
-    <button class="close-button" @click="$emit('close')">Fermer</button>
+    <div class="modal-actions">
+      <button 
+        class="toggle-button"
+        :class="{ 'disabled': props.room.isDisabled }"
+        @click="toggleRoom"
+      >
+        {{ props.room.isDisabled ? 'Activer' : 'Désactiver' }}
+        {{ props.room.isDisabled ? '🔌' : '⚡' }}
+      </button>
+      <button @click="$emit('close')">Fermer</button>
+    </div>
   </div>
 </template>
 
@@ -321,6 +331,10 @@ function selectResource(type: string, rule: ConversionRule & { inputType: string
     // Si on n'a pas les ressources, on émet null pour arrêter la production
     emit('update-recipe', null)
   }
+}
+
+function toggleRoom() {
+  props.room.isDisabled = !props.room.isDisabled
 }
 </script>
 
@@ -613,5 +627,38 @@ h3 {
 
 .formula-row .label {
   color: rgba(255, 255, 255, 0.7);
+}
+
+.modal-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+
+  .toggle-button {
+    background-color: #34495e;
+    color: #ecf0f1;
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+
+    &:hover {
+      background-color: #2c3e50;
+    }
+
+    &.disabled {
+      background-color: #c0392b;
+      &:hover {
+        background-color: #e74c3c;
+      }
+    }
+  }
 }
 </style> 

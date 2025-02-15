@@ -80,6 +80,7 @@ export interface Room {
   stairsPosition?: 'left' | 'right'
   equipments: Equipment[]
   fuelLevel?: number // Niveau de carburant en pourcentage (0-100)
+  isDisabled?: boolean // État de désactivation de la salle
   nextMineralsToProcess?: { // Pour la raffinerie
     input: { type: ItemType, amount: number }[]
     output: { type: ItemType, amount: number }
@@ -1414,33 +1415,17 @@ export const useGameStore = defineStore('game', () => {
 
   function updateRoomProduction(weeksElapsed: number = 0) {
     // Réinitialiser toutes les productions et consommations
-    Object.values(resources.value).forEach(resource => {
+    Object.keys(resources.value).forEach(key => {
+      const resource = resources.value[key as ResourceKey]
       resource.production = 0
       resource.consumption = 0
-      resource.capacity = 200 // Capacité de base
-    })
-
-    // 1. Calculer les consommations de base des habitants
-    const baseConsumptions = {
-      energie: population.value * 2, // 2 unités d'énergie par habitant
-      eau: population.value * 1,     // 1 unité d'eau par habitant
-      nourriture: population.value * 0.7, // 0.7 unité par habitant
-      vetements: population.value * 0.05, // 0.05 unité par habitant
-      medicaments: 0
-    }
-
-    // Appliquer les consommations de base
-    Object.entries(baseConsumptions).forEach(([resource, amount]) => {
-      if (amount > 0) { // Éviter les valeurs nulles ou négatives
-        resources.value[resource as ResourceKey].consumption = amount
-      }
     })
 
     // 2. Calculer les productions et consommations des salles
     levels.value?.forEach(level => {
       const allRooms = [...level.leftRooms, ...level.rightRooms]
       allRooms.forEach(room => {
-        if (!room.isBuilt) return
+        if (!room.isBuilt || room.isDisabled) return
 
         const config = ROOM_CONFIGS[room.type]
         if (!config) return

@@ -20,15 +20,18 @@
               [`room-type-${room.type}`]: room.isBuilt,
               'no-border-right': !shouldShowRightBorder(room, 'left'),
               [`grid-size-${room.gridSize || 1}`]: room.isBuilt,
-              'has-stairs': room.stairsPosition === 'left'
+              'has-stairs': room.stairsPosition === 'left',
+              'is-disabled': room.isDisabled
             }"
             :style="getRoomStyle(room)"
             @click="handleRoomClick('left', room)"
           >
             <template v-if="room.isBuilt">
               <div class="room-info" @click="openRoomInfo(room)">
-                <span class="room-type">{{ room.type }}</span>
-                <span class="room-size" v-if="room.gridSize && room.gridSize > 1">x{{ room.gridSize }}</span>
+                <div class="room-header">
+                  <span class="room-type">{{ room.type }}</span>
+                  <span class="room-size" v-if="room.gridSize && room.gridSize > 1">x{{ room.gridSize }}</span>
+                </div>
                 
                 <template v-if="isLogementRoom(room)">
                   <div class="room-occupancy">
@@ -150,15 +153,18 @@
               [`room-type-${room.type}`]: room.isBuilt,
               'no-border-left': !shouldShowLeftBorder(room, 'right'),
               [`grid-size-${room.gridSize || 1}`]: room.isBuilt,
-              'has-stairs': room.stairsPosition === 'right'
+              'has-stairs': room.stairsPosition === 'right',
+              'is-disabled': room.isDisabled
             }"
             :style="getRoomStyle(room)"
             @click="handleRoomClick('right', room)"
           >
             <template v-if="room.isBuilt">
               <div class="room-info" @click="openRoomInfo(room)">
-                <span class="room-type">{{ room.type }}</span>
-                <span class="room-size" v-if="room.gridSize && room.gridSize > 1">x{{ room.gridSize }}</span>
+                <div class="room-header">
+                  <span class="room-type">{{ room.type }}</span>
+                  <span class="room-size" v-if="room.gridSize && room.gridSize > 1">x{{ room.gridSize }}</span>
+                </div>
                 
                 <template v-if="isLogementRoom(room)">
                   <div class="room-occupancy">
@@ -745,6 +751,11 @@ onMounted(() => {
     width: calc(100%) !important;
   }
 
+  &.is-disabled {
+    opacity: 0.6;
+    filter: grayscale(70%);
+  }
+
   @each $type in (entrepot, cuve, dortoir, cuisine, station-traitement, generateur, infirmerie, serre, raffinerie, derrick, salle-controle, quartiers, appartement, suite, atelier) {
     &.room-type-#{$type} {
       --room-color: var(--room-#{$type}-color);
@@ -770,19 +781,25 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   
+  .room-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+    position: relative;
+    z-index: 2;
+  }
+
   .room-type {
     text-transform: capitalize;
     font-weight: bold;
-    text-align: center;
-    margin-bottom: 0.25rem;
     font-size: 0.7rem;
   }
 
   .room-size {
-    text-align: center;
     font-size: 0.6rem;
     color: #95a5a6;
-    margin-bottom: 0.25rem;
   }
 
   .fuel-gauge {
@@ -1143,5 +1160,9 @@ onMounted(() => {
   align-items: center;
   font-size: 1.5em;
   margin: 5px 0;
+}
+
+.toggle-button {
+  display: none;
 }
 </style> 
