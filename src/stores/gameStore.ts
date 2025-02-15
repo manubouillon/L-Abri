@@ -943,6 +943,16 @@ const HAPPINESS_CONFIG = {
   DEFAULT: 50
 }
 
+// Configuration de la mortalité
+const DEATH_CONFIG = {
+  AGE_75: 75 * 52, // 75 ans en semaines
+  AGE_85: 85 * 52, // 85 ans en semaines
+  AGE_95: 95 * 52, // 95 ans en semaines
+  CHANCE_75: 0.05, // 1/20
+  CHANCE_85: 0.1,  // 1/10
+  CHANCE_95: 0.2,  // 1/5
+}
+
 export const useGameStore = defineStore('game', () => {
   // État du jeu
   const levels = ref<Level[]>([])
@@ -1733,6 +1743,9 @@ export const useGameStore = defineStore('game', () => {
         habitants.value?.forEach(habitant => {
           habitant.age += weeksElapsed
         })
+
+        // Vérifier la mortalité
+        checkMortality()
 
         // Mettre à jour les ressources
         updateResources(weeksElapsed)
@@ -3118,6 +3131,68 @@ export const useGameStore = defineStore('game', () => {
     return isFoodItem(itemConfig) ? itemConfig.ratio : 1
   }
 
+  const showDeathModal = ref(false)
+  const deceasedHabitant = ref<Habitant | null>(null)
+
+  // Fonction pour gérer le décès d'un habitant
+  function handleHabitantDeath(habitant: Habitant) {
+    // Sauvegarder l'habitant décédé pour la modale
+    deceasedHabitant.value = { ...habitant }
+    showDeathModal.value = true
+
+    // Libérer le logement
+    if (habitant.logement) {
+      const level = levels.value.find(l => l.id === habitant.logement!.levelId)
+      if (level) {
+        const room = habitant.logement.position === 'left'
+          ? level.leftRooms[habitant.logement.roomIndex]
+          : level.rightRooms[habitant.logement.roomIndex]
+        if (room) {
+          room.occupants = room.occupants.filter(id => id !== habitant.id)
+        }
+      }
+    }
+
+    // Libérer l'affectation
+    if (habitant.affectation.type === 'salle') {
+      const level = levels.value.find(l => l.id === habitant.affectation.levelId)
+      if (level) {
+        const room = habitant.affectation.position === 'left'
+          ? level.leftRooms[habitant.affectation.roomIndex!]
+          : level.rightRooms[habitant.affectation.roomIndex!]
+        if (room) {
+          room.occupants = room.occupants.filter(id => id !== habitant.id)
+        }
+      }
+    }
+
+    // Retirer l'habitant de la liste
+    habitants.value = habitants.value.filter(h => h.id !== habitant.id)
+    population.value--
+
+    // Mettre à jour les productions
+    updateRoomProduction()
+  }
+
+  // Fonction pour vérifier la mortalité des habitants
+  function checkMortality() {
+    habitants.value.forEach(habitant => {
+      if (habitant.age >= DEATH_CONFIG.AGE_95) {
+        if (Math.random() < DEATH_CONFIG.CHANCE_95) {
+          handleHabitantDeath(habitant)
+        }
+      } else if (habitant.age >= DEATH_CONFIG.AGE_85) {
+        if (Math.random() < DEATH_CONFIG.CHANCE_85) {
+          handleHabitantDeath(habitant)
+        }
+      } else if (habitant.age >= DEATH_CONFIG.AGE_75) {
+        if (Math.random() < DEATH_CONFIG.CHANCE_75) {
+          handleHabitantDeath(habitant)
+        }
+      }
+    })
+  }
+
   return {
     // État
     resources,
@@ -3180,6 +3255,10 @@ export const useGameStore = defineStore('game', () => {
     HAPPINESS_CONFIG,
     findWaterTanks,
     addWater,
-    removeWater
+    removeWater,
+    showDeathModal,
+    deceasedHabitant,
+    handleHabitantDeath,
+    checkMortality
   }
 }) 

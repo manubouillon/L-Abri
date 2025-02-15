@@ -66,6 +66,11 @@
     />
     <InventoryModal v-if="showInventory" @close="showInventory = false" />
     <SaveModal v-if="showSaveModal" @close="showSaveModal = false" />
+    <DeathModal 
+      v-if="showDeathModal" 
+      :habitant="deceasedHabitant!"
+      @close="showDeathModal = false" 
+    />
   </div>
 </template>
 
@@ -79,10 +84,11 @@ import HabitantsList from './components/HabitantsList.vue'
 import InventoryModal from './components/InventoryModal.vue'
 import SaveModal from './components/SaveModal.vue'
 import NotificationSystem from './components/NotificationSystem.vue'
+import DeathModal from './components/DeathModal.vue'
 
 // État du jeu
 const gameStore = useGameStore()
-const { levels, inventorySpace, gameSpeed, globalHappiness, habitants, averageFoodQuality, foodQualityEmoji } = storeToRefs(gameStore)
+const { levels, inventorySpace, gameSpeed, globalHappiness, habitants, averageFoodQuality, foodQualityEmoji, showDeathModal, deceasedHabitant } = storeToRefs(gameStore)
 const isPaused = ref(false)
 const scrollPosition = ref(0)
 const showHabitantsList = ref(false)

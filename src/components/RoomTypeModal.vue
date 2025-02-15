@@ -42,7 +42,7 @@
               <p class="missing-resources-title">Ressources manquantes:</p>
               <ul class="missing-resources-list">
                 <li v-for="(amount, resource) in getMissingResources(type.id)" :key="resource">
-                  {{ ITEMS_CONFIG[resource as keyof typeof ITEMS_CONFIG].name }}: {{ amount }}
+                  {{ ITEMS_CONFIG[resource as keyof typeof ITEMS_CONFIG].name }}: {{ Math.ceil(amount) }}
                 </li>
               </ul>
             </div>
