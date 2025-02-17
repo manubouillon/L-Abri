@@ -378,7 +378,7 @@ export const useGameStore = defineStore('game', () => {
     }
     
     const elapsedTime = Math.floor(gameTime.value) - excavation.startTime
-    const remainingWeeks = Math.max(0, excavation.duration - elapsedTime)
+    const remainingWeeks = Math.ceil(Math.max(0, excavation.duration - elapsedTime))
     const progress = Math.min(100, (elapsedTime / excavation.duration) * 100)
     
     return {
