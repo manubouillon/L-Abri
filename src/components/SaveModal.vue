@@ -14,7 +14,7 @@
       </div>
 
       <div class="saves-list">
-        <div v-for="save in saves" :key="save.timestamp" class="save-item" @click="loadSave(save)">
+        <div v-for="save in sortedSaves" :key="save.timestamp" class="save-item" @click="loadSave(save)">
           <div class="save-info">
             <div class="save-date">{{ formatDate(save.timestamp) }}</div>
             <div class="save-details">
@@ -30,7 +30,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useGameStore } from '../stores/gameStore'
 import NotificationSystem from './NotificationSystem.vue'
 
@@ -44,6 +44,10 @@ interface SaveGame {
 }
 
 const saves = ref<SaveGame[]>([])
+
+const sortedSaves = computed(() => {
+  return [...saves.value].sort((a, b) => b.timestamp - a.timestamp)
+})
 
 const emit = defineEmits(['close'])
 

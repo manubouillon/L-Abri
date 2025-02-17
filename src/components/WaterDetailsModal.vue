@@ -52,7 +52,7 @@ const productions = computed(() => {
   store.levels.forEach(level => {
     const allRooms = [...level.leftRooms, ...level.rightRooms]
     allRooms.forEach(room => {
-      if (room.isBuilt && room.type === 'station-traitement') {
+      if (room.isBuilt && room.type === 'station-traitement' && !room.isDisabled) {
         const config = ROOMS_CONFIG[room.type]
         if (!config || !('productionPerWorker' in config)) return
 
@@ -66,7 +66,7 @@ const productions = computed(() => {
         const production = config.productionPerWorker.eau! * nbWorkers * gridSize * mergeMultiplier
         if (production > 0) {
           prods.push({
-            description: `Station de traitement niveau ${level.id + 1} (${nbWorkers}👥 × ${gridSize}📦 × ${mergeMultiplier}✨)`,
+            description: `Station de traitement niveau ${level.id + 1} (${nbWorkers}👥 × ${gridSize}📦 × ${mergeMultiplier}✨)${room.isDisabled ? ' (Désactivée)' : ''}`,
             amount: production
           })
         }

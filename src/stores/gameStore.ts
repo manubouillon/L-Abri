@@ -728,23 +728,8 @@ export const useGameStore = defineStore('game', () => {
     totalCapacity += tanks.reduce((total, tank) => {
       const gridSize = tank.gridSize || 1
       const mergeMultiplier = gridSize > 1 ? 1.2 : 1
-      return total + (200 * gridSize * mergeMultiplier) // Capacité de base d'une cuve d'eau
+      return total + (100 * gridSize) // Capacité de base d'une cuve d'eau
     }, 0)
-
-    // Calculer la capacité des entrepôts
-    levels.value.forEach(level => {
-      const allRooms = [...level.leftRooms, ...level.rightRooms]
-      allRooms.forEach(room => {
-        if (room.isBuilt && room.type === 'entrepot' && !room.isDisabled) {
-          const config = ROOMS_CONFIG[room.type] as StorageRoomConfig
-          const gridSize = room.gridSize || 1
-          const mergeMultiplier = gridSize > 1 ? 1.2 : 1
-          if (config.capacityPerWorker.eau) {
-            totalCapacity += config.capacityPerWorker.eau * config.maxWorkers * gridSize * mergeMultiplier
-          }
-        }
-      })
-    })
 
     return totalCapacity
   }
@@ -755,7 +740,7 @@ export const useGameStore = defineStore('game', () => {
     levels.value.forEach(level => {
       const allRooms = [...level.leftRooms, ...level.rightRooms]
       allRooms.forEach(room => {
-        if (room.isBuilt && room.type === 'station-traitement') {
+        if (room.isBuilt && room.type === 'station-traitement' && !room.isDisabled) {
           const config = ROOMS_CONFIG[room.type]
           if (!config || !('productionPerWorker' in config)) return
 
@@ -905,7 +890,7 @@ export const useGameStore = defineStore('game', () => {
             if (remainingConsumption <= 0) break
             
             const currentLevel = Math.min(100, Math.max(0, Number(tank.fuelLevel || 0)))
-            const waterAvailable = Math.min(200, currentLevel * WATER_TANK_RATIO)
+            const waterAvailable = currentLevel * WATER_TANK_RATIO
             const waterToTake = Math.min(waterAvailable, remainingConsumption)
             
             if (waterToTake > 0) {
@@ -914,9 +899,16 @@ export const useGameStore = defineStore('game', () => {
               remainingConsumption -= waterToTake
             }
           }
-          // Mettre à jour le montant d'eau avec le total des cuves
-          resource.amount = Math.min(calculateTotalWaterStorage(), resource.capacity)
         }
+        
+        // Calculer la quantité totale d'eau stockée
+        const tanks = findWaterTanks()
+        let totalWater = 0
+        for (const tank of tanks) {
+          const currentLevel = Math.min(100, Math.max(0, Number(tank.fuelLevel || 0)))
+          totalWater += currentLevel * WATER_TANK_RATIO
+        }
+        resource.amount = totalWater
       } else if (key === 'energie') {
         // Gestion de l'énergie
         const energyNet = resource.production - resource.consumption
