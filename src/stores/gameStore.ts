@@ -166,9 +166,40 @@ export const MINERAL_DISTRIBUTION: { [key: number]: {
     'minerai-cuivre': { chance: 0.2, amount: { min: 5, max: 15 } },
     'minerai-silicium': { chance: 0.1, amount: { min: 2, max: 10 } },
     'minerai-or': { chance: 0.05, amount: { min: 1, max: 5 } }
+  },
+  1: { // Deuxième niveau
+    'minerai-fer': { chance: 0.7, amount: { min: 15, max: 35 } },
+    'minerai-charbon': { chance: 0.6, amount: { min: 12, max: 30 } },
+    'minerai-calcaire': { chance: 0.8, amount: { min: 20, max: 40 } },
+    'minerai-cuivre': { chance: 0.3, amount: { min: 8, max: 20 } },
+    'minerai-silicium': { chance: 0.15, amount: { min: 3, max: 12 } },
+    'minerai-or': { chance: 0.08, amount: { min: 2, max: 7 } }
+  },
+  2: { // Troisième niveau
+    'minerai-fer': { chance: 0.8, amount: { min: 20, max: 40 } },
+    'minerai-charbon': { chance: 0.7, amount: { min: 15, max: 35 } },
+    'minerai-calcaire': { chance: 0.9, amount: { min: 25, max: 45 } },
+    'minerai-cuivre': { chance: 0.4, amount: { min: 10, max: 25 } },
+    'minerai-silicium': { chance: 0.2, amount: { min: 5, max: 15 } },
+    'minerai-or': { chance: 0.1, amount: { min: 3, max: 10 } }
+  },
+  3: { // Quatrième niveau
+    'minerai-fer': { chance: 0.9, amount: { min: 25, max: 45 } },
+    'minerai-charbon': { chance: 0.8, amount: { min: 20, max: 40 } },
+    'minerai-calcaire': { chance: 1.0, amount: { min: 30, max: 50 } },
+    'minerai-cuivre': { chance: 0.5, amount: { min: 15, max: 30 } },
+    'minerai-silicium': { chance: 0.3, amount: { min: 8, max: 20 } },
+    'minerai-or': { chance: 0.15, amount: { min: 5, max: 15 } }
+  },
+  4: { // Cinquième niveau et plus
+    'minerai-fer': { chance: 1.0, amount: { min: 30, max: 50 } },
+    'minerai-charbon': { chance: 0.9, amount: { min: 25, max: 45 } },
+    'minerai-calcaire': { chance: 1.0, amount: { min: 35, max: 55 } },
+    'minerai-cuivre': { chance: 0.6, amount: { min: 20, max: 35 } },
+    'minerai-silicium': { chance: 0.4, amount: { min: 10, max: 25 } },
+    'minerai-or': { chance: 0.2, amount: { min: 8, max: 20 } }
   }
-  // ... existing code ...
-}
+} as const
 
 export const useGameStore = defineStore('game', () => {
   // État du jeu
@@ -1051,7 +1082,7 @@ export const useGameStore = defineStore('game', () => {
               if (Math.random() < Math.max(0.3, config.chance)) { // Minimum 30% de chance
                 const amount = Math.floor(
                   Math.max(
-                    config.amount.min,
+                    config.amount.min * 3,
                     (config.amount.min + Math.random() * (config.amount.max - config.amount.min)) * 3
                   )
                 )
@@ -1113,8 +1144,8 @@ export const useGameStore = defineStore('game', () => {
               if (Math.random() < Math.max(0.3, config.chance)) { // Minimum 30% de chance
                 const amount = Math.floor(
                   Math.max(
-                    config.amount.min,
-                    config.amount.min + Math.random() * (config.amount.max - config.amount.min)
+                    config.amount.min * 3,
+                    (config.amount.min + Math.random() * (config.amount.max - config.amount.min)) * 3
                   )
                 )
                 addItem(mineral as ItemType, amount)
@@ -1126,7 +1157,7 @@ export const useGameStore = defineStore('game', () => {
             // Si aucune ressource n'a été trouvée, en ajouter une aléatoire
             if (!hasFoundResource) {
               const randomMineral = Object.entries(mineralDistribution)[Math.floor(Math.random() * Object.entries(mineralDistribution).length)]
-              const amount = Math.floor(randomMineral[1].amount.min)
+              const amount = Math.floor(randomMineral[1].amount.min * 3)
               addItem(randomMineral[0] as ItemType, amount)
               mineralsFound.push({ type: randomMineral[0] as ItemType, amount })
             }
