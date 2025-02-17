@@ -4,7 +4,7 @@
       <div class="modal-header">
         <h2>Inventaire</h2>
         <div class="inventory-space">
-          Espace: {{ inventorySpace.used }}/{{ inventorySpace.total }}
+          Espace: {{ Math.ceil(inventorySpace.used) }}/{{ inventorySpace.total }}
         </div>
         <button class="close-button" @click="$emit('close')">×</button>
       </div>
@@ -34,7 +34,7 @@
               :style="{ borderColor: ITEM_CATEGORIES[item.category].color }"
             >
               <div class="item-header">
-                <span class="item-name">{{ ITEMS_CONFIG[item.type].name }}</span>
+                <span class="item-name">{{ ITEMS_CONFIG[item.type as ItemType].name }}</span>
                 <span class="item-quantity">{{ Math.floor(item.quantity) }}/{{ item.stackSize }}</span>
               </div>
               <div class="item-description">{{ item.description }}</div>
@@ -51,18 +51,45 @@ import { ref, computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useGameStore } from '../stores/gameStore'
 import { ITEMS_CONFIG, type ItemType, type ItemCategory } from '../config/itemsConfig'
+import type { Item } from '../stores/gameStore'
 
 const store = useGameStore()
 const { inventoryItems, inventorySpace } = storeToRefs(store)
 
 const selectedCategory = ref<ItemCategory | null>(null)
 
-const ITEM_CATEGORIES = {
-  'ressource-brute': 'Ressources brutes',
-  'ressource': 'Ressources raffinées',
-  'nourriture': 'Nourriture',
-  'biologique': 'Biologique',
-  'conteneur': 'Conteneurs'
+interface ItemCategoryConfig {
+  name: string
+  description: string
+  color: string
+}
+
+const ITEM_CATEGORIES: Record<ItemCategory, ItemCategoryConfig> = {
+  'ressource-brute': {
+    name: 'Ressources brutes',
+    description: 'Ressources extraites qui nécessitent un raffinage',
+    color: '#e74c3c'
+  },
+  'ressource': {
+    name: 'Ressources raffinées',
+    description: 'Ressources transformées prêtes à l\'utilisation',
+    color: '#3498db'
+  },
+  'nourriture': {
+    name: 'Nourriture',
+    description: 'Aliments pour nourrir les habitants',
+    color: '#2ecc71'
+  },
+  'biologique': {
+    name: 'Biologique',
+    description: 'Matériel biologique sensible',
+    color: '#9b59b6'
+  },
+  'conteneur': {
+    name: 'Conteneurs',
+    description: 'Récipients pour stocker d\'autres ressources',
+    color: '#f1c40f'
+  }
 }
 
 // Fonction pour vérifier si un item est valide

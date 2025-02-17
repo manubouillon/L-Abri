@@ -857,6 +857,22 @@ export const useGameStore = defineStore('game', () => {
             if (habitant) {
               habitant.affectation = { type: null }
             }
+
+            // Notifier les minerais trouvés
+            if (excavation.mineralsFound && excavation.mineralsFound.length > 0) {
+              const mineraisMessage = excavation.mineralsFound
+                .map(mineral => `${mineral.amount} ${ITEMS_CONFIG[mineral.type].name}`)
+                .join(', ')
+              
+              window.dispatchEvent(new CustomEvent('excavation-complete', {
+                detail: {
+                  title: 'Minerais découverts',
+                  message: `L'excavation a permis de découvrir : ${mineraisMessage}`,
+                  type: 'success'
+                }
+              }))
+            }
+
             // Notifier la fin de l'excavation
             window.dispatchEvent(new CustomEvent('excavation-complete', {
               detail: {
