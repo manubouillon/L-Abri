@@ -1,7 +1,6 @@
 import type { Room } from '../stores/gameStore'
-import type { RoomConfig } from '../config/roomsConfig'
-import type { ResourceKey } from '../config/roomsConfig'
-import type { ItemType } from '../stores/gameStore'
+import type { RoomConfig, ResourceKey } from '../config/roomsConfig'
+import type { ItemType } from '../config/itemsConfig'
 
 interface Resource {
   amount: number
@@ -41,11 +40,14 @@ export function handleRoomProduction(
     )
 
     if (canProcess) {
+      // Consommer les ressources d'entrée
       room.nextMineralsToProcess.input.forEach(({ type, amount }) => {
         removeItem(type, amount)
       })
+      // Produire la ressource de sortie
       addItem(room.nextMineralsToProcess.output.type, room.nextMineralsToProcess.output.amount)
-      room.nextMineralsToProcess = undefined
+      // Ne pas réinitialiser la recette pour qu'elle continue
+      // room.nextMineralsToProcess = undefined
     }
   }
 
