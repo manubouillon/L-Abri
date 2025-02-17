@@ -77,6 +77,43 @@ export function handleRoomProduction(
     }
   }
 
+  // Gestion du générateur
+  if (room.type === 'generateur') {
+    if (room.fuelLevel === undefined) room.fuelLevel = 0
+    
+    // Consommation de carburant
+    const consommationParSemaine = 10 // 10% de carburant par semaine
+    const consommation = consommationParSemaine * weeksElapsed
+    
+    if (room.fuelLevel > 0) {
+      room.fuelLevel = Math.max(0, room.fuelLevel - consommation)
+    }
+    
+    // Si le niveau est bas, essayer d'ajouter du carburant
+    if (room.fuelLevel < 20) { // Seuil de 20%
+      const nbBarilsPetrole = getItemQuantity('baril-petrole')
+      if (nbBarilsPetrole > 0) {
+        const nbBarilsNecessaires = Math.min(
+          Math.ceil((100 - room.fuelLevel) / 50), // Chaque baril donne 50% de carburant
+          nbBarilsPetrole
+        )
+        
+        if (nbBarilsNecessaires > 0) {
+          removeItem('baril-petrole', nbBarilsNecessaires)
+          addItem('baril-vide', nbBarilsNecessaires)
+          room.fuelLevel = Math.min(100, room.fuelLevel + (nbBarilsNecessaires * 50))
+        }
+      }
+    }
+    
+    // Si pas de carburant, désactiver la production
+    if (room.fuelLevel <= 0) {
+      room.isDisabled = true
+    } else {
+      room.isDisabled = room.isManuallyDisabled || false
+    }
+  }
+
   // Gestion des productions et consommations standards
   if ('productionPerWorker' in config) {
     Object.entries(config.productionPerWorker).forEach(([resource, amount]) => {
