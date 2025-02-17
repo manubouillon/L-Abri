@@ -43,6 +43,10 @@ const props = defineProps<{
   room: Room
 }>()
 
+const emit = defineEmits<{
+  (e: 'close'): void
+}>()
+
 const store = useGameStore()
 
 // Calcul des productions d'énergie
@@ -116,12 +120,14 @@ const population = computed(() => store.population)
 
 function calculateRoomProduction(room: Room): number {
   const config = ROOMS_CONFIG[room.type]
-  // ... rest of the function ...
+  if (!config || !('productionPerWorker' in config)) return 0
+  return 0
 }
 
 function calculateRoomConsumption(room: Room): number {
   const config = ROOMS_CONFIG[room.type]
-  // ... rest of the function ...
+  if (!config) return 0
+  return 0
 }
 </script>
 

@@ -517,7 +517,7 @@ function getRoomProductionSimple(room: Room): string {
 
     // Production de base (laitue)
     const laitueProduction = 2 * nbWorkers * gridSize * mergeMultiplier
-    productions.push(`��${laitueProduction.toFixed(0)}/s`)
+    productions.push(`🥬${laitueProduction.toFixed(0)}/s`)
 
     // Vérifier les équipements
     const hasTomates = room.equipments?.some(e => e.type === 'culture-tomates' && !e.isUnderConstruction)
@@ -623,7 +623,8 @@ function isLogementRoom(room: Room): boolean {
 }
 
 function getRoomCapacity(room: Room): number {
-  const config = ROOMS_CONFIG[room.type] as DortoryRoomConfig
+  const config = ROOMS_CONFIG[room.type]
+  if (!config || !('capacityPerResident' in config)) return 0
   return config.capacityPerResident * (room.gridSize || 1)
 }
 

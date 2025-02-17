@@ -102,6 +102,10 @@ const props = defineProps<{
   room: Room
 }>()
 
+const emit = defineEmits<{
+  (e: 'close'): void
+}>()
+
 const store = useGameStore()
 const { resources, levels, population, inventory, gameSpeed } = storeToRefs(store)
 
