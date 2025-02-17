@@ -117,6 +117,22 @@ export function handleRoomProduction(
     }
   }
 
+  // Gestion de la production de vêtements dans les ateliers
+  if (room.type === 'atelier') {
+    const hasAtelierCouture = room.equipments?.some(e => e.type === 'atelier-couture' && !e.isUnderConstruction)
+    if (hasAtelierCouture) {
+      const productionBase = 2 * nbWorkers * gridSize * mergeMultiplier * productionBonus * weeksElapsed
+      const soieNecessaire = productionBase * 2 // 2 unités de soie par vêtement
+      const soieDisponible = getItemQuantity('soie')
+
+      if (soieDisponible >= soieNecessaire) {
+        removeItem('soie', Math.floor(soieNecessaire))
+        addItem('vetements', Math.floor(productionBase))
+        resources.vetements.production += productionBase
+      }
+    }
+  }
+
   // Gestion des productions et consommations standards
   if ('productionPerWorker' in config) {
     Object.entries(config.productionPerWorker).forEach(([resource, amount]) => {
