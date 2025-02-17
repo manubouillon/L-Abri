@@ -123,7 +123,7 @@
                   Habitants ({{ room.occupants.length }}/{{ getTotalCapacity }})
                 </template>
                 <template v-else>
-                  Travailleurs ({{ room.occupants.length }}/{{ roomConfig.maxWorkers }})
+                  Travailleurs ({{ room.occupants.length }}/{{ roomConfig?.maxWorkers ?? 0 }})
                 </template>
               </h3>
               <div class="workers-list">
@@ -263,12 +263,14 @@ const store = useGameStore()
 const { habitants } = storeToRefs(store)
 const selectedHabitant = ref('')
 
-const roomConfig = computed(() => 
-  ROOMS_CONFIG[props.room.type as keyof typeof ROOMS_CONFIG]
-)
+const roomConfig = computed(() => {
+  const config = ROOMS_CONFIG[props.room.type]
+  if (!config) return null
+  return config
+})
 
 const isProductionRoom = computed(() => {
-  const config = ROOMS_CONFIG[props.room.type]
+  const config = roomConfig.value
   return config && 'productionPerWorker' in config
 })
 
@@ -423,7 +425,8 @@ const isLogementRoom = computed(() => {
 
 const getTotalCapacity = computed(() => {
   if (!isLogementRoom.value) return 0
-  const config = roomConfig.value as DortoryRoomConfig
+  const config = roomConfig.value
+  if (!config || !('capacityPerResident' in config)) return 0
   return config.capacityPerResident * (props.room.gridSize || 1)
 })
 

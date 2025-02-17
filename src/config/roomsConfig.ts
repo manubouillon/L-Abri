@@ -82,6 +82,42 @@ export const ROOMS_CONFIG: { [key: string]: RoomConfig } = {
       'medicaments': 20
     }
   },
+  'raffinerie': {
+    type: 'production',
+    maxWorkers: 4,
+    energyConsumption: 5,
+    mineralsProcessingPerWorker: 2,
+    productionPerWorker: {},
+    conversionRules: {
+      'minerai-fer': {
+        output: 'lingot-fer',
+        ratio: 0.8,
+        requires: {
+          'minerai-charbon': 0.2
+        }
+      },
+      'minerai-cuivre': {
+        output: 'lingot-cuivre',
+        ratio: 0.7
+      },
+      'minerai-silicium': {
+        output: 'lingot-silicium',
+        ratio: 0.6
+      },
+      'minerai-or': {
+        output: 'lingot-or',
+        ratio: 0.3
+      },
+      'minerai-fer-acier': {
+        output: 'lingot-acier',
+        ratio: 0.5,
+        requires: {
+          'minerai-charbon': 0.5,
+          'minerai-calcaire': 0.2
+        }
+      }
+    }
+  },
   // ... autres configurations de salles ...
 }
 
