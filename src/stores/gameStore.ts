@@ -265,7 +265,7 @@ export interface ProductionRoomConfig extends RoomConfigBase {
     [key in ResourceKey]?: number
   }
   resourceProduction?: {
-    [key in ResourceKey]?: number
+    [key: string]: number
   }
   mineralsProcessingPerWorker?: number // Nombre de minerais traités par travailleur par semaine
   conversionRules?: {
@@ -507,6 +507,7 @@ export interface FoodItemConfig extends BaseItemConfig {
   category: 'nourriture'
   ratio: number
   qualite: number
+  conservation: number // Taux de conservation hebdomadaire (1 = pas de perte, 0.5 = perte de moitié)
 }
 
 export interface ResourceItemConfig extends BaseItemConfig {
@@ -536,7 +537,8 @@ export const ITEMS_CONFIG: { [key in ItemType]: ItemConfig } = {
     description: 'Des grains d\'avoine cultivés dans les serres.',
     category: 'nourriture',
     ratio: 5,
-    qualite: 1
+    qualite: 1,
+    conservation: 0.9 // Perte de 10% par semaine
   } as FoodItemConfig,
   'tomates': {
     name: 'Tomates',
@@ -544,7 +546,8 @@ export const ITEMS_CONFIG: { [key in ItemType]: ItemConfig } = {
     description: 'Des tomates fraîches cultivées dans les serres.',
     category: 'nourriture',
     ratio: 3,
-    qualite: 2
+    qualite: 2,
+    conservation: 0.7 // Perte de 30% par semaine
   } as FoodItemConfig,
   'laitue': {
     name: 'Laitue',
@@ -552,7 +555,8 @@ export const ITEMS_CONFIG: { [key in ItemType]: ItemConfig } = {
     description: 'De la laitue fraîche cultivée dans les serres.',
     category: 'nourriture',
     ratio: 10,
-    qualite: 1
+    qualite: 1,
+    conservation: 0.6 // Perte de 40% par semaine
   } as FoodItemConfig,
   'nourriture-conserve': {
     name: 'Conserves',
@@ -560,7 +564,8 @@ export const ITEMS_CONFIG: { [key in ItemType]: ItemConfig } = {
     description: 'De la nourriture en conserve.',
     category: 'nourriture',
     ratio: 1,
-    qualite: 1
+    qualite: 1,
+    conservation: 1.0 // Pas de perte
   } as FoodItemConfig,
   'soie': {
     name: 'Soie',
@@ -1023,11 +1028,13 @@ export const useGameStore = defineStore('game', () => {
     const remainingWeeks = weeks % 52
     const months = Math.floor(remainingWeeks / 4)
     const lastWeeks = remainingWeeks % 4
+    const days = Math.floor((weeks % 1) * 7)
     
     return {
       years,
       months,
-      weeks: lastWeeks
+      weeks: lastWeeks,
+      days
     }
   })
 
@@ -1140,8 +1147,8 @@ export const useGameStore = defineStore('game', () => {
   }
 
   function getRemainingExcavationTime(excavation: ExcavationProgress): number {
-    const elapsed = gameTime.value - excavation.startTime
-    return Math.max(0, excavation.duration - elapsed)
+    const elapsedTime = gameTime.value - excavation.startTime
+    return Math.round(Math.max(0, excavation.duration - elapsedTime))
   }
 
   function getExcavationInfo(levelId: number, position: 'left' | 'right' | 'stairs', roomIndex?: number): { 
@@ -1421,7 +1428,14 @@ export const useGameStore = defineStore('game', () => {
       resource.consumption = 0
     })
 
-    // 2. Calculer les productions et consommations des salles
+    // Calculer la consommation de base par habitant
+    const nbHabitants = habitants.value.length
+    resources.value.eau.consumption += nbHabitants * 1 // 1 unité d'eau par habitant par semaine
+    resources.value.nourriture.consumption += nbHabitants * 1 // 1 unité de nourriture par habitant par semaine
+    resources.value.vetements.consumption += nbHabitants * 0.1 // 0.1 unité de vêtements par habitant par semaine
+    resources.value.medicaments.consumption += nbHabitants * 0.05 // 0.05 unité de médicaments par habitant par semaine
+
+    // Calculer les productions et consommations des salles
     levels.value?.forEach(level => {
       const allRooms = [...level.leftRooms, ...level.rightRooms]
       allRooms.forEach(room => {
@@ -1436,20 +1450,17 @@ export const useGameStore = defineStore('game', () => {
           ? GAME_CONFIG.MERGE_MULTIPLIERS[Math.min(gridSize, 6) as keyof typeof GAME_CONFIG.MERGE_MULTIPLIERS] || 1
           : 1
 
-        // 2.1 Ajouter la consommation d'énergie de la salle
+        // Ajouter la consommation d'énergie de la salle
         if (config.energyConsumption > 0) {
-          resources.value.energie.consumption += config.energyConsumption * gridSize
+          resources.value.energie.consumption += config.energyConsumption * gridSize * mergeMultiplier
         }
 
-        // 2.2 Ajouter la consommation d'eau si applicable
-        if ('waterConsumption' in config) {
-          const waterConsumption = (config as ProductionRoomConfig).waterConsumption || 0
-          if (waterConsumption > 0) {
-            resources.value.eau.consumption += waterConsumption * gridSize
-          }
+        // Ajouter la consommation d'eau si applicable
+        if ('waterConsumption' in config && config.waterConsumption) {
+          resources.value.eau.consumption += config.waterConsumption * gridSize * mergeMultiplier
         }
 
-        // 2.3 Gérer la production des salles
+        // Gérer la production et consommation des salles
         if ('productionPerWorker' in config) {
           const nbWorkers = room.occupants.length
           if (nbWorkers === 0) return
@@ -1509,29 +1520,6 @@ export const useGameStore = defineStore('game', () => {
             }
           }
 
-          // Gérer la production de vêtements dans l'atelier
-          if (room.type === 'atelier') {
-            const hasAtelierCouture = room.equipments?.some(e => e.type === 'atelier-couture' && !e.isUnderConstruction)
-            if (hasAtelierCouture) {
-              // Vérifier s'il y a de la soie disponible
-              const soieDisponible = inventory.value.find(item => item.type === 'soie' && item.quantity > 0)
-              if (soieDisponible) {
-                const clothesProduction = 2 * nbWorkers * gridSize * mergeMultiplier
-                if (clothesProduction > 0) {
-                  // Consommer de la soie (1 soie = 2 vêtements)
-                  const soieNecessaire = Math.ceil(clothesProduction / 2)
-                  const soieUtilisee = Math.min(soieNecessaire, soieDisponible.quantity)
-                  if (soieUtilisee > 0) {
-                    removeItem(soieDisponible.id, soieUtilisee)
-                    const clothesProduits = soieUtilisee * 2
-                    addItem('vetements', clothesProduits)
-                    resources.value.vetements.production += clothesProduits
-                  }
-                }
-              }
-            }
-          }
-
           // Gérer la production avec carburant (générateur)
           if (room.type === 'generateur' && room.fuelLevel !== undefined) {
             // Vérifier s'il y a du carburant disponible
@@ -1542,7 +1530,7 @@ export const useGameStore = defineStore('game', () => {
                 const success = removeItem(barilPetrole.id, 1)
                 if (success) {
                   // Ajouter un baril vide
-                  const addSuccess = addItem('baril-vide', 1)
+                  addItem('baril-vide', 1)
                   room.fuelLevel = 100 // Remplir le réservoir
                 }
               }
@@ -1572,38 +1560,51 @@ export const useGameStore = defineStore('game', () => {
             }
           }
 
-          // Gérer la production de pétrole pour le derrick
+          // Gérer la production de pétrole (derrick)
           if (room.type === 'derrick') {
-            const nbWorkers = room.occupants.length
-            if (nbWorkers > 0) {
-              const gridSize = room.gridSize || 1
-              const mergeConfig = ROOM_MERGE_CONFIG[room.type]
-              const mergeMultiplier = mergeConfig?.useMultiplier 
-                ? GAME_CONFIG.MERGE_MULTIPLIERS[Math.min(gridSize, 6) as keyof typeof GAME_CONFIG.MERGE_MULTIPLIERS] || 1
-                : 1
+            // Incrémenter le niveau de carburant
+            if (room.fuelLevel === undefined) room.fuelLevel = 0
+            room.fuelLevel += (100 / 7) * weeksElapsed // Remplissage en une semaine
 
-              // Calculer la production potentielle de pétrole
-              const petroleProduction = 2 * nbWorkers * gridSize * mergeMultiplier
-
-              // Vérifier s'il y a des barils vides disponibles
-              const barilsVides = inventory.value.find(item => item.type === 'baril-vide' && item.quantity > 0)
-              if (barilsVides) {
-                // Limiter la production au nombre de barils vides disponibles
-                const productionPossible = Math.min(petroleProduction, barilsVides.quantity)
-                if (productionPossible > 0) {
-                  // Consommer les barils vides
-                  removeItem(barilsVides.id, productionPossible)
-                  // Produire les barils de pétrole
-                  addItem('baril-petrole', productionPossible)
+            // Si le réservoir est plein et qu'il y a des barils vides
+            if (room.fuelLevel >= 100) {
+              const nbBarilsVides = getItemQuantity('baril-vide')
+              if (nbBarilsVides > 0 && config.resourceProduction && typeof config.resourceProduction['baril-petrole'] === 'number') {
+                const productionPetrole = config.resourceProduction['baril-petrole'] * nbWorkers * gridSize * mergeMultiplier
+                const nbBarilsAProduire = Math.min(nbBarilsVides, Math.floor(productionPetrole))
+                if (nbBarilsAProduire > 0) {
+                  removeItem('baril-vide', nbBarilsAProduire)
+                  addItem('baril-petrole', nbBarilsAProduire)
+                  room.fuelLevel = 0 // Réinitialiser le niveau après la production
                 }
               }
             }
+          }
+
+          // Appliquer les productions et consommations par travailleur
+          Object.entries(config.productionPerWorker).forEach(([resource, amount]) => {
+            if (amount && resource in resources.value) {
+              if (amount > 0) {
+                resources.value[resource as ResourceKey].production += amount * nbWorkers * gridSize * mergeMultiplier * productionBonus
+              } else {
+                resources.value[resource as ResourceKey].consumption += Math.abs(amount) * nbWorkers * gridSize * mergeMultiplier
+              }
+            }
+          })
+
+          // Gérer les consommations spécifiques de ressources
+          if ('resourceConsumption' in config && config.resourceConsumption) {
+            Object.entries(config.resourceConsumption).forEach(([resource, amount]) => {
+              if (amount && resource in resources.value) {
+                resources.value[resource as ResourceKey].consumption += amount * nbWorkers * gridSize * mergeMultiplier
+              }
+            })
           }
         }
       })
     })
 
-    // Mettre à jour la quantité totale de nourriture
+    // Mettre à jour la quantité totale de nourriture et vêtements
     resources.value.nourriture.amount = calculateTotalFood()
     resources.value.vetements.amount = calculateTotalClothes()
   }
@@ -1626,35 +1627,53 @@ export const useGameStore = defineStore('game', () => {
     // Mettre à jour les productions et consommations
     updateRoomProduction(weeksElapsed)
 
-    // Appliquer les changements une seule fois car ils sont déjà multipliés par weeksElapsed
+    // Calculer la consommation de base par habitant
+    const nbHabitants = habitants.value.length
+    resources.value.eau.consumption += nbHabitants * 1 // 1 unité d'eau par habitant par semaine
+    resources.value.nourriture.consumption += nbHabitants * 1 // 1 unité de nourriture par habitant par semaine
+    resources.value.vetements.consumption += nbHabitants * 0.1 // 0.1 unité de vêtements par habitant par semaine
+    resources.value.medicaments.consumption += nbHabitants * 0.05 // 0.05 unité de médicaments par habitant par semaine
+
+    // Appliquer les changements pour chaque ressource
     Object.entries(resources.value).forEach(([key, resource]) => {
-      const net = resource.production - resource.consumption
+      const net = (resource.production - resource.consumption) * weeksElapsed
       
       if (key === 'eau') {
-        console.log(`Eau - Production: ${resource.production}, Consommation: ${resource.consumption}, Net: ${net}`)
         // Gestion spéciale pour l'eau
         if (net > 0) {
-          // Production d'eau : ajouter aux cuves
           const added = addWater(net)
-          console.log(`Eau ajoutée aux cuves: ${added}`)
           resources.value.eau.amount = Math.min(resources.value.eau.capacity, resources.value.eau.amount + added)
         } else if (net < 0) {
-          // Consommation d'eau : retirer des cuves
           const removed = removeWater(-net)
-          console.log(`Eau retirée des cuves: ${removed}`)
           resources.value.eau.amount = Math.max(0, resources.value.eau.amount - removed)
         }
-        console.log(`Nouveau montant d'eau: ${resources.value.eau.amount}`)
       } else if (key === 'nourriture') {
         // Gestion spéciale pour la nourriture
         resources.value.nourriture.amount = calculateTotalFood()
         
+        // Appliquer la perte de nourriture due à la conservation
+        const foodItems = inventory.value
+          .filter(item => item.category === 'nourriture' && item.quantity > 0)
+          .map(item => ({
+            item,
+            config: ITEMS_CONFIG[item.type as keyof typeof ITEMS_CONFIG]
+          }))
+          .filter(({ config }) => config && isFoodItem(config))
+        
+        foodItems.forEach(({ item, config }) => {
+          if (isFoodItem(config)) {
+            const conservation = config.conservation
+            const loss = Math.floor(item.quantity * (1 - conservation) * weeksElapsed)
+            if (loss > 0) {
+              removeItem(item.id, loss)
+            }
+          }
+        })
+        
         // Si consommation de nourriture
         if (net < 0) {
           const foodNeeded = -net
-          
-          // Récupérer tous les types de nourriture disponibles avec leurs configurations
-          const foodItems = inventory.value
+          const availableFoodItems = inventory.value
             .filter(item => item.category === 'nourriture' && item.quantity > 0)
             .map(item => ({
               item,
@@ -1662,20 +1681,26 @@ export const useGameStore = defineStore('game', () => {
             }))
             .filter(({ config }) => config && isFoodItem(config))
           
-          if (foodItems.length > 0) {
-            // Calculer la nourriture nécessaire par type
-            const foodPerType = foodNeeded / foodItems.length
+          if (availableFoodItems.length > 0) {
+            // Trier par qualité décroissante
+            availableFoodItems.sort((a, b) => {
+              if (isFoodItem(a.config) && isFoodItem(b.config)) {
+                return b.config.qualite - a.config.qualite
+              }
+              return 0
+            })
             
-            // Consommer chaque type de nourriture
-            foodItems.forEach(({ item, config }) => {
-              if (isFoodItem(config)) {
-                const itemsToConsume = Math.ceil(foodPerType * config.ratio)
-                if (itemsToConsume > 0) {
-                  const actualConsumption = Math.min(itemsToConsume, item.quantity)
+            let remainingFoodNeeded = foodNeeded
+            for (const { item, config } of availableFoodItems) {
+              if (isFoodItem(config) && remainingFoodNeeded > 0) {
+                const itemsToConsume = Math.ceil(remainingFoodNeeded * config.ratio)
+                const actualConsumption = Math.min(itemsToConsume, item.quantity)
+                if (actualConsumption > 0) {
                   removeItem(item.id, actualConsumption)
+                  remainingFoodNeeded -= actualConsumption / config.ratio
                 }
               }
-            })
+            }
           }
         }
       } else if (key === 'vetements') {
@@ -1688,7 +1713,6 @@ export const useGameStore = defineStore('game', () => {
           const clothesItems = inventory.value.filter(item => item.type === 'vetements' && item.quantity > 0)
           
           if (clothesItems.length > 0) {
-            // Prendre le premier stack de vêtements disponible
             const item = clothesItems[0]
             const itemsToConsume = Math.ceil(clothesNeeded)
             if (itemsToConsume > 0) {
@@ -1708,277 +1732,103 @@ export const useGameStore = defineStore('game', () => {
   function update(speed: number) {
     const currentTime = Date.now()
     const deltaTime = currentTime - lastUpdateTime.value
+    lastUpdateTime.value = currentTime
     
-    if (deltaTime >= 2000) { // Mise à jour toutes les 2 secondes
-      const previousGameTime = Math.floor(gameTime.value)
-      gameTime.value += speed
-      const currentGameTime = Math.floor(gameTime.value)
-      lastUpdateTime.value = currentTime
-
-      // Calculer combien de semaines se sont écoulées depuis la dernière mise à jour
-      const previousWeek = Math.floor(previousGameTime)
-      const currentWeek = Math.floor(currentGameTime)
-      const weeksElapsed = currentWeek - previousWeek
-
-      // Mettre à jour le bonheur à chaque cycle
-      updateHappiness()
-
-      if (weeksElapsed > 0) {
-        // Faire vieillir les habitants
-        habitants.value?.forEach(habitant => {
-          habitant.age += weeksElapsed
-        })
-
-        // Vérifier la mortalité
-        checkMortality()
-
-        // Mettre à jour les ressources
-        updateResources(weeksElapsed)
-
-        // Vérifier les constructions terminées
-        levels.value.forEach(level => {
-          [...level.leftRooms, ...level.rightRooms].forEach(room => {
-            if (room.isUnderConstruction && room.constructionStartTime !== undefined && room.constructionDuration !== undefined) {
-              const elapsedTime = Math.floor(gameTime.value) - room.constructionStartTime
-              if (elapsedTime >= room.constructionDuration) {
-                room.isUnderConstruction = false
-                room.isBuilt = true
-                
-                // Libérer l'habitant affecté à la construction
-                const habitantAffecte = habitants.value.find(h => 
-                  h.affectation.type === 'construction' &&
-                  h.affectation.levelId === level.id &&
-                  h.affectation.position === room.position &&
-                  h.affectation.roomIndex === room.index
-                )
-                if (habitantAffecte) {
-                  libererHabitant(habitantAffecte.id)
-                }
-
-                // Initialiser la taille de la salle si ce n'est pas déjà fait
-                if (!room.gridSize) {
-                  room.gridSize = 1
-                }
-
-                // Vérifier et fusionner les salles adjacentes
-                checkAndMergeRooms(level, room)
-              }
-            }
-          })
-        })
-
-        // Vérifier les excavations terminées
-        excavations.value = excavations.value.filter(excavation => {
-          const elapsedTime = Math.floor(gameTime.value) - excavation.startTime
-          const isComplete = elapsedTime >= excavation.duration
-          
-          if (isComplete) {
+    // Mettre à jour le temps de jeu
+    const weekIncrease = (deltaTime / 1000) * speed
+    gameTime.value += weekIncrease
+    
+    // Calculer le nombre de semaines écoulées
+    const previousWeek = Math.floor(gameTime.value - weekIncrease)
+    const currentWeek = Math.floor(gameTime.value)
+    const elapsedWeeks = currentWeek - previousWeek
+    
+    // Si une semaine s'est écoulée
+    if (elapsedWeeks > 0) {
+      // Mettre à jour les excavations
+      excavations.value = excavations.value.filter(excavation => {
+        const elapsed = Math.floor(gameTime.value) - excavation.startTime
+        if (elapsed >= excavation.duration) {
+          // L'excavation est terminée
+          const level = levels.value.find(l => l.id === excavation.levelId)
+          if (level) {
             if (excavation.position === 'stairs') {
-              const level = levels.value.find(l => l.id === excavation.levelId)
-              if (level) level.isStairsExcavated = true
-
-              // Notifier des minerais trouvés lors de l'excavation verticale
-              if (excavation.mineralsFound && excavation.mineralsFound.length > 0) {
-                const message = excavation.mineralsFound
-                  .map(m => `${ITEMS_CONFIG[m.type].name}: ${m.amount}`)
-                  .join('\n')
-                
-                window.dispatchEvent(new CustomEvent('excavation-complete', {
-                  detail: {
-                    title: 'Minerais découverts lors de l\'excavation verticale !',
-                    message,
-                    type: 'success'
-                  }
-                }))
-              }
-
-              // Libérer l'habitant affecté à l'excavation
-              const habitantAffecte = habitants.value.find(h => 
-                h.affectation.type === 'excavation' &&
-                h.affectation.levelId === excavation.levelId &&
-                h.affectation.position === excavation.position
-              )
-              if (habitantAffecte) {
-                libererHabitant(habitantAffecte.id)
-              }
+              level.isStairsExcavated = true
             } else {
-              const level = levels.value.find(l => l.id === excavation.levelId)
-              if (level) {
-                const rooms = excavation.position === 'left' ? level.leftRooms : level.rightRooms
-                const room = rooms[excavation.roomIndex!]
-                if (room) {
-                  room.isExcavated = true
-
-                  // Notifier des minerais trouvés lors de l'excavation horizontale
-                  if (excavation.mineralsFound && excavation.mineralsFound.length > 0) {
-                    const message = excavation.mineralsFound
-                      .map(m => `${ITEMS_CONFIG[m.type].name}: ${m.amount}`)
-                      .join('\n')
-                    
-                    window.dispatchEvent(new CustomEvent('excavation-complete', {
-                      detail: {
-                        title: 'Minerais découverts !',
-                        message,
-                        type: 'success'
-                      }
-                    }))
-                  }
-                }
-
-                // Libérer l'habitant affecté à l'excavation
-                const habitantAffecte = habitants.value.find(h => 
-                  h.affectation.type === 'excavation' &&
-                  h.affectation.levelId === excavation.levelId &&
-                  h.affectation.position === excavation.position &&
-                  h.affectation.roomIndex === excavation.roomIndex
-                )
-                if (habitantAffecte) {
-                  libererHabitant(habitantAffecte.id)
-                }
+              const rooms = excavation.position === 'left' ? level.leftRooms : level.rightRooms
+              const room = rooms[excavation.roomIndex!]
+              if (room) {
+                room.isExcavated = true
               }
             }
-            return false
+            // Libérer l'habitant
+            const habitant = habitants.value.find(h => h.id === excavation.habitantId)
+            if (habitant) {
+              habitant.affectation = { type: null }
+            }
+            // Notifier la fin de l'excavation
+            window.dispatchEvent(new CustomEvent('excavation-complete', {
+              detail: {
+                title: 'Excavation terminée',
+                message: excavation.position === 'stairs' 
+                  ? `Les escaliers du niveau ${excavation.levelId + 1} sont excavés.`
+                  : `Une nouvelle salle est excavée au niveau ${excavation.levelId + 1}.`,
+                type: 'success'
+              }
+            }))
+            return false // Retirer l'excavation de la liste
           }
-          return true
-        })
-
-        // Vérifier les incubations
-        checkAndFinalizeIncubation()
-
-        if (gameTime.value % 10 === 0) {
-          saveGame()
         }
-      }
+        return true // Garder l'excavation dans la liste
+      })
 
-      // Vérifier si une semaine s'est écoulée
-      if (Math.floor(gameTime.value) > Math.floor(previousGameTime)) {
-        // Traiter les minerais dans les raffineries
-        levels.value.forEach(level => {
-          const allRooms = [...level.leftRooms, ...level.rightRooms]
-          allRooms.forEach(room => {
-            if (room.isBuilt && room.type === 'raffinerie' && room.occupants.length > 0) {
-              const nbWorkers = room.occupants.length
-              const gridSize = room.gridSize || 1
-              const mergeConfig = ROOM_MERGE_CONFIG[room.type]
-              const mergeMultiplier = mergeConfig?.useMultiplier 
-                ? GAME_CONFIG.MERGE_MULTIPLIERS[Math.min(gridSize, 6) as keyof typeof GAME_CONFIG.MERGE_MULTIPLIERS] || 1
-                : 1
-
-              // Effectuer autant de conversions que la vitesse actuelle
-              const batchesToProcess = speed
-
-              // Vérifier si la conversion actuelle est possible
-              let canProcess = false
-              if (room.nextMineralsToProcess) {
-                canProcess = room.nextMineralsToProcess.input.every(({ type, amount }) => {
-                  const needed = amount * batchesToProcess
-                  const available = getItemQuantity(type)
-                  return available >= needed
-                })
+      // Mettre à jour les constructions
+      levels.value.forEach(level => {
+        const allRooms = [...level.leftRooms, ...level.rightRooms]
+        allRooms.forEach(room => {
+          if (room.isUnderConstruction && room.constructionStartTime !== undefined && room.constructionDuration !== undefined) {
+            const elapsed = Math.floor(gameTime.value) - room.constructionStartTime
+            if (elapsed >= room.constructionDuration) {
+              room.isUnderConstruction = false
+              room.isBuilt = true
+              // Libérer l'habitant
+              const habitant = habitants.value.find(h => 
+                h.affectation.type === 'construction' && 
+                h.affectation.levelId === level.id &&
+                h.affectation.position === room.position &&
+                h.affectation.roomIndex === room.index
+              )
+              if (habitant) {
+                habitant.affectation = { type: null }
               }
-
-              // Ne chercher une nouvelle recette que si aucune n'est sélectionnée
-              if (!room.nextMineralsToProcess) {
-                const config = ROOM_CONFIGS.raffinerie
-                const conversionRules = (config as any).conversionRules
-
-                // Parcourir toutes les règles de conversion pour en trouver une faisable
-                for (const [inputType, rule] of Object.entries(conversionRules)) {
-                  const inputItem = inventory.value.find(item => item.type === inputType && item.quantity > 0)
-                  if (!inputItem) continue
-
-                  if (rule.requires) {
-                    // Vérifier si tous les composants requis sont disponibles
-                    const hasAllComponents = Object.entries(rule.requires).every(([reqType, reqAmount]) => {
-                      const reqItem = inventory.value.find(item => item.type === reqType)
-                      return reqItem && reqItem.quantity >= (reqAmount as number) * batchesToProcess
-                    })
-
-                    if (hasAllComponents) {
-                      room.nextMineralsToProcess = {
-                        input: [
-                          { type: inputType as ItemType, amount: 1 },
-                          ...Object.entries(rule.requires).map(([reqType, reqAmount]) => ({
-                            type: reqType as ItemType,
-                            amount: reqAmount as number
-                          }))
-                        ],
-                        output: {
-                          type: rule.output as ItemType,
-                          amount: rule.ratio as number
-                        }
-                      }
-                      canProcess = true
-                      break
-                    }
-                  } else {
-                    // Conversion simple
-                    if (inputItem.quantity >= batchesToProcess) {
-                      room.nextMineralsToProcess = {
-                        input: [{ type: inputType as ItemType, amount: 1 }],
-                        output: {
-                          type: rule.output as ItemType,
-                          amount: rule.ratio as number
-                        }
-                      }
-                      canProcess = true
-                      break
-                    }
-                  }
+              // Notifier la fin de la construction
+              window.dispatchEvent(new CustomEvent('excavation-complete', {
+                detail: {
+                  title: 'Construction terminée',
+                  message: `Une nouvelle salle de type ${room.type} est construite au niveau ${level.id + 1}.`,
+                  type: 'success'
                 }
-              }
-
-              // Si une conversion est possible, l'effectuer
-              if (canProcess && room.nextMineralsToProcess) {
-                const { input, output } = room.nextMineralsToProcess
-                
-                // Retirer les ressources d'entrée
-                input.forEach(({ type, amount }) => {
-                  const toRemove = amount * batchesToProcess
-                  const items = inventory.value.filter(item => item.type === type)
-                  let remaining = toRemove
-
-                  for (const item of items) {
-                    if (remaining <= 0) break
-                    const remove = Math.min(remaining, item.quantity)
-                    removeItem(item.id, remove)
-                    remaining -= remove
-                  }
-                })
-
-                // Ajouter les ressources de sortie
-                const outputAmount = output.amount * batchesToProcess
-                addItem(output.type, outputAmount)
-
-                // Émettre un événement pour mettre à jour l'interface
-                window.dispatchEvent(new CustomEvent('conversion-update', {
-                  detail: {
-                    type: 'success',
-                    input: input,
-                    output: output,
-                    amount: batchesToProcess
-                  }
-                }))
-              }
+              }))
             }
-          })
+          }
         })
+      })
 
-        // Mise à jour des équipements en construction
-        levels.value?.forEach(level => {
-          const allRooms = [...(level.leftRooms || []), ...(level.rightRooms || [])]
-          allRooms.forEach(room => {
-            room.equipments?.forEach(equipment => {
-              if (equipment.isUnderConstruction && equipment.constructionStartTime !== undefined && equipment.constructionDuration !== undefined) {
-                const elapsedTime = gameTime.value - equipment.constructionStartTime
-                if (elapsedTime >= equipment.constructionDuration) {
-                  equipment.isUnderConstruction = false
-                }
-              }
-            })
-          })
-        })
-      }
+      // Mettre à jour les ressources
+      updateRoomProduction(elapsedWeeks)
+      updateResources(elapsedWeeks)
+      
+      // Vérifier les incubations
+      checkAndFinalizeIncubation()
+      
+      // Vérifier la mortalité
+      checkMortality()
+      
+      // Optimiser les stacks à la fin de chaque semaine
+      optimizeStacks()
+      
+      // Sauvegarder l'état du jeu
+      saveGame()
     }
   }
 
@@ -3176,6 +3026,86 @@ export const useGameStore = defineStore('game', () => {
         }
       }
     })
+  }
+
+  function isItemType(type: string): type is ItemType {
+    return Object.prototype.hasOwnProperty.call(ITEMS_CONFIG, type)
+  }
+
+  function optimizeStacks() {
+    // Créer un Map pour regrouper les items par type
+    const itemsByType = new Map<ItemType, Item[]>()
+    
+    // Regrouper tous les items par type
+    const currentItems = [...inventory.value]
+    currentItems.forEach(item => {
+      if (isItemType(item.type) && !itemsByType.has(item.type)) {
+        itemsByType.set(item.type, [])
+      }
+      if (isItemType(item.type)) {
+        itemsByType.get(item.type)?.push(item)
+      }
+    })
+    
+    // Pour chaque type d'item
+    let newInventory: Item[] = []
+    
+    itemsByType.forEach((items, type) => {
+      // Trier les items par quantité décroissante
+      items.sort((a, b) => b.quantity - a.quantity)
+      
+      // Calculer la quantité totale
+      const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0)
+      
+      // Si on n'a qu'un seul stack ou pas d'items, pas besoin d'optimiser
+      if (items.length <= 1 || totalQuantity === 0) {
+        newInventory = [...newInventory, ...items]
+        return
+      }
+      
+      // Récupérer la taille maximale d'un stack pour ce type d'item
+      const stackSize = ITEMS_CONFIG[type].stackSize
+      
+      // Calculer le nombre de stacks complets et le reste
+      const fullStacks = Math.floor(totalQuantity / stackSize)
+      const remainder = totalQuantity % stackSize
+      
+      // Créer les nouveaux stacks optimisés
+      const optimizedStacks: Item[] = []
+      
+      // Créer les stacks complets
+      for (let i = 0; i < fullStacks; i++) {
+        optimizedStacks.push({
+          id: items[i]?.id || crypto.randomUUID(),
+          type,
+          quantity: stackSize,
+          stackSize,
+          description: ITEMS_CONFIG[type].description,
+          category: ITEMS_CONFIG[type].category
+        })
+      }
+      
+      // Ajouter le stack partiel s'il y a un reste
+      if (remainder > 0) {
+        optimizedStacks.push({
+          id: items[fullStacks]?.id || crypto.randomUUID(),
+          type,
+          quantity: remainder,
+          stackSize,
+          description: ITEMS_CONFIG[type].description,
+          category: ITEMS_CONFIG[type].category
+        })
+      }
+      
+      newInventory = [...newInventory, ...optimizedStacks]
+    })
+    
+    // Ajouter les items qui ne sont pas des ItemType
+    const otherItems = currentItems.filter(item => !isItemType(item.type))
+    newInventory = [...newInventory, ...otherItems]
+    
+    // Mettre à jour l'inventaire
+    inventory.value = newInventory
   }
 
   return {

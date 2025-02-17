@@ -88,8 +88,8 @@
         <span class="stat-value">
           <template v-if="formattedTime.years > 0">{{ formattedTime.years }}A </template>
           <template v-if="formattedTime.months > 0">{{ formattedTime.months }}M </template>
-          <template v-if="formattedTime.weeks > 0">{{ formattedTime.weeks }}S</template>
-          <template v-if="formattedTime.years === 0 && formattedTime.months === 0 && formattedTime.weeks === 0">0S</template>
+          <template v-if="formattedTime.weeks > 0">{{ Math.floor(formattedTime.weeks) }}S </template>
+          <template>{{ formattedTime.days }}J </template>
         </span>
       </div>
     </div>

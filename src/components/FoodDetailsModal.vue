@@ -40,6 +40,9 @@
               <span class="quality-stars">{{ '★'.repeat(getFoodQuality(item.type)) }}</span>
               <span class="quality-empty">{{ '☆'.repeat(10 - getFoodQuality(item.type)) }}</span>
             </div>
+            <div class="food-conservation">
+              Conservation: {{ Math.round(getFoodConservation(item.type) * 100) }}% par semaine
+            </div>
             <div class="stock-quantity">{{ item.quantity }} unités</div>
           </div>
         </div>
@@ -68,7 +71,7 @@
           <div class="production-details">
             <div v-for="room in productionRooms" :key="room.id" class="production-detail">
               {{ getFoodTypeForRoom(room) }}: {{ calculateRoomProduction(room) }} unités 
-              ({{ Math.floor(calculateRoomProduction(room) / (room.type === 'serre' && ITEMS_CONFIG['laitue']?.ratio ? ITEMS_CONFIG['laitue'].ratio : 1)) }} rations)
+              ({{ Math.floor(calculateRoomProduction(room) / (room.type === 'serre' ? getFoodRatio('laitue') : 1)) }} rations)
             </div>
           </div>
         </div>
@@ -91,7 +94,7 @@
 import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useGameStore } from '../stores/gameStore'
-import type { Room, ItemType, Item } from '../stores/gameStore'
+import type { Room, ItemType, Item, FoodItemConfig } from '../stores/gameStore'
 
 const store = useGameStore()
 const { resources, levels, population, inventory, gameSpeed } = storeToRefs(store)
@@ -168,26 +171,22 @@ function getFoodTypeForRoom(room: Room): string {
   return ''
 }
 
+function isFoodItemConfig(config: typeof ITEMS_CONFIG[keyof typeof ITEMS_CONFIG]): config is FoodItemConfig {
+  return config.category === 'nourriture'
+}
+
 function getFoodQuality(type: string): number {
-  if (type === 'nourriture-conserve') {
-    return ITEMS_CONFIG['nourriture-conserve'].qualite || 0
-  } else if (type === 'laitue') {
-    return ITEMS_CONFIG['laitue'].qualite || 0
-  } else if (type === 'avoine') {
-    return ITEMS_CONFIG['avoine'].qualite || 0
-  } else if (type === 'tomates') {
-    return ITEMS_CONFIG['tomates'].qualite || 0
+  const config = ITEMS_CONFIG[type as keyof typeof ITEMS_CONFIG]
+  if (config && isFoodItemConfig(config)) {
+    return config.qualite
   }
   return 0
 }
 
 function getFoodRatio(type: string): number {
-  if (type === 'nourriture-conserve') {
-    return ITEMS_CONFIG['nourriture-conserve'].ratio || 1
-  } else if (type === 'laitue') {
-    return ITEMS_CONFIG['laitue'].ratio || 1
-  } else if (type === 'avoine') {
-    return ITEMS_CONFIG['avoine'].ratio || 1
+  const config = ITEMS_CONFIG[type as keyof typeof ITEMS_CONFIG]
+  if (config && isFoodItemConfig(config)) {
+    return config.ratio
   }
   return 1
 }
@@ -198,7 +197,8 @@ function calculateFoodConsumption(item: Item): number {
   if (foodCount === 0) return 0
   
   const consumptionPerType = totalConsumption / foodCount
-  const ratio = getFoodRatio(item.type)
+  const config = ITEMS_CONFIG[item.type as keyof typeof ITEMS_CONFIG]
+  const ratio = config && isFoodItemConfig(config) ? config.ratio : 1
   
   return Math.ceil(consumptionPerType * ratio)
 }
@@ -212,15 +212,23 @@ function calculateTotalProduction(): number {
       // Production de conserves (ratio 1)
       totalRations += production
     } else if (room.type === 'serre') {
-      // Production de laitue (ratio 10)
+      // Production de laitue
       const laitueConfig = ITEMS_CONFIG['laitue']
-      if (laitueConfig?.ratio) {
+      if (isFoodItemConfig(laitueConfig)) {
         totalRations += production / laitueConfig.ratio
       }
     }
   }
   
   return Math.floor(totalRations)
+}
+
+function getFoodConservation(type: string): number {
+  const config = ITEMS_CONFIG[type as keyof typeof ITEMS_CONFIG]
+  if (config && isFoodItemConfig(config)) {
+    return config.conservation
+  }
+  return 1
 }
 </script>
 
@@ -331,6 +339,12 @@ h4 {
   background-color: #2a2a2a;
   padding: 0.5rem;
   border-radius: 4px;
+}
+
+.food-conservation {
+  color: #aaa;
+  font-size: 0.9em;
+  margin: 0.2rem 0;
 }
 
 .stock-quantity {
