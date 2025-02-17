@@ -289,11 +289,13 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useGameStore, ROOMS_PER_SIDE, ROOM_CONFIGS } from '../stores/gameStore'
-import type { Level, Room, DortoryRoomConfig } from '../stores/gameStore'
+import { useGameStore, ROOMS_PER_SIDE } from '../stores/gameStore'
+import { ROOMS_CONFIG, type DortoryRoomConfig } from '../config/roomsConfig'
+import type { Level, Room } from '../stores/gameStore'
 import RoomTypeModal from './RoomTypeModal.vue'
 import RoomInfoModal from './RoomInfoModal.vue'
 import { storeToRefs } from 'pinia'
+import { ROOM_MERGE_CONFIG } from '../config/roomsConfig'
 
 const props = defineProps<{
   level: Level
@@ -432,7 +434,7 @@ function getHabitantGenre(habitantId: string): 'H' | 'F' {
 function getRoomProduction(room: Room): string {
   if (!room.isBuilt || room.occupants.length === 0) return ''
   
-  const config = store.ROOM_CONFIGS[room.type]
+  const config = ROOMS_CONFIG[room.type]
   if (!config || !('productionPerWorker' in config)) return ''
 
   const nbWorkers = room.occupants.length
@@ -515,7 +517,7 @@ function getRoomProductionSimple(room: Room): string {
 
     // Production de base (laitue)
     const laitueProduction = 2 * nbWorkers * gridSize * mergeMultiplier
-    productions.push(`🥬${laitueProduction.toFixed(0)}/s`)
+    productions.push(`��${laitueProduction.toFixed(0)}/s`)
 
     // Vérifier les équipements
     const hasTomates = room.equipments?.some(e => e.type === 'culture-tomates' && !e.isUnderConstruction)
@@ -555,7 +557,7 @@ function getRoomProductionSimple(room: Room): string {
   }
 
   // Pour les autres salles
-  const config = store.ROOM_CONFIGS[room.type]
+  const config = ROOMS_CONFIG[room.type]
   if (!config || !('productionPerWorker' in config)) return ''
 
   const nbWorkers = room.occupants.length
@@ -621,8 +623,7 @@ function isLogementRoom(room: Room): boolean {
 }
 
 function getRoomCapacity(room: Room): number {
-  if (!isLogementRoom(room)) return 0
-  const config = ROOM_CONFIGS[room.type] as DortoryRoomConfig
+  const config = ROOMS_CONFIG[room.type] as DortoryRoomConfig
   return config.capacityPerResident * (room.gridSize || 1)
 }
 

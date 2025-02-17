@@ -244,7 +244,9 @@
 import { ref, computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useGameStore } from '../stores/gameStore'
-import type { Room, Equipment, DortoryRoomConfig, ProductionRoomConfig, StorageRoomConfig, ItemType } from '../stores/gameStore'
+import { ROOM_MERGE_CONFIG, ROOMS_CONFIG, type ProductionRoomConfig, type StorageRoomConfig, type DortoryRoomConfig } from '../config/roomsConfig'
+import type { Room, Equipment } from '../stores/gameStore'
+import type { ItemType } from '../config/itemsConfig'
 import NurserieInterface from './NurserieInterface.vue'
 import RefineryDetailsModal from './RefineryDetailsModal.vue'
 
@@ -262,17 +264,17 @@ const { habitants } = storeToRefs(store)
 const selectedHabitant = ref('')
 
 const roomConfig = computed(() => 
-  store.ROOM_CONFIGS[props.room.type as keyof typeof store.ROOM_CONFIGS]
+  ROOMS_CONFIG[props.room.type as keyof typeof ROOMS_CONFIG]
 )
 
 const isProductionRoom = computed(() => {
-  const config = store.ROOM_CONFIGS[props.room.type]
+  const config = ROOMS_CONFIG[props.room.type]
   return config && 'productionPerWorker' in config
 })
 
 const baseProduction = computed(() => {
   if (!isProductionRoom.value) return {}
-  const config = store.ROOM_CONFIGS[props.room.type] as ProductionRoomConfig
+  const config = ROOMS_CONFIG[props.room.type] as ProductionRoomConfig
   
   // Si c'est une serre, gérer les différentes cultures
   if (props.room.type === 'serre') {
@@ -313,19 +315,19 @@ const baseProduction = computed(() => {
 })
 
 const isStorageRoom = computed(() => {
-  const config = store.ROOM_CONFIGS[props.room.type]
+  const config = ROOMS_CONFIG[props.room.type]
   return config && 'capacityPerWorker' in config
 })
 
 const storageCapacity = computed(() => {
-  const config = store.ROOM_CONFIGS[props.room.type]
+  const config = ROOMS_CONFIG[props.room.type]
   if (!config || !('capacityPerWorker' in config)) return {}
   return (config as StorageRoomConfig).capacityPerWorker
 })
 
 const getMergeMultiplier = computed(() => {
   const gridSize = props.room.gridSize || 1
-  const mergeConfig = store.ROOM_MERGE_CONFIG[props.room.type]
+  const mergeConfig = ROOM_MERGE_CONFIG[props.room.type]
   return mergeConfig?.useMultiplier 
     ? store.GAME_CONFIG.MERGE_MULTIPLIERS[Math.min(gridSize, 6) as keyof typeof store.GAME_CONFIG.MERGE_MULTIPLIERS] || 1
     : 1
@@ -333,7 +335,7 @@ const getMergeMultiplier = computed(() => {
 
 const getTotalProduction = computed(() => {
   if (!isProductionRoom.value) return ''
-  const config = store.ROOM_CONFIGS[props.room.type] as ProductionRoomConfig
+  const config = ROOMS_CONFIG[props.room.type] as ProductionRoomConfig
 
   const nbWorkers = props.room.occupants.length
   const gridSize = props.room.gridSize || 1

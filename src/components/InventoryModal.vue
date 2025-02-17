@@ -50,13 +50,20 @@
 import { ref, computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useGameStore } from '../stores/gameStore'
-import type { ItemCategory, ItemType, Item } from '../stores/gameStore'
-import { ITEMS_CONFIG, ITEM_CATEGORIES } from '../stores/gameStore'
+import { ITEMS_CONFIG, type ItemType, type ItemCategory } from '../config/itemsConfig'
 
 const store = useGameStore()
 const { inventoryItems, inventorySpace } = storeToRefs(store)
 
 const selectedCategory = ref<ItemCategory | null>(null)
+
+const ITEM_CATEGORIES = {
+  'ressource-brute': 'Ressources brutes',
+  'ressource': 'Ressources raffinées',
+  'nourriture': 'Nourriture',
+  'biologique': 'Biologique',
+  'conteneur': 'Conteneurs'
+}
 
 // Fonction pour vérifier si un item est valide
 function isValidItem(item: any): item is Item {

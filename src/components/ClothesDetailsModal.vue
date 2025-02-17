@@ -12,7 +12,7 @@
           <div v-for="room in productionRooms" :key="room.id" class="room-item">
             <div class="room-header">
               {{ getRoomName(room) }}
-              ({{ room.occupants.length }}/{{ ROOM_CONFIGS[room.type].maxWorkers }} travailleurs)
+              ({{ room.occupants.length }}/{{ ROOMS_CONFIG[room.type].maxWorkers }} travailleurs)
             </div>
             <div class="room-details">
               Production: {{ calculateRoomProduction(room) }} par semaine
@@ -45,7 +45,7 @@
           <div v-for="room in storageRooms" :key="room.id" class="room-item">
             <div class="room-header">
               {{ getRoomName(room) }}
-              ({{ room.occupants.length }}/{{ ROOM_CONFIGS[room.type].maxWorkers }} travailleurs)
+              ({{ room.occupants.length }}/{{ ROOMS_CONFIG[room.type].maxWorkers }} travailleurs)
             </div>
             <div class="room-details">
               Capacité: {{ calculateStorageCapacity(room) }}
@@ -68,14 +68,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useGameStore } from '../stores/gameStore'
+import { ROOMS_CONFIG } from '../config/roomsConfig'
 import type { Room } from '../stores/gameStore'
+
+const props = defineProps<{
+  room: Room
+}>()
 
 const store = useGameStore()
 const { resources, levels, population } = storeToRefs(store)
-const { ROOM_CONFIGS } = store
 
 const productionRooms = computed(() => {
   return levels.value.flatMap(level => 
@@ -104,7 +108,7 @@ function getRoomName(room: Room): string {
 }
 
 function calculateRoomProduction(room: Room): number {
-  const config = ROOM_CONFIGS[room.type]
+  const config = ROOMS_CONFIG[room.type]
   if ('productionPerWorker' in config && config.productionPerWorker.vetements) {
     const gridSize = room.gridSize || 1
     const mergeMultiplier = store.GAME_CONFIG.MERGE_MULTIPLIERS[Math.min(gridSize, 6) as keyof typeof store.GAME_CONFIG.MERGE_MULTIPLIERS] || 1
@@ -114,7 +118,7 @@ function calculateRoomProduction(room: Room): number {
 }
 
 function calculateStorageCapacity(room: Room): number {
-  const config = ROOM_CONFIGS[room.type]
+  const config = ROOMS_CONFIG[room.type]
   if ('capacityPerWorker' in config && config.capacityPerWorker.vetements) {
     const gridSize = room.gridSize || 1
     const mergeMultiplier = store.GAME_CONFIG.MERGE_MULTIPLIERS[Math.min(gridSize, 6) as keyof typeof store.GAME_CONFIG.MERGE_MULTIPLIERS] || 1

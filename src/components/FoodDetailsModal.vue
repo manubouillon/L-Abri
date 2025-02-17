@@ -58,7 +58,7 @@
           <div v-for="room in productionRooms" :key="room.id" class="room-item">
             <div class="room-header">
               {{ getRoomName(room) }}
-              ({{ room.occupants.length }}/{{ ROOM_CONFIGS[room.type].maxWorkers }} travailleurs)
+              ({{ room.occupants.length }}/{{ ROOMS_CONFIG[room.type].maxWorkers }} travailleurs)
             </div>
             <div class="room-details">
               <div>Production: {{ calculateRoomProduction(room) }} par semaine</div>
@@ -91,14 +91,19 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useGameStore } from '../stores/gameStore'
+import { ROOMS_CONFIG } from '../config/roomsConfig'
+import { ITEMS_CONFIG } from '../config/itemsConfig'
 import type { Room, ItemType, Item, FoodItemConfig } from '../stores/gameStore'
+
+const props = defineProps<{
+  room: Room
+}>()
 
 const store = useGameStore()
 const { resources, levels, population, inventory, gameSpeed } = storeToRefs(store)
-const { ROOM_CONFIGS, ITEMS_CONFIG } = store
 
 const availableFoodItems = computed(() => {
   // Créer un Map pour regrouper les items par type
@@ -142,7 +147,7 @@ function getRoomName(room: Room): string {
 }
 
 function calculateRoomProduction(room: Room): number {
-  const config = ROOM_CONFIGS[room.type]
+  const config = ROOMS_CONFIG[room.type]
   if ('productionPerWorker' in config) {
     const gridSize = room.gridSize || 1
     const mergeMultiplier = store.GAME_CONFIG.MERGE_MULTIPLIERS[Math.min(gridSize, 6) as keyof typeof store.GAME_CONFIG.MERGE_MULTIPLIERS] || 1

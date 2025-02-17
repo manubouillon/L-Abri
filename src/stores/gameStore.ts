@@ -1,5 +1,34 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { handleRoomProduction } from '../services/productionService'
+import { 
+  ROOMS_CONFIG,
+  ROOM_CATEGORIES,
+  ROOM_MERGE_CONFIG,
+  ROOM_CONSTRUCTION_COSTS,
+  type RoomConfig,
+  type ResourceKey,
+  type StorageTankConfig,
+  type StorageRoomConfig,
+  type DortoryRoomConfig,
+  type ProductionRoomConfig,
+  type RoomConfigBase
+} from '../config/roomsConfig'
+import {
+  GAME_CONFIG,
+  HAPPINESS_CONFIG,
+  DEATH_CONFIG
+} from '../config/gameConfig'
+import {
+  type ItemType,
+  type ItemConfig,
+  type ItemCategory,
+  type FoodItemConfig,
+  type ResourceItemConfig,
+  type BiologicalItemConfig,
+  type ContainerItemConfig,
+  ITEMS_CONFIG
+} from '../config/itemsConfig'
 
 export interface NurserieState {
   isIncubating: boolean
@@ -14,11 +43,9 @@ export interface Resource {
   consumption: number
 }
 
-type ResourceKey = 'energie' | 'eau' | 'nourriture' | 'vetements' | 'medicaments'
-
 export interface ExcavationProgress {
-  startTime: number // Semaine de début
-  duration: number // Durée en semaines
+  startTime: number
+  duration: number
   levelId: number
   position: 'left' | 'right' | 'stairs'
   roomIndex?: number
@@ -44,11 +71,11 @@ export interface Habitant {
   id: string
   nom: string
   genre: 'H' | 'F'
-  age: number // Âge en années
-  sante: number // Santé en pourcentage
+  age: number
+  sante: number
   affectation: Affectation
   competences: Competences
-  bonheur: number // Score de bonheur sur 100
+  bonheur: number
   logement: {
     levelId: number
     position: 'left' | 'right'
@@ -76,12 +103,12 @@ export interface Room {
   position: 'left' | 'right'
   index: number
   isExcavated: boolean
-  gridSize?: number // Nombre de cellules occupées par la salle
+  gridSize?: number
   stairsPosition?: 'left' | 'right'
   equipments: Equipment[]
-  fuelLevel?: number // Niveau de carburant en pourcentage (0-100)
-  isDisabled?: boolean // État de désactivation de la salle
-  nextMineralsToProcess?: { // Pour la raffinerie
+  fuelLevel?: number
+  isDisabled?: boolean
+  nextMineralsToProcess?: {
     input: { type: ItemType, amount: number }[]
     output: { type: ItemType, amount: number }
   }
@@ -92,388 +119,6 @@ export interface Level {
   isStairsExcavated: boolean
   leftRooms: Room[]
   rightRooms: Room[]
-}
-
-export interface RoomCategory {
-  id: string
-  name: string
-  rooms: string[]
-}
-
-export const ROOM_CATEGORIES: RoomCategory[] = [
-  {
-    id: 'stockage',
-    name: 'Stockage',
-    rooms: ['entrepot', 'cuve']
-  },
-  {
-    id: 'logements',
-    name: 'Logements',
-    rooms: ['dortoir', 'quartiers', 'appartement', 'suite']
-  },
-  {
-    id: 'eau',
-    name: 'Eau',
-    rooms: ['station-traitement']
-  },
-  {
-    id: 'alimentation',
-    name: 'Alimentation',
-    rooms: ['cuisine', 'serre']
-  },
-  {
-    id: 'energie',
-    name: 'Énergie',
-    rooms: ['generateur']
-  },
-  {
-    id: 'sante',
-    name: 'Santé',
-    rooms: ['infirmerie']
-  },
-  {
-    id: 'production',
-    name: 'Production',
-    rooms: ['raffinerie', 'derrick', 'atelier']
-  }
-]
-
-// Configuration du jeu
-export const GAME_CONFIG = {
-  INITIAL_LEVELS: 5,
-  ROOMS_PER_SIDE: 7,
-  BASE_EXCAVATION_TIME: 4,
-  DEPTH_TIME_MULTIPLIER: 0.5,
-  MERGE_MULTIPLIERS: {
-    2: 2.5, // 2 salles fusionnées
-    3: 4.0, // 3 salles fusionnées
-    4: 6.0, // 4 salles fusionnées
-    5: 8.0, // 5 salles fusionnées
-    6: 10.0, // 6+ salles fusionnées
-  },
-  // Configuration des salles pré-construites au démarrage
-  INITIAL_ROOMS: [
-    {
-      levelId: 0, // RDC
-      rooms: [
-        { position: 'left', index: 0, type: 'generateur', gridSize: 2, workers: 1 },
-        
-        //{ position: 'left', index: 4, type: 'raffinerie', gridSize: 1, workers: 1 },
-        { position: 'right', index: 0, type: 'dortoir', gridSize: 2, workers: 0 },
-        //{ position: 'right', index: 2, type: 'station-traitement', gridSize: 1, workers: 1 },
-        //{ position: 'right', index: 3, type: 'serre', gridSize: 1, workers: 1 }
-        { position: 'right', index: 4, type: 'salle-controle', gridSize: 2, workers: 0 }
-      ]
-    },
-    {
-      levelId: 1, // Premier niveau
-      rooms: [
-        { position: 'left', index: 0, type: 'cuve', gridSize: 1, workers: 0 },
-        { position: 'left', index: 5, type: 'entrepot', gridSize: 2, workers: 0 },
-      ]
-    }
-  ]
-} as const
-
-// Configuration des multiplicateurs de fusion par type de salle
-export const ROOM_MERGE_CONFIG: { [key: string]: { useMultiplier: boolean } } = {
-  entrepot: { useMultiplier: true },
-  dortoir: { useMultiplier: false },
-  quartiers: { useMultiplier: false },
-  appartement: { useMultiplier: false },
-  suite: { useMultiplier: false },
-  cuisine: { useMultiplier: true },
-  'station-traitement': { useMultiplier: true },
-  generateur: { useMultiplier: true },
-  infirmerie: { useMultiplier: true },
-  serre: { useMultiplier: true },
-  raffinerie: { useMultiplier: true },
-  derrick: { useMultiplier: true },
-  'salle-controle': { useMultiplier: false },
-  cuve: { useMultiplier: false },
-  atelier: { useMultiplier: true }
-}
-
-export const INITIAL_LEVELS = GAME_CONFIG.INITIAL_LEVELS // Nombre de niveaux au départ
-export const ROOMS_PER_SIDE = GAME_CONFIG.ROOMS_PER_SIDE // Nombre de salles de chaque côté
-const BASE_EXCAVATION_TIME = GAME_CONFIG.BASE_EXCAVATION_TIME // 4 semaines de base
-const DEPTH_TIME_MULTIPLIER = GAME_CONFIG.DEPTH_TIME_MULTIPLIER // +0.5 semaine par niveau de profondeur
-
-interface Resources {
-  energie: {
-    amount: number
-    capacity: number
-    production: number
-    consumption: number
-  }
-  eau: {
-    amount: number
-    capacity: number
-    production: number
-    consumption: number
-  }
-  nourriture: {
-    amount: number
-    capacity: number
-    production: number
-    consumption: number
-  }
-  vetements: {
-    amount: number
-    capacity: number
-    production: number
-    consumption: number
-  }
-  medicaments: {
-    amount: number
-    capacity: number
-    production: number
-    consumption: number
-  }
-}
-
-const resources = ref<Resources>({
-  energie: { amount: 0, capacity: 200, production: 0, consumption: 0 },
-  eau: { amount: 200, capacity: 200, production: 0, consumption: 0 },
-  nourriture: { amount: 200, capacity: 200, production: 0, consumption: 0 },
-  vetements: { amount: 50, capacity: 200, production: 0, consumption: 0 },
-  medicaments: { amount: 100, capacity: 200, production: 0, consumption: 0 }
-})
-
-interface RoomConfigBase {
-  maxWorkers: number
-  energyConsumption: number // Consommation d'énergie par semaine
-}
-
-export interface StorageRoomConfig extends RoomConfigBase {
-  capacityPerWorker: {
-    [key in ResourceKey]?: number
-  }
-}
-
-export interface DortoryRoomConfig extends RoomConfigBase {
-  capacityPerResident: number
-}
-
-export interface ProductionRoomConfig extends RoomConfigBase {
-  productionPerWorker: {
-    [key in ResourceKey]?: number
-  }
-  waterConsumption?: number
-  fuelConsumption?: number // Consommation de carburant par semaine en pourcentage
-  resourceConsumption?: {
-    [key in ResourceKey]?: number
-  }
-  resourceProduction?: {
-    [key: string]: number
-  }
-  mineralsProcessingPerWorker?: number // Nombre de minerais traités par travailleur par semaine
-  conversionRules?: {
-    [key: string]: {
-      output: ItemType,
-      ratio: number,
-      requires?: {
-        [key: string]: number
-      }
-    }
-  }
-}
-
-export type RoomConfig = StorageRoomConfig | DortoryRoomConfig | ProductionRoomConfig
-
-export const ROOM_CONFIGS: { [key: string]: RoomConfig } = {
-  entrepot: {
-    maxWorkers: 2,
-    energyConsumption: 1, // 1 unité d'énergie par semaine
-    capacityPerWorker: {
-      nourriture: 100,
-      vetements: 50,
-      medicaments: 25
-    }
-  } as StorageRoomConfig,
-  dortoir: {
-    maxWorkers: 0,
-    energyConsumption: 2, // 2 unités d'énergie par semaine
-    capacityPerResident: 8
-  } as DortoryRoomConfig,
-  quartiers: {
-    maxWorkers: 0,
-    energyConsumption: 3, // 3 unités d'énergie par semaine
-    capacityPerResident: 6
-  } as DortoryRoomConfig,
-  appartement: {
-    maxWorkers: 0,
-    energyConsumption: 4, // 4 unités d'énergie par semaine
-    capacityPerResident: 4
-  } as DortoryRoomConfig,
-  suite: {
-    maxWorkers: 0,
-    energyConsumption: 5, // 5 unités d'énergie par semaine
-    capacityPerResident: 2
-  } as DortoryRoomConfig,
-  cuisine: {
-    maxWorkers: 2,
-    energyConsumption: 3, // 3 unités d'énergie par semaine
-    productionPerWorker: {
-      nourriture: 2
-    }
-  } as ProductionRoomConfig,
-  'station-traitement': {
-    maxWorkers: 2,
-    energyConsumption: 4, // 4 unités d'énergie par semaine
-    productionPerWorker: {
-      eau: 8
-    }
-  } as ProductionRoomConfig,
-  generateur: {
-    maxWorkers: 2,
-    energyConsumption: 0, // La salle d'énergie ne consomme pas d'énergie
-    productionPerWorker: {
-      energie: 8
-    },
-    fuelConsumption: 10 // Consomme 10% du réservoir par semaine par travailleur
-  } as ProductionRoomConfig,
-  infirmerie: {
-    maxWorkers: 2,
-    energyConsumption: 5, // 5 unités d'énergie par semaine
-    productionPerWorker: {
-      medicaments: 1
-    }
-  } as ProductionRoomConfig,
-  serre: {
-    maxWorkers: 3,
-    energyConsumption: 4, // 4 unités d'énergie par semaine
-    waterConsumption: 2, // 2 unités d'eau par semaine
-    productionPerWorker: {
-      laitue: 2 // Production de base de laitue
-    }
-  } as ProductionRoomConfig,
-  raffinerie: {
-    maxWorkers: 3,
-    energyConsumption: 5, // 5 unités d'énergie par semaine
-    productionPerWorker: {
-      energie: -1 // Consommation d'énergie par travailleur
-    },
-    mineralsProcessingPerWorker: 5, // Nombre de minerais traités par travailleur par semaine
-    conversionRules: {
-      'minerai-fer': { output: 'lingot-fer', ratio: 0.8 }, // 80% de rendement
-      'minerai-cuivre': { output: 'lingot-cuivre', ratio: 0.8 },
-      'minerai-silicium': { output: 'lingot-silicium', ratio: 0.7 },
-      'minerai-or': { output: 'lingot-or', ratio: 0.9 },
-      'lingot-fer': { 
-        output: 'lingot-acier', 
-        ratio: 0.8, 
-        requires: { 
-          'minerai-charbon': 1,
-          'minerai-calcaire': 0.5
-        }
-      } // 1 lingot de fer + 1 charbon + 0.5 calcaire = 0.8 acier
-    }
-  } as ProductionRoomConfig & {
-    mineralsProcessingPerWorker: number,
-    conversionRules: {
-      [key: string]: {
-        output: ItemType,
-        ratio: number,
-        requires?: {
-          [key: string]: number
-        }
-      }
-    }
-  },
-  derrick: {
-    maxWorkers: 2,
-    energyConsumption: 4, // 4 unités d'énergie par semaine
-    productionPerWorker: {
-      energie: -1 // Consommation d'énergie par travailleur
-    },
-    fuelConsumption: 0, // Ne consomme pas de carburant
-    resourceProduction: {
-      'baril-petrole': 2 // Produit 2 barils de pétrole par semaine par travailleur
-    }
-  } as ProductionRoomConfig,
-  'salle-controle': {
-    maxWorkers: 4,
-    energyConsumption: 8, // 8 unités d'énergie par semaine
-    productionPerWorker: {
-      energie: -1 // Consommation d'énergie par travailleur
-    }
-  } as ProductionRoomConfig,
-  cuve: {
-    'lingot-fer': 30,
-    'lingot-acier': 15,
-    'lingot-cuivre': 12,
-    'lingot-silicium': 8
-  },
-  atelier: {
-    maxWorkers: 2,
-    energyConsumption: 3,
-    productionPerWorker: {
-      vetements: 0 // Production de base sans équipement
-    }
-  } as ProductionRoomConfig
-} as const
-
-const PRENOMS = [
-  'Jean', 'Pierre', 'Luc', 'Louis', 'Thomas', 'Paul', 'Nicolas', 'Antoine',
-  'Michel', 'François', 'Henri', 'Marcel', 'André', 'Philippe', 'Jacques', 'Robert',
-  'Daniel', 'Joseph', 'Claude', 'Georges', 'Roger', 'Bernard', 'Alain', 'René', // Prénoms masculins
-  'Marie', 'Sophie', 'Emma', 'Julie', 'Claire', 'Alice', 'Laura', 'Léa',
-  'Anne', 'Catherine', 'Isabelle', 'Jeanne', 'Marguerite', 'Françoise', 'Hélène', 'Louise',
-  'Madeleine', 'Thérèse', 'Suzanne', 'Monique', 'Simone', 'Yvette', 'Nicole', 'Denise' // Prénoms féminins
-]
-
-const NOMS = [
-  'Martin', 'Bernard', 'Dubois', 'Thomas', 'Robert', 'Richard', 'Petit', 'Durand',
-  'Leroy', 'Moreau', 'Simon', 'Laurent', 'Lefebvre', 'Michel', 'Garcia', 'David',
-  'Bertrand', 'Roux', 'Vincent', 'Fournier', 'Morel', 'Girard', 'Andre', 'Lefevre',
-  'Mercier', 'Dupont', 'Lambert', 'Bonnet', 'Francois', 'Martinez', 'Legrand', 'Garnier',
-  'Faure', 'Rousseau', 'Blanc', 'Guerin', 'Muller', 'Henry', 'Roussel', 'Nicolas'
-]
-
-function generateRandomName(): { nom: string, genre: 'H' | 'F', age: number } {
-  const genre = Math.random() > 0.5 ? 'H' : 'F'
-  const prenom = genre === 'H' 
-    ? PRENOMS.filter((_, i) => i < PRENOMS.length / 2)[Math.floor(Math.random() * (PRENOMS.length / 2))]
-    : PRENOMS.filter((_, i) => i >= PRENOMS.length / 2)[Math.floor(Math.random() * (PRENOMS.length / 2))]
-  const nom = NOMS[Math.floor(Math.random() * NOMS.length)]
-  const ageEnAnnees = Math.floor(Math.random() * 53) + 8 // Entre 8 et 60 ans
-  const ageEnSemaines = ageEnAnnees * 52 // Conversion en semaines
-  return { nom: `${prenom} ${nom}`, genre, age: ageEnSemaines }
-}
-
-function generateRandomCompetences(): Competences {
-  const competences = ['force', 'dexterite', 'charme', 'relations', 'instinct', 'savoir']
-  const points = Array(6).fill(1) // Chaque compétence commence à 1
-  let remainingPoints = 21 // 27 - 6 points déjà distribués
-
-  // Distribution aléatoire des points restants
-  while (remainingPoints > 0) {
-    const index = Math.floor(Math.random() * competences.length)
-    if (points[index] < 10) { // Maximum de 10 points par compétence
-      points[index]++
-      remainingPoints--
-    }
-  }
-
-  return {
-    force: points[0],
-    dexterite: points[1],
-    charme: points[2],
-    relations: points[3],
-    instinct: points[4],
-    savoir: points[5]
-  }
-}
-
-interface Excavation {
-  levelId: number
-  position: 'left' | 'right' | 'stairs'
-  roomIndex?: number
-  startTime: number
-  habitantId: string
-  duration: number
-  mineralsFound?: MineralFound[]
 }
 
 export interface Item {
@@ -487,212 +132,33 @@ export interface Item {
   qualite?: number
 }
 
-export type ItemCategory = 'biologique' | 'ressource' | 'nourriture' | 'conteneur' | 'ressource-brute'
-export type ItemType = 
-  | 'minerai-fer' | 'minerai-cuivre' | 'minerai-silicium' | 'minerai-or'
-  | 'minerai-charbon' | 'minerai-calcaire'
-  | 'lingot-fer' | 'lingot-cuivre' | 'lingot-silicium' | 'lingot-or' | 'lingot-acier'
-  | 'baril-petrole' | 'baril-vide'
-  | 'laitue' | 'tomates' | 'avoine' | 'nourriture-conserve'
-  | 'soie' | 'vetements' | 'embryon-humain'
-
-export interface BaseItemConfig {
-  name: string
-  stackSize: number
-  description: string
-  category: ItemCategory
+export interface MineralFound {
+  type: ItemType
+  amount: number
 }
 
-export interface FoodItemConfig extends BaseItemConfig {
-  category: 'nourriture'
-  ratio: number
-  qualite: number
-  conservation: number // Taux de conservation hebdomadaire (1 = pas de perte, 0.5 = perte de moitié)
+export interface Excavation {
+  levelId: number
+  position: 'left' | 'right' | 'stairs'
+  roomIndex?: number
+  startTime: number
+  habitantId: string
+  duration: number
+  mineralsFound?: MineralFound[]
 }
 
-export interface ResourceItemConfig extends BaseItemConfig {
-  category: 'ressource' | 'ressource-brute'
-}
-
-export interface BiologicalItemConfig extends BaseItemConfig {
-  category: 'biologique'
-}
-
-export interface ContainerItemConfig extends BaseItemConfig {
-  category: 'conteneur'
-}
-
-export type ItemConfig = FoodItemConfig | ResourceItemConfig | BiologicalItemConfig | ContainerItemConfig
-
-export const ITEMS_CONFIG: { [key in ItemType]: ItemConfig } = {
-  'embryon-humain': {
-    name: 'Embryon humain',
-    stackSize: 1,
-    description: 'Un embryon humain cryogénisé',
-    category: 'biologique'
-  } as BiologicalItemConfig,
-  'avoine': {
-    name: 'Avoine',
-    stackSize: 1000,
-    description: 'Des grains d\'avoine cultivés dans les serres.',
-    category: 'nourriture',
-    ratio: 5,
-    qualite: 1,
-    conservation: 0.9 // Perte de 10% par semaine
-  } as FoodItemConfig,
-  'tomates': {
-    name: 'Tomates',
-    stackSize: 1000,
-    description: 'Des tomates fraîches cultivées dans les serres.',
-    category: 'nourriture',
-    ratio: 3,
-    qualite: 2,
-    conservation: 0.7 // Perte de 30% par semaine
-  } as FoodItemConfig,
-  'laitue': {
-    name: 'Laitue',
-    stackSize: 1000,
-    description: 'De la laitue fraîche cultivée dans les serres.',
-    category: 'nourriture',
-    ratio: 10,
-    qualite: 1,
-    conservation: 0.6 // Perte de 40% par semaine
-  } as FoodItemConfig,
-  'nourriture-conserve': {
-    name: 'Conserves',
-    stackSize: 1000,
-    description: 'De la nourriture en conserve.',
-    category: 'nourriture',
-    ratio: 1,
-    qualite: 1,
-    conservation: 1.0 // Pas de perte
-  } as FoodItemConfig,
-  'soie': {
-    name: 'Soie',
-    stackSize: 100,
-    description: 'De la soie brute produite par les vers à soie',
-    category: 'ressource'
-  } as ResourceItemConfig,
-  'baril-petrole': {
-    name: 'Baril de pétrole',
-    stackSize: 10,
-    description: 'Un baril rempli de pétrole.',
-    category: 'conteneur'
-  } as ContainerItemConfig,
-  'baril-vide': {
-    name: 'Baril vide',
-    stackSize: 10,
-    description: 'Un baril vide qui peut contenir du pétrole.',
-    category: 'conteneur'
-  } as ContainerItemConfig,
-  'minerai-fer': {
-    name: 'Minerai de fer',
-    stackSize: 1000,
-    description: 'Du minerai de fer brut.',
-    category: 'ressource-brute'
-  } as ResourceItemConfig,
-  'minerai-charbon': {
-    name: 'Charbon',
-    stackSize: 1000,
-    description: 'Du charbon brut.',
-    category: 'ressource-brute'
-  } as ResourceItemConfig,
-  'minerai-silicium': {
-    name: 'Minerai de silicium',
-    stackSize: 1000,
-    description: 'Du minerai de silicium brut.',
-    category: 'ressource-brute'
-  } as ResourceItemConfig,
-  'minerai-cuivre': {
-    name: 'Minerai de cuivre',
-    stackSize: 1000,
-    description: 'Du minerai de cuivre brut.',
-    category: 'ressource-brute'
-  } as ResourceItemConfig,
-  'minerai-or': {
-    name: 'Minerai d\'or',
-    stackSize: 1000,
-    description: 'Du minerai d\'or brut.',
-    category: 'ressource-brute'
-  } as ResourceItemConfig,
-  'minerai-calcaire': {
-    name: 'Calcaire',
-    stackSize: 1000,
-    description: 'Du calcaire brut.',
-    category: 'ressource-brute'
-  } as ResourceItemConfig,
-  'lingot-fer': {
-    name: 'Lingot de fer',
-    stackSize: 100,
-    description: 'Un lingot de fer pur',
-    category: 'ressource'
-  } as ResourceItemConfig,
-  'lingot-acier': {
-    name: 'Lingot d\'acier',
-    stackSize: 100,
-    description: 'Un lingot d\'acier',
-    category: 'ressource'
-  } as ResourceItemConfig,
-  'lingot-cuivre': {
-    name: 'Lingot de cuivre',
-    stackSize: 100,
-    description: 'Un lingot de cuivre pur',
-    category: 'ressource'
-  } as ResourceItemConfig,
-  'lingot-silicium': {
-    name: 'Lingot de silicium',
-    stackSize: 100,
-    description: 'Un lingot de silicium pur',
-    category: 'ressource'
-  } as ResourceItemConfig,
-  'lingot-or': {
-    name: 'Lingot d\'or',
-    stackSize: 100,
-    description: 'Un lingot d\'or pur',
-    category: 'ressource'
-  } as ResourceItemConfig,
-  vetements: {
-    name: 'Vêtements',
-    stackSize: 50,
-    description: 'Des vêtements pour les habitants',
-    category: 'ressource'
-  } as ResourceItemConfig
-} as const
-
-export const ITEM_CATEGORIES: { [key in ItemCategory]: {
-  name: string
-  description: string
-  color: string
-} } = {
-  'biologique': {
-    name: 'Biologique',
-    description: 'Items biologiques et médicaux',
-    color: '#2ecc71'
-  },
-  'ressource': {
-    name: 'Ressource',
-    description: 'Ressources transformées',
-    color: '#e67e22'
-  },
-  'ressource-brute': {
-    name: 'Ressources brutes',
-    description: 'Minerais et matériaux bruts',
-    color: '#7f8c8d'
-  },
-  'nourriture': {
-    name: 'Nourriture',
-    description: 'Tout ce qui peut être consommé',
-    color: '#f1c40f'
-  },
-  'conteneur': {
-    name: 'Conteneur',
-    description: 'Objets de stockage',
-    color: '#95a5a6'
-  }
-}
+export const INITIAL_LEVELS = GAME_CONFIG.INITIAL_LEVELS
+export const ROOMS_PER_SIDE = GAME_CONFIG.ROOMS_PER_SIDE
+export const BASE_EXCAVATION_TIME = GAME_CONFIG.BASE_EXCAVATION_TIME
+export const DEPTH_TIME_MULTIPLIER = GAME_CONFIG.DEPTH_TIME_MULTIPLIER
 
 // Configuration des minerais par niveau
-const MINERAL_DISTRIBUTION = {
+export const MINERAL_DISTRIBUTION: { [key: number]: {
+  [key in ItemType]?: {
+    chance: number
+    amount: { min: number, max: number }
+  }
+}} = {
   0: { // Premier niveau
     'minerai-fer': { chance: 0.6, amount: { min: 10, max: 30 } },
     'minerai-charbon': { chance: 0.5, amount: { min: 10, max: 25 } },
@@ -700,263 +166,8 @@ const MINERAL_DISTRIBUTION = {
     'minerai-cuivre': { chance: 0.2, amount: { min: 5, max: 15 } },
     'minerai-silicium': { chance: 0.1, amount: { min: 2, max: 10 } },
     'minerai-or': { chance: 0.05, amount: { min: 1, max: 5 } }
-  },
-  1: {
-    'minerai-fer': { chance: 0.5, amount: { min: 15, max: 35 } },
-    'minerai-charbon': { chance: 0.4, amount: { min: 15, max: 30 } },
-    'minerai-calcaire': { chance: 0.6, amount: { min: 20, max: 40 } },
-    'minerai-cuivre': { chance: 0.3, amount: { min: 10, max: 20 } },
-    'minerai-silicium': { chance: 0.2, amount: { min: 5, max: 15 } },
-    'minerai-or': { chance: 0.1, amount: { min: 2, max: 8 } }
-  },
-  2: {
-    'minerai-fer': { chance: 0.4, amount: { min: 20, max: 40 } },
-    'minerai-charbon': { chance: 0.3, amount: { min: 20, max: 35 } },
-    'minerai-calcaire': { chance: 0.5, amount: { min: 25, max: 45 } },
-    'minerai-cuivre': { chance: 0.4, amount: { min: 15, max: 25 } },
-    'minerai-silicium': { chance: 0.3, amount: { min: 10, max: 20 } },
-    'minerai-or': { chance: 0.15, amount: { min: 3, max: 10 } }
-  },
-  3: {
-    'minerai-fer': { chance: 0.3, amount: { min: 25, max: 45 } },
-    'minerai-charbon': { chance: 0.2, amount: { min: 25, max: 40 } },
-    'minerai-calcaire': { chance: 0.4, amount: { min: 30, max: 50 } },
-    'minerai-cuivre': { chance: 0.5, amount: { min: 20, max: 30 } },
-    'minerai-silicium': { chance: 0.4, amount: { min: 15, max: 25 } },
-    'minerai-or': { chance: 0.2, amount: { min: 5, max: 15 } }
-  },
-  4: {
-    'minerai-fer': { chance: 0.2, amount: { min: 30, max: 50 } },
-    'minerai-charbon': { chance: 0.1, amount: { min: 30, max: 45 } },
-    'minerai-calcaire': { chance: 0.3, amount: { min: 35, max: 55 } },
-    'minerai-cuivre': { chance: 0.6, amount: { min: 25, max: 35 } },
-    'minerai-silicium': { chance: 0.5, amount: { min: 20, max: 30 } },
-    'minerai-or': { chance: 0.25, amount: { min: 6, max: 18 } }
-  },
-  5: {
-    'minerai-fer': { chance: 0.25, amount: { min: 35, max: 55 } },
-    'minerai-charbon': { chance: 0.15, amount: { min: 35, max: 50 } },
-    'minerai-calcaire': { chance: 0.35, amount: { min: 40, max: 60 } },
-    'minerai-cuivre': { chance: 0.55, amount: { min: 30, max: 40 } },
-    'minerai-silicium': { chance: 0.45, amount: { min: 25, max: 35 } },
-    'minerai-or': { chance: 0.3, amount: { min: 7, max: 20 } }
-  },
-  6: {
-    'minerai-fer': { chance: 0.3, amount: { min: 40, max: 60 } },
-    'minerai-charbon': { chance: 0.2, amount: { min: 40, max: 55 } },
-    'minerai-calcaire': { chance: 0.4, amount: { min: 45, max: 65 } },
-    'minerai-cuivre': { chance: 0.5, amount: { min: 35, max: 45 } },
-    'minerai-silicium': { chance: 0.4, amount: { min: 30, max: 40 } },
-    'minerai-or': { chance: 0.35, amount: { min: 8, max: 22 } }
-  },
-  7: {
-    'minerai-fer': { chance: 0.35, amount: { min: 45, max: 65 } },
-    'minerai-charbon': { chance: 0.25, amount: { min: 45, max: 60 } },
-    'minerai-calcaire': { chance: 0.45, amount: { min: 50, max: 70 } },
-    'minerai-cuivre': { chance: 0.45, amount: { min: 40, max: 50 } },
-    'minerai-silicium': { chance: 0.35, amount: { min: 35, max: 45 } },
-    'minerai-or': { chance: 0.4, amount: { min: 9, max: 25 } }
-  },
-  8: {
-    'minerai-fer': { chance: 0.4, amount: { min: 50, max: 70 } },
-    'minerai-charbon': { chance: 0.3, amount: { min: 50, max: 65 } },
-    'minerai-calcaire': { chance: 0.5, amount: { min: 55, max: 75 } },
-    'minerai-cuivre': { chance: 0.4, amount: { min: 45, max: 55 } },
-    'minerai-silicium': { chance: 0.3, amount: { min: 40, max: 50 } },
-    'minerai-or': { chance: 0.45, amount: { min: 10, max: 28 } }
-  },
-  9: {
-    'minerai-fer': { chance: 0.45, amount: { min: 55, max: 75 } },
-    'minerai-charbon': { chance: 0.35, amount: { min: 55, max: 70 } },
-    'minerai-calcaire': { chance: 0.55, amount: { min: 60, max: 80 } },
-    'minerai-cuivre': { chance: 0.35, amount: { min: 50, max: 60 } },
-    'minerai-silicium': { chance: 0.25, amount: { min: 45, max: 55 } },
-    'minerai-or': { chance: 0.5, amount: { min: 11, max: 30 } }
-  },
-  10: {
-    'minerai-fer': { chance: 0.5, amount: { min: 60, max: 80 } },
-    'minerai-charbon': { chance: 0.4, amount: { min: 60, max: 75 } },
-    'minerai-calcaire': { chance: 0.6, amount: { min: 65, max: 85 } },
-    'minerai-cuivre': { chance: 0.3, amount: { min: 55, max: 65 } },
-    'minerai-silicium': { chance: 0.2, amount: { min: 50, max: 60 } },
-    'minerai-or': { chance: 0.55, amount: { min: 12, max: 32 } }
-  },
-  11: {
-    'minerai-fer': { chance: 0.55, amount: { min: 65, max: 85 } },
-    'minerai-charbon': { chance: 0.45, amount: { min: 65, max: 80 } },
-    'minerai-calcaire': { chance: 0.65, amount: { min: 70, max: 90 } },
-    'minerai-cuivre': { chance: 0.25, amount: { min: 60, max: 70 } },
-    'minerai-silicium': { chance: 0.15, amount: { min: 55, max: 65 } },
-    'minerai-or': { chance: 0.6, amount: { min: 13, max: 35 } }
-  },
-  12: {
-    'minerai-fer': { chance: 0.6, amount: { min: 70, max: 90 } },
-    'minerai-charbon': { chance: 0.5, amount: { min: 70, max: 85 } },
-    'minerai-calcaire': { chance: 0.7, amount: { min: 75, max: 95 } },
-    'minerai-cuivre': { chance: 0.2, amount: { min: 65, max: 75 } },
-    'minerai-silicium': { chance: 0.1, amount: { min: 60, max: 70 } },
-    'minerai-or': { chance: 0.65, amount: { min: 14, max: 38 } }
-  },
-  13: {
-    'minerai-fer': { chance: 0.65, amount: { min: 75, max: 95 } },
-    'minerai-charbon': { chance: 0.55, amount: { min: 75, max: 90 } },
-    'minerai-calcaire': { chance: 0.75, amount: { min: 80, max: 100 } },
-    'minerai-cuivre': { chance: 0.15, amount: { min: 70, max: 80 } },
-    'minerai-silicium': { chance: 0.05, amount: { min: 65, max: 75 } },
-    'minerai-or': { chance: 0.7, amount: { min: 15, max: 40 } }
-  },
-  14: {
-    'minerai-fer': { chance: 0.7, amount: { min: 80, max: 100 } },
-    'minerai-charbon': { chance: 0.6, amount: { min: 80, max: 95 } },
-    'minerai-calcaire': { chance: 0.8, amount: { min: 85, max: 105 } },
-    'minerai-cuivre': { chance: 0.1, amount: { min: 75, max: 85 } },
-    'minerai-silicium': { chance: 0.05, amount: { min: 70, max: 80 } },
-    'minerai-or': { chance: 0.75, amount: { min: 16, max: 42 } }
   }
-}
-
-interface MineralFound {
-  type: ItemType
-  amount: number
-}
-
-// Configuration des coûts de construction par type de salle
-export const ROOM_CONSTRUCTION_COSTS: { [key: string]: { [key in ItemType]?: number } } = {
-  entrepot: {
-    'lingot-fer': 20,
-    'lingot-acier': 10
-  },
-  dortoir: {
-    'lingot-fer': 30,
-    'lingot-acier': 15,
-    'lingot-cuivre': 10
-  },
-  quartiers: {
-    'lingot-fer': 40,
-    'lingot-acier': 20,
-    'lingot-cuivre': 15,
-    'lingot-silicium': 5
-  },
-  appartement: {
-    'lingot-fer': 50,
-    'lingot-acier': 25,
-    'lingot-cuivre': 20,
-    'lingot-silicium': 10,
-    'lingot-or': 2
-  },
-  suite: {
-    'lingot-fer': 60,
-    'lingot-acier': 30,
-    'lingot-cuivre': 25,
-    'lingot-silicium': 15,
-    'lingot-or': 5
-  },
-  cuisine: {
-    'lingot-fer': 25,
-    'lingot-acier': 12,
-    'lingot-cuivre': 8
-  },
-  'station-traitement': {
-    'lingot-fer': 35,
-    'lingot-acier': 20,
-    'lingot-cuivre': 15,
-    'lingot-silicium': 10
-  },
-  generateur: {
-    'lingot-fer': 40,
-    'lingot-acier': 25,
-    'lingot-cuivre': 20,
-    'lingot-silicium': 15,
-    'lingot-or': 5
-  },
-  infirmerie: {
-    'lingot-fer': 30,
-    'lingot-acier': 15,
-    'lingot-cuivre': 12,
-    'lingot-silicium': 8
-  },
-  serre: {
-    'lingot-fer': 25,
-    'lingot-acier': 10,
-    'lingot-cuivre': 8,
-    'lingot-silicium': 5
-  },
-  raffinerie: {
-    'lingot-fer': 50,
-    'lingot-acier': 30,
-    'lingot-cuivre': 25,
-    'lingot-silicium': 20,
-    'lingot-or': 10
-  },
-  derrick: {
-    'lingot-fer': 45,
-    'lingot-acier': 25,
-    'lingot-cuivre': 20,
-    'lingot-silicium': 15
-  },
-  'salle-controle': {
-    'lingot-fer': 60,
-    'lingot-acier': 40,
-    'lingot-cuivre': 30,
-    'lingot-silicium': 25,
-    'lingot-or': 15
-  },
-  cuve: {
-    'lingot-fer': 30,
-    'lingot-acier': 15,
-    'lingot-cuivre': 12,
-    'lingot-silicium': 8
-  },
-  atelier: {
-    'lingot-fer': 35,
-    'lingot-acier': 20,
-    'lingot-cuivre': 15,
-    'lingot-silicium': 10
-  }
-} as const
-
-// Configuration des points de bonheur
-const HAPPINESS_CONFIG = {
-  // Besoins de base
-  EAU: 25,
-  NOURRITURE: 25,
-  
-  // Besoins secondaires
-  VETEMENTS: 15,
-  MEDICAMENTS: 15,
-  
-  // Pénalités
-  MANQUE_EAU: -30,
-  MANQUE_NOURRITURE: -30,
-  MANQUE_VETEMENTS: -20,
-  MANQUE_MEDICAMENTS: -20,
-  
-  // Bonus/Malus qualité nourriture (sur 10)
-  QUALITE_NOURRITURE_EXCELLENTE: 10, // 9-10
-  QUALITE_NOURRITURE_BONNE: 5, // 7-8
-  QUALITE_NOURRITURE_MOYENNE: 0, // 5-6
-  QUALITE_NOURRITURE_MAUVAISE: -5, // 3-4
-  QUALITE_NOURRITURE_TERRIBLE: -10, // 0-2
-  
-  // Plafonds de bonheur par type de logement
-  SANS_LOGEMENT: 50,
-  DORTOIR: 80,
-  QUARTIERS: 90,
-  APPARTEMENT: 95,
-  SUITE: 100,
-  
-  // Valeur par défaut
-  DEFAULT: 50
-}
-
-// Configuration de la mortalité
-const DEATH_CONFIG = {
-  AGE_75: 75 * 52, // 75 ans en semaines
-  AGE_85: 85 * 52, // 85 ans en semaines
-  AGE_95: 95 * 52, // 95 ans en semaines
-  CHANCE_75: 0.05, // 1/20
-  CHANCE_85: 0.1,  // 1/10
-  CHANCE_95: 0.2,  // 1/5
+  // ... existing code ...
 }
 
 export const useGameStore = defineStore('game', () => {
@@ -1420,193 +631,42 @@ export const useGameStore = defineStore('game', () => {
       .reduce((total, item) => total + item.quantity, 0)
   }
 
+  function calculateProductionBonus(room: Room): number {
+    let bonus = 1
+    
+    // Bonus de production pour la cuisine avancée
+    if (room.type === 'cuisine' && room.equipments?.some(e => e.type === 'cuisine-avancee' && !e.isUnderConstruction)) {
+      bonus = 1.5 // +50% de production
+    }
+    
+    return bonus
+  }
+
   function updateRoomProduction(weeksElapsed: number = 0) {
-    // Réinitialiser toutes les productions et consommations
-    Object.keys(resources.value).forEach(key => {
-      const resource = resources.value[key as ResourceKey]
-      resource.production = 0
-      resource.consumption = 0
-    })
-
-    // Calculer la consommation de base par habitant
-    const nbHabitants = habitants.value.length
-    resources.value.eau.consumption += nbHabitants * 1 // 1 unité d'eau par habitant par semaine
-    resources.value.nourriture.consumption += nbHabitants * 1 // 1 unité de nourriture par habitant par semaine
-    resources.value.vetements.consumption += nbHabitants * 0.1 // 0.1 unité de vêtements par habitant par semaine
-    resources.value.medicaments.consumption += nbHabitants * 0.05 // 0.05 unité de médicaments par habitant par semaine
-
-    // Calculer les productions et consommations des salles
-    levels.value?.forEach(level => {
-      const allRooms = [...level.leftRooms, ...level.rightRooms]
-      allRooms.forEach(room => {
+    levels.value.forEach(level => {
+      [...level.leftRooms, ...level.rightRooms].forEach(room => {
         if (!room.isBuilt || room.isDisabled) return
 
-        const config = ROOM_CONFIGS[room.type]
+        const config = ROOMS_CONFIG[room.type]
         if (!config) return
 
-        const gridSize = room.gridSize || 1
-        const mergeConfig = ROOM_MERGE_CONFIG[room.type]
-        const mergeMultiplier = mergeConfig?.useMultiplier 
-          ? GAME_CONFIG.MERGE_MULTIPLIERS[Math.min(gridSize, 6) as keyof typeof GAME_CONFIG.MERGE_MULTIPLIERS] || 1
-          : 1
+        const nbWorkers = room.occupants.length
+        if (nbWorkers === 0) return
 
-        // Ajouter la consommation d'énergie de la salle
-        if (config.energyConsumption > 0) {
-          resources.value.energie.consumption += config.energyConsumption * gridSize * mergeMultiplier
-        }
-
-        // Ajouter la consommation d'eau si applicable
-        if ('waterConsumption' in config && config.waterConsumption) {
-          resources.value.eau.consumption += config.waterConsumption * gridSize * mergeMultiplier
-        }
-
-        // Gérer la production et consommation des salles
-        if ('productionPerWorker' in config) {
-          const nbWorkers = room.occupants.length
-          if (nbWorkers === 0) return
-
-          // Vérifier si la salle a un équipement qui améliore la production
-          let productionBonus = 1
-          if (room.type === 'cuisine' && room.equipments?.some(e => e.type === 'cuisine-avancee' && !e.isUnderConstruction)) {
-            productionBonus = 1.5 // +50% de production
-          }
-
-          // Gérer la production d'eau pour la station de traitement
-          if (room.type === 'station-traitement') {
-            const waterProduction = (config.productionPerWorker.eau || 0) * nbWorkers * gridSize * mergeMultiplier * productionBonus
-            if (waterProduction > 0) {
-              resources.value.eau.production += waterProduction
-            }
-          }
-
-          // Gérer la production de nourriture pour les serres
-          if (room.type === 'serre') {
-            // Production de base (laitue)
-            const laitueProduction = 2 * nbWorkers * gridSize * mergeMultiplier
-            if (laitueProduction > 0) {
-              addItem('laitue', Math.floor(laitueProduction))
-              const laitueConfig = ITEMS_CONFIG['laitue'] as FoodItemConfig
-              resources.value.nourriture.production += laitueProduction / laitueConfig.ratio
-            }
-
-            // Vérifier les équipements
-            const hasTomates = room.equipments?.some(e => e.type === 'culture-tomates' && !e.isUnderConstruction)
-            const hasAvoine = room.equipments?.some(e => e.type === 'culture-avoine' && !e.isUnderConstruction)
-            const hasVersSoie = room.equipments?.some(e => e.type === 'vers-soie' && !e.isUnderConstruction)
-
-            if (hasTomates) {
-              const tomatoProduction = 1.5 * nbWorkers * gridSize * mergeMultiplier
-              if (tomatoProduction > 0) {
-                addItem('tomates', Math.floor(tomatoProduction))
-                const tomatesConfig = ITEMS_CONFIG['tomates'] as FoodItemConfig
-                resources.value.nourriture.production += tomatoProduction / tomatesConfig.ratio
-              }
-            }
-
-            if (hasAvoine) {
-              const avoineProduction = 2 * nbWorkers * gridSize * mergeMultiplier
-              if (avoineProduction > 0) {
-                addItem('avoine', Math.floor(avoineProduction))
-                const avoineConfig = ITEMS_CONFIG['avoine'] as FoodItemConfig
-                resources.value.nourriture.production += avoineProduction / avoineConfig.ratio
-              }
-            }
-
-            if (hasVersSoie) {
-              const soieProduction = 0.5 * nbWorkers * gridSize * mergeMultiplier
-              if (soieProduction > 0) {
-                addItem('soie', Math.floor(soieProduction))
-              }
-            }
-          }
-
-          // Gérer la production avec carburant (générateur)
-          if (room.type === 'generateur' && room.fuelLevel !== undefined) {
-            // Vérifier s'il y a du carburant disponible
-            if (room.fuelLevel <= 0) {
-              // Essayer de remplir avec un baril de pétrole
-              const barilPetrole = inventory.value.find(item => item.type === 'baril-petrole' && item.quantity > 0)
-              if (barilPetrole) {
-                const success = removeItem(barilPetrole.id, 1)
-                if (success) {
-                  // Ajouter un baril vide
-                  addItem('baril-vide', 1)
-                  room.fuelLevel = 100 // Remplir le réservoir
-                }
-              }
-            }
-
-            // Calculer la consommation de carburant
-            if (room.fuelLevel > 0 && config.fuelConsumption) {
-              const fuelNeeded = config.fuelConsumption * nbWorkers
-              if (room.fuelLevel >= fuelNeeded) {
-                // Assez de carburant, production normale
-                Object.entries(config.productionPerWorker).forEach(([resource, amount]) => {
-                  if (amount && resource in resources.value && amount > 0) {
-                    resources.value[resource as ResourceKey].production += amount * nbWorkers * gridSize * mergeMultiplier * productionBonus
-                  }
-                })
-                room.fuelLevel -= fuelNeeded
-              } else {
-                // Pas assez de carburant, production réduite
-                const ratio = room.fuelLevel / fuelNeeded
-                Object.entries(config.productionPerWorker).forEach(([resource, amount]) => {
-                  if (amount && resource in resources.value && amount > 0) {
-                    resources.value[resource as ResourceKey].production += amount * nbWorkers * gridSize * mergeMultiplier * ratio * productionBonus
-                  }
-                })
-                room.fuelLevel = 0
-              }
-            }
-          }
-
-          // Gérer la production de pétrole (derrick)
-          if (room.type === 'derrick') {
-            // Incrémenter le niveau de carburant
-            if (room.fuelLevel === undefined) room.fuelLevel = 0
-            room.fuelLevel += (100 / 7) * weeksElapsed // Remplissage en une semaine
-
-            // Si le réservoir est plein et qu'il y a des barils vides
-            if (room.fuelLevel >= 100) {
-              const nbBarilsVides = getItemQuantity('baril-vide')
-              if (nbBarilsVides > 0 && config.resourceProduction && typeof config.resourceProduction['baril-petrole'] === 'number') {
-                const productionPetrole = config.resourceProduction['baril-petrole'] * nbWorkers * gridSize * mergeMultiplier
-                const nbBarilsAProduire = Math.min(nbBarilsVides, Math.floor(productionPetrole))
-                if (nbBarilsAProduire > 0) {
-                  removeItem('baril-vide', nbBarilsAProduire)
-                  addItem('baril-petrole', nbBarilsAProduire)
-                  room.fuelLevel = 0 // Réinitialiser le niveau après la production
-                }
-              }
-            }
-          }
-
-          // Appliquer les productions et consommations par travailleur
-          Object.entries(config.productionPerWorker).forEach(([resource, amount]) => {
-            if (amount && resource in resources.value) {
-              if (amount > 0) {
-                resources.value[resource as ResourceKey].production += amount * nbWorkers * gridSize * mergeMultiplier * productionBonus
-              } else {
-                resources.value[resource as ResourceKey].consumption += Math.abs(amount) * nbWorkers * gridSize * mergeMultiplier
-              }
-            }
-          })
-
-          // Gérer les consommations spécifiques de ressources
-          if ('resourceConsumption' in config && config.resourceConsumption) {
-            Object.entries(config.resourceConsumption).forEach(([resource, amount]) => {
-              if (amount && resource in resources.value) {
-                resources.value[resource as ResourceKey].consumption += amount * nbWorkers * gridSize * mergeMultiplier
-              }
-            })
-          }
-        }
+        const productionBonus = calculateProductionBonus(room)
+        handleRoomProduction(
+          room,
+          config,
+          nbWorkers,
+          resources.value,
+          weeksElapsed,
+          productionBonus,
+          addItem,
+          removeItem,
+          getItemQuantity
+        )
       })
     })
-
-    // Mettre à jour la quantité totale de nourriture et vêtements
-    resources.value.nourriture.amount = calculateTotalFood()
-    resources.value.vetements.amount = calculateTotalClothes()
   }
 
   function calculateTotalFood(): number {
@@ -1834,7 +894,7 @@ export const useGameStore = defineStore('game', () => {
 
   // Ajout de la fonction de calcul du bonheur
   function calculateHappiness(habitantId: string): number {
-    let score = HAPPINESS_CONFIG.DEFAULT
+    let score: number = HAPPINESS_CONFIG.DEFAULT
     const habitant = habitants.value.find(h => h.id === habitantId)
     if (!habitant) return score
 
@@ -1876,40 +936,34 @@ export const useGameStore = defineStore('game', () => {
       score += HAPPINESS_CONFIG.MANQUE_MEDICAMENTS
     }
 
-    // Appliquer le plafond de bonheur en fonction du type de logement
-    let bonheurMax = HAPPINESS_CONFIG.SANS_LOGEMENT
-    
+    // Gestion du logement
     if (habitant.logement) {
-      const level = levels.value.find(l => l.id === habitant.logement?.levelId)
-      if (level) {
-        const room = habitant.logement.position === 'left'
-          ? level.leftRooms[habitant.logement.roomIndex]
-          : level.rightRooms[habitant.logement.roomIndex]
-        
-        if (room) {
-          switch (room.type) {
-            case 'dortoir':
-              bonheurMax = HAPPINESS_CONFIG.DORTOIR
-              break
-            case 'quartiers':
-              bonheurMax = HAPPINESS_CONFIG.QUARTIERS
-              break
-            case 'appartement':
-              bonheurMax = HAPPINESS_CONFIG.APPARTEMENT
-              break
-            case 'suite':
-              bonheurMax = HAPPINESS_CONFIG.SUITE
-              break
-          }
+      const room = getRoomById(habitant.logement.levelId, habitant.logement.position, habitant.logement.roomIndex)
+      if (room) {
+        let bonheurMax = HAPPINESS_CONFIG.DEFAULT
+        switch (room.type) {
+          case 'dortoir':
+            bonheurMax = HAPPINESS_CONFIG.DORTOIR
+            break
+          case 'quartiers':
+            bonheurMax = HAPPINESS_CONFIG.QUARTIERS
+            break
+          case 'appartement':
+            bonheurMax = HAPPINESS_CONFIG.APPARTEMENT
+            break
+          case 'suite':
+            bonheurMax = HAPPINESS_CONFIG.SUITE
+            break
         }
+        score = Math.min(score, bonheurMax)
       }
     } else {
       // Pénalité pour absence de logement
       score = Math.min(score, HAPPINESS_CONFIG.SANS_LOGEMENT)
     }
 
-    // Limiter le score entre 0 et le plafond de bonheur
-    return Math.max(0, Math.min(bonheurMax, score))
+    // Limiter le score entre 0 et le plafond de bonheur maximal
+    return Math.max(0, Math.min(score, HAPPINESS_CONFIG.SUITE))
   }
 
   // Mise à jour de la fonction updateHappiness
@@ -2109,25 +1163,29 @@ export const useGameStore = defineStore('game', () => {
         if (constructionCosts) {
           // Vérifier si toutes les ressources sont disponibles
           for (const [resource, amount] of Object.entries(constructionCosts)) {
-            const available = getItemQuantity(resource as ItemType)
-            if (available < amount) {
-              // Notifier le manque de ressources
-              window.dispatchEvent(new CustomEvent('excavation-complete', {
-                detail: {
-                  title: 'Construction impossible',
-                  message: `Il manque ${amount - available} ${ITEMS_CONFIG[resource as ItemType].name}`,
-                  type: 'error'
-                }
-              }))
-              return false
+            if (amount !== undefined) {
+              const available = getItemQuantity(resource as ItemType)
+              if (available < amount) {
+                // Notifier le manque de ressources
+                window.dispatchEvent(new CustomEvent('excavation-complete', {
+                  detail: {
+                    title: 'Construction impossible',
+                    message: `Il manque ${amount - available} ${ITEMS_CONFIG[resource as ItemType].name}`,
+                    type: 'error'
+                  }
+                }))
+                return false
+              }
             }
           }
 
           // Consommer les ressources
           for (const [resource, amount] of Object.entries(constructionCosts)) {
-            const item = inventory.value.find(item => item.type === resource && item.quantity >= amount)
-            if (item) {
-              removeItem(item.id, amount)
+            if (amount !== undefined) {
+              const item = inventory.value.find(item => item.type === resource && item.quantity >= amount)
+              if (item) {
+                removeItem(item.id, amount)
+              }
             }
           }
         }
@@ -2311,7 +1369,7 @@ export const useGameStore = defineStore('game', () => {
     const room = position === 'left' ? level.leftRooms[roomIndex] : level.rightRooms[roomIndex]
     if (!room || !room.isBuilt) return false
 
-    const config = ROOM_CONFIGS[room.type]
+    const config = ROOMS_CONFIG[room.type]
     if (!config) return false
 
     // Vérifier si c'est une salle de logement
@@ -2334,7 +1392,7 @@ export const useGameStore = defineStore('game', () => {
 
       // Si l'habitant avait déjà un logement, le libérer
       if (habitant.logement) {
-        const oldLevel = levels.value.find(l => l.id === habitant.logement.levelId)
+        const oldLevel = levels.value.find(l => l.id === habitant.logement?.levelId)
         if (oldLevel) {
           const oldRoom = habitant.logement.position === 'left' 
             ? oldLevel.leftRooms[habitant.logement.roomIndex]
@@ -2774,15 +1832,15 @@ export const useGameStore = defineStore('game', () => {
     return true;
   }
 
-  function removeItem(itemIdOrType: string, quantity: number = 1): boolean {
+  function removeItem(type: ItemType | string, quantity: number = 1): boolean {
 
     // Trouver tous les items correspondants (par ID ou par type) et retirer les stacks vides
     const matchingItems = inventory.value.filter(item => 
-      (item.id === itemIdOrType || item.type === itemIdOrType) && item.quantity > 0
+      (item.id === type || item.type === type) && item.quantity > 0
     ).sort((a, b) => b.quantity - a.quantity) // Trier par quantité décroissante
 
     if (matchingItems.length === 0) {
-      console.log('Item non trouvé:', itemIdOrType)
+      console.log('Item non trouvé:', type)
       return false
     }
 
@@ -2811,7 +1869,7 @@ export const useGameStore = defineStore('game', () => {
     return true
   }
 
-  function getItemQuantity(type: ItemType): number {
+  function getItemQuantity(type: ItemType | string): number {
     return inventory.value
       .filter(item => item.type === type)
       .reduce((total, item) => total + item.quantity, 0)
@@ -2878,7 +1936,7 @@ export const useGameStore = defineStore('game', () => {
 
     if (!room || !room.isBuilt) return false
 
-    const config = ROOM_CONFIGS[room.type]
+    const config = ROOMS_CONFIG[room.type]
     if (!config) return false
 
     room.stairsPosition = position
@@ -2957,8 +2015,11 @@ export const useGameStore = defineStore('game', () => {
   }
 
   function calculateFoodQuality(item: Item): number {
-    const itemConfig = ITEMS_CONFIG[item.type as keyof typeof ITEMS_CONFIG]
-    return isFoodItem(itemConfig) ? itemConfig.qualite : 1
+    const config = ITEMS_CONFIG[item.type as ItemType]
+    if (isFoodItem(config)) {
+      return config.qualite
+    }
+    return 0
   }
 
   function getFoodRatio(itemType: ItemType): number {
@@ -3108,6 +2169,68 @@ export const useGameStore = defineStore('game', () => {
     inventory.value = newInventory
   }
 
+  // Utilitaires pour la génération de personnages
+  const PRENOMS = [
+    'Jean', 'Pierre', 'Luc', 'Louis', 'Thomas', 'Paul', 'Nicolas', 'Antoine',
+    'Michel', 'François', 'Henri', 'Marcel', 'André', 'Philippe', 'Jacques', 'Robert',
+    'Daniel', 'Joseph', 'Claude', 'Georges', 'Roger', 'Bernard', 'Alain', 'René', // Prénoms masculins
+    'Marie', 'Sophie', 'Emma', 'Julie', 'Claire', 'Alice', 'Laura', 'Léa',
+    'Anne', 'Catherine', 'Isabelle', 'Jeanne', 'Marguerite', 'Françoise', 'Hélène', 'Louise',
+    'Madeleine', 'Thérèse', 'Suzanne', 'Monique', 'Simone', 'Yvette', 'Nicole', 'Denise' // Prénoms féminins
+  ]
+
+  const NOMS = [
+    'Martin', 'Bernard', 'Dubois', 'Thomas', 'Robert', 'Richard', 'Petit', 'Durand',
+    'Leroy', 'Moreau', 'Simon', 'Laurent', 'Lefebvre', 'Michel', 'Garcia', 'David',
+    'Bertrand', 'Roux', 'Vincent', 'Fournier', 'Morel', 'Girard', 'Andre', 'Lefevre',
+    'Mercier', 'Dupont', 'Lambert', 'Bonnet', 'Francois', 'Martinez', 'Legrand', 'Garnier',
+    'Faure', 'Rousseau', 'Blanc', 'Guerin', 'Muller', 'Henry', 'Roussel', 'Nicolas'
+  ]
+
+  function generateRandomName(): { nom: string, genre: 'H' | 'F', age: number } {
+    const genre = Math.random() > 0.5 ? 'H' : 'F'
+    const prenom = genre === 'H' 
+      ? PRENOMS.filter((_, i) => i < PRENOMS.length / 2)[Math.floor(Math.random() * (PRENOMS.length / 2))]
+      : PRENOMS.filter((_, i) => i >= PRENOMS.length / 2)[Math.floor(Math.random() * (PRENOMS.length / 2))]
+    const nom = NOMS[Math.floor(Math.random() * NOMS.length)]
+    const ageEnAnnees = Math.floor(Math.random() * 53) + 8 // Entre 8 et 60 ans
+    const ageEnSemaines = ageEnAnnees * 52 // Conversion en semaines
+    return { nom: `${prenom} ${nom}`, genre, age: ageEnSemaines }
+  }
+
+  function generateRandomCompetences(): Competences {
+    const competences = ['force', 'dexterite', 'charme', 'relations', 'instinct', 'savoir']
+    const points = Array(6).fill(1) // Chaque compétence commence à 1
+    let remainingPoints = 21 // 27 - 6 points déjà distribués
+
+    // Distribution aléatoire des points restants
+    while (remainingPoints > 0) {
+      const index = Math.floor(Math.random() * competences.length)
+      if (points[index] < 10) { // Maximum de 10 points par compétence
+        points[index]++
+        remainingPoints--
+      }
+    }
+
+    return {
+      force: points[0],
+      dexterite: points[1],
+      charme: points[2],
+      relations: points[3],
+      instinct: points[4],
+      savoir: points[5]
+    }
+  }
+
+  function getRoomById(levelId: number, position: 'left' | 'right', roomIndex: number): Room | null {
+    const level = levels.value.find(l => l.id === levelId)
+    if (!level) return null
+    
+    return position === 'left'
+      ? level.leftRooms[roomIndex] || null
+      : level.rightRooms[roomIndex] || null
+  }
+
   return {
     // État
     resources,
@@ -3144,7 +2267,7 @@ export const useGameStore = defineStore('game', () => {
     libererHabitant,
     affecterHabitantSalle,
     retirerHabitantSalle,
-    ROOM_CONFIGS,
+    ROOMS_CONFIG,
     ROOM_MERGE_CONFIG,
     GAME_CONFIG,
     ITEMS_CONFIG,

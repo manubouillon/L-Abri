@@ -34,8 +34,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useGameStore } from '../stores/gameStore'
+import { ROOMS_CONFIG } from '../config/roomsConfig'
 import type { Room } from '../stores/gameStore'
 
 const store = useGameStore()
@@ -48,7 +49,7 @@ const productions = computed(() => {
     const allRooms = [...level.leftRooms, ...level.rightRooms]
     allRooms.forEach(room => {
       if (room.isBuilt && room.type === 'station-traitement') {
-        const config = store.ROOM_CONFIGS[room.type]
+        const config = ROOMS_CONFIG[room.type]
         if (!config || !('productionPerWorker' in config)) return
 
         const nbWorkers = room.occupants.length

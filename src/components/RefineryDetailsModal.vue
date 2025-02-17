@@ -24,11 +24,11 @@
           <div class="production-formula">
             <div class="formula-row">
               <span class="label">Consommation d'énergie:</span>
-              <span>{{ ROOM_CONFIGS['raffinerie'].energyConsumption }} par semaine</span>
+              <span>{{ ROOMS_CONFIG['raffinerie'].energyConsumption }} par semaine</span>
             </div>
             <div class="formula-row">
               <span class="label">Nombre de travailleurs:</span>
-              <span>{{ props.room.occupants.length }}/{{ ROOM_CONFIGS['raffinerie'].maxWorkers }}👥</span>
+              <span>{{ props.room.occupants.length }}/{{ ROOMS_CONFIG['raffinerie'].maxWorkers }}👥</span>
             </div>
             <div class="formula-row">
               <span class="label">Capacité de traitement:</span>
@@ -80,7 +80,7 @@
           </div>
         </div>
 
-        <div class="add-worker" v-if="props.room.occupants.length < (ROOM_CONFIGS['raffinerie'] as RefineryConfig).maxWorkers">
+        <div class="add-worker" v-if="props.room.occupants.length < (ROOMS_CONFIG['raffinerie'] as RefineryConfig).maxWorkers">
           <select v-model="selectedHabitant">
             <option value="">Sélectionner un habitant</option>
             <option 
@@ -156,8 +156,9 @@
 import { ref, computed, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useGameStore } from '../stores/gameStore'
-import type { Room, ItemType } from '../stores/gameStore'
-import { ITEMS_CONFIG, ROOM_CONFIGS } from '../stores/gameStore'
+import { ROOM_MERGE_CONFIG, ROOMS_CONFIG, type ProductionRoomConfig } from '../config/roomsConfig'
+import { ITEMS_CONFIG, type ItemType } from '../config/itemsConfig'
+import type { Room } from '../stores/gameStore'
 
 interface ConversionRule {
   output: ItemType
@@ -204,7 +205,7 @@ watch(() => props.room.nextMineralsToProcess, (newValue) => {
 }, { immediate: true })
 
 const conversionRules = computed(() => {
-  const config = ROOM_CONFIGS['raffinerie'] as RefineryConfig
+  const config = ROOMS_CONFIG['raffinerie'] as RefineryConfig
   if (!config || !config.conversionRules) return {}
   return Object.fromEntries(
     Object.entries(config.conversionRules).map(([inputType, rule]) => [
@@ -236,7 +237,7 @@ const getMergeMultiplier = computed(() => {
 })
 
 function getProcessingCapacity(): number {
-  const config = ROOM_CONFIGS['raffinerie'] as RefineryConfig
+  const config = ROOMS_CONFIG['raffinerie'] as RefineryConfig
   if (!config || !config.mineralsProcessingPerWorker) return 0
   const nbWorkers = props.room.occupants.length
   const gridSize = props.room.gridSize || 1

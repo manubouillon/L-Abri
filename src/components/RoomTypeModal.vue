@@ -60,8 +60,9 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { storeToRefs } from 'pinia'
-import { ROOM_CATEGORIES, ROOM_CONSTRUCTION_COSTS, ITEMS_CONFIG, useGameStore } from '../stores/gameStore'
-import type { ItemType } from '../stores/gameStore'
+import { ROOM_CATEGORIES, ROOM_CONSTRUCTION_COSTS } from '../config/roomsConfig'
+import { useGameStore } from '../stores/gameStore'
+import { ITEMS_CONFIG, type ItemType } from '../config/itemsConfig'
 
 const store = useGameStore()
 
