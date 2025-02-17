@@ -1,6 +1,6 @@
 import type { ItemType } from '../stores/gameStore'
 
-export type ResourceKey = 'energie' | 'eau' | 'nourriture' | 'vetements' | 'medicaments'
+export type ResourceKey = 'energie' | 'eau' | 'nourriture' | 'vetements' | 'medicaments' | 'laitue'
 
 export interface RoomConfigBase {
   maxWorkers: number
@@ -71,6 +71,24 @@ export const ROOMS_CONFIG: { [key: string]: RoomConfig } = {
     energyConsumption: 1,
     capacityPerResident: 4
   },
+  'quartiers': {
+    type: 'dortory',
+    maxWorkers: 0,
+    energyConsumption: 2,
+    capacityPerResident: 2
+  },
+  'appartement': {
+    type: 'dortory',
+    maxWorkers: 0,
+    energyConsumption: 3,
+    capacityPerResident: 1
+  },
+  'suite': {
+    type: 'dortory',
+    maxWorkers: 0,
+    energyConsumption: 4,
+    capacityPerResident: 1
+  },
   'entrepot': {
     type: 'storage',
     maxWorkers: 2,
@@ -118,7 +136,68 @@ export const ROOMS_CONFIG: { [key: string]: RoomConfig } = {
       }
     }
   },
-  // ... autres configurations de salles ...
+  'cuisine': {
+    type: 'production',
+    maxWorkers: 3,
+    energyConsumption: 2,
+    productionPerWorker: {
+      'nourriture': 5
+    }
+  },
+  'station-traitement': {
+    type: 'production',
+    maxWorkers: 2,
+    energyConsumption: 3,
+    productionPerWorker: {
+      'eau': 10
+    }
+  },
+  'generateur': {
+    type: 'production',
+    maxWorkers: 2,
+    energyConsumption: 0,
+    productionPerWorker: {
+      'energie': 10
+    }
+  },
+  'infirmerie': {
+    type: 'production',
+    maxWorkers: 2,
+    energyConsumption: 2,
+    productionPerWorker: {
+      'medicaments': 2
+    }
+  },
+  'serre': {
+    type: 'production',
+    maxWorkers: 3,
+    energyConsumption: 2,
+    waterConsumption: 2,
+    productionPerWorker: {
+      'laitue': 2
+    }
+  },
+  'derrick': {
+    type: 'production',
+    maxWorkers: 2,
+    energyConsumption: 4,
+    productionPerWorker: {},
+    resourceProduction: {
+      'baril-petrole': 1
+    }
+  },
+  'salle-controle': {
+    type: 'production',
+    maxWorkers: 2,
+    energyConsumption: 5,
+    productionPerWorker: {}
+  },
+  'atelier': {
+    type: 'production',
+    maxWorkers: 3,
+    energyConsumption: 2,
+    productionPerWorker: {}
+  }
 }
 
 export interface RoomCategory {
