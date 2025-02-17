@@ -7,6 +7,10 @@
         v-for="[name, resource] in resourcesList" 
         :key="name"
         class="resource-item"
+        :class="{ 
+          'energy-surplus': name === 'energie' && resource.production > resource.consumption,
+          'energy-deficit': name === 'energie' && resource.production < resource.consumption
+        }"
       >
         <div class="resource-header">
           <span class="resource-name">
@@ -15,7 +19,10 @@
               {{ foodQualityEmoji }}
             </span>
           </span>
-          <span class="resource-amount">{{ Math.floor(resource.amount) }}/{{ resource.capacity }}</span>
+          <span v-if="name === 'energie'" class="resource-amount">
+            {{ (resource.production - resource.consumption) > 0 ? '+' : '' }}{{ Math.floor(resource.production - resource.consumption) }} ⚡
+          </span>
+          <span v-else class="resource-amount">{{ Math.floor(resource.amount) }}/{{ resource.capacity }}</span>
           <button v-if="name === 'energie'" 
                   class="details-button"
                   @click="showEnergyDetails = true">
@@ -43,7 +50,7 @@
           </button>
         </div>
         
-        <div class="resource-progress">
+        <div v-if="name !== 'energie'" class="resource-progress">
           <div 
             class="progress-bar"
             :style="{ width: `${(resource.amount / resource.capacity) * 100}%` }"
@@ -144,6 +151,15 @@ const { globalHappiness, averageFoodQuality, foodQualityEmoji } = storeToRefs(ga
   background-color: #34495e;
   padding: 0.75rem;
   border-radius: 4px;
+  transition: background-color 0.3s ease;
+
+  &.energy-surplus {
+    background-color: #2d4f3c; // Vert foncé subtil
+  }
+
+  &.energy-deficit {
+    background-color: #4f2d2d; // Rouge foncé subtil
+  }
 }
 
 .resource-header {

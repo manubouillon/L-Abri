@@ -714,108 +714,184 @@ export const useGameStore = defineStore('game', () => {
     return totalFood
   }
 
+  const WATER_TANK_RATIO = 2 // 1% de fuelLevel = 2 unités d'eau
+
+  function calculateTotalWaterStorage(): number {
+    const tanks = findWaterTanks()
+    return tanks.reduce((total, tank) => {
+      return total + ((tank.fuelLevel || 0) * WATER_TANK_RATIO)
+    }, 0)
+  }
+
+  function calculateWaterProduction(): number {
+    let totalProduction = 0
+    
+    levels.value.forEach(level => {
+      const allRooms = [...level.leftRooms, ...level.rightRooms]
+      allRooms.forEach(room => {
+        if (room.isBuilt && room.type === 'station-traitement') {
+          const config = ROOMS_CONFIG[room.type]
+          if (!config || !('productionPerWorker' in config)) return
+
+          const nbWorkers = room.occupants.length
+          const gridSize = room.gridSize || 1
+          const mergeConfig = ROOM_MERGE_CONFIG[room.type]
+          const mergeMultiplier = mergeConfig?.useMultiplier 
+            ? GAME_CONFIG.MERGE_MULTIPLIERS[Math.min(gridSize, 6) as keyof typeof GAME_CONFIG.MERGE_MULTIPLIERS] || 1
+            : 1
+
+          const production = config.productionPerWorker.eau! * nbWorkers * gridSize * mergeMultiplier
+          if (production > 0) {
+            totalProduction += production
+          }
+        }
+      })
+    })
+    
+    return totalProduction
+  }
+
+  function calculateWaterConsumption(): number {
+    let totalConsumption = population.value // Consommation de base par habitant
+
+    levels.value.forEach(level => {
+      const allRooms = [...level.leftRooms, ...level.rightRooms]
+      allRooms.forEach(room => {
+        if (room.isBuilt && room.type === 'serre') {
+          const gridSize = room.gridSize || 1
+          const waterConsumption = 2 * gridSize // 2 unités d'eau par cellule de serre
+          totalConsumption += waterConsumption
+        }
+      })
+    })
+    
+    return totalConsumption
+  }
+
+  function calculateEnergyProduction(): number {
+    let totalProduction = 0
+    
+    levels.value.forEach(level => {
+      const allRooms = [...level.leftRooms, ...level.rightRooms]
+      allRooms.forEach(room => {
+        if (room.isBuilt && room.type === 'generateur' && room.fuelLevel && room.fuelLevel > 0) {
+          const config = ROOMS_CONFIG[room.type]
+          if (!config || !('productionPerWorker' in config)) return
+
+          const nbWorkers = room.occupants.length
+          const gridSize = room.gridSize || 1
+          const mergeConfig = ROOM_MERGE_CONFIG[room.type]
+          const mergeMultiplier = mergeConfig?.useMultiplier 
+            ? GAME_CONFIG.MERGE_MULTIPLIERS[Math.min(gridSize, 6) as keyof typeof GAME_CONFIG.MERGE_MULTIPLIERS] || 1
+            : 1
+
+          const production = config.productionPerWorker.energie! * nbWorkers * gridSize * mergeMultiplier
+          if (production > 0) {
+            totalProduction += production
+          }
+        }
+      })
+    })
+    
+    return totalProduction
+  }
+
+  function calculateEnergyConsumption(): number {
+    let totalConsumption = population.value * 2 // Consommation de base par habitant (2 unités)
+
+    levels.value.forEach(level => {
+      const allRooms = [...level.leftRooms, ...level.rightRooms]
+      allRooms.forEach(room => {
+        if (room.isBuilt) {
+          const config = ROOMS_CONFIG[room.type]
+          if (!config) return
+          
+          const gridSize = room.gridSize || 1
+          const energyConsumption = config.energyConsumption * gridSize
+          totalConsumption += energyConsumption
+        }
+      })
+    })
+    
+    return totalConsumption
+  }
+
   function updateResources(weeksElapsed: number) {
     // Mettre à jour les productions et consommations
     updateRoomProduction(weeksElapsed)
 
     // Calculer la consommation de base par habitant
     const nbHabitants = habitants.value.length
-    resources.value.eau.consumption += nbHabitants * 1 // 1 unité d'eau par habitant par semaine
     resources.value.nourriture.consumption += nbHabitants * 1 // 1 unité de nourriture par habitant par semaine
     resources.value.vetements.consumption += nbHabitants * 0.1 // 0.1 unité de vêtements par habitant par semaine
     resources.value.medicaments.consumption += nbHabitants * 0.05 // 0.05 unité de médicaments par habitant par semaine
 
+    // Gestion spéciale de l'eau
+    resources.value.eau.production = calculateWaterProduction()
+    resources.value.eau.consumption = calculateWaterConsumption()
+    const waterNet = (resources.value.eau.production - resources.value.eau.consumption) * weeksElapsed
+
+    // Gestion spéciale de l'énergie
+    resources.value.energie.production = calculateEnergyProduction()
+    resources.value.energie.consumption = calculateEnergyConsumption()
+    const energyNet = resources.value.energie.production - resources.value.energie.consumption
+
     // Appliquer les changements pour chaque ressource
     Object.entries(resources.value).forEach(([key, resource]) => {
-      const net = (resource.production - resource.consumption) * weeksElapsed
-      
       if (key === 'eau') {
-        // Gestion spéciale pour l'eau
-        if (net > 0) {
-          const added = addWater(net)
-          resources.value.eau.amount = Math.min(resources.value.eau.capacity, resources.value.eau.amount + added)
-        } else if (net < 0) {
-          const removed = removeWater(-net)
-          resources.value.eau.amount = Math.max(0, resources.value.eau.amount - removed)
-        }
-      } else if (key === 'nourriture') {
-        // Gestion spéciale pour la nourriture
-        resources.value.nourriture.amount = calculateTotalFood()
-        
-        // Appliquer la perte de nourriture due à la conservation
-        const foodItems = inventory.value
-          .filter(item => item.category === 'nourriture' && item.quantity > 0)
-          .map(item => ({
-            item,
-            config: ITEMS_CONFIG[item.type as keyof typeof ITEMS_CONFIG]
-          }))
-          .filter(({ config }) => config && isFoodItem(config))
-        
-        foodItems.forEach(({ item, config }) => {
-          if (isFoodItem(config)) {
-            const conservation = config.conservation
-            const loss = Math.floor(item.quantity * (1 - conservation) * weeksElapsed)
-            if (loss > 0) {
-              removeItem(item.id, loss)
-            }
-          }
-        })
-        
-        // Si consommation de nourriture
-        if (net < 0) {
-          const foodNeeded = -net
-          const availableFoodItems = inventory.value
-            .filter(item => item.category === 'nourriture' && item.quantity > 0)
-            .map(item => ({
-              item,
-              config: ITEMS_CONFIG[item.type as keyof typeof ITEMS_CONFIG]
-            }))
-            .filter(({ config }) => config && isFoodItem(config))
+        if (waterNet > 0) {
+          // Production d'eau : stocker dans les cuves
+          addWater(waterNet)
+        } else {
+          // Consommation d'eau : prendre des cuves
+          const tanks = findWaterTanks()
+          let remainingConsumption = Math.abs(waterNet)
           
-          if (availableFoodItems.length > 0) {
-            // Trier par qualité décroissante
-            availableFoodItems.sort((a, b) => {
-              if (isFoodItem(a.config) && isFoodItem(b.config)) {
-                return b.config.qualite - a.config.qualite
-              }
-              return 0
-            })
+          for (const tank of tanks) {
+            if (remainingConsumption <= 0) break
             
-            let remainingFoodNeeded = foodNeeded
-            for (const { item, config } of availableFoodItems) {
-              if (isFoodItem(config) && remainingFoodNeeded > 0) {
-                const itemsToConsume = Math.ceil(remainingFoodNeeded * config.ratio)
-                const actualConsumption = Math.min(itemsToConsume, item.quantity)
-                if (actualConsumption > 0) {
-                  removeItem(item.id, actualConsumption)
-                  remainingFoodNeeded -= actualConsumption / config.ratio
-                }
-              }
+            const waterAvailable = ((tank.fuelLevel || 0) * WATER_TANK_RATIO)
+            const waterToTake = Math.min(waterAvailable, remainingConsumption)
+            
+            if (waterToTake > 0) {
+              tank.fuelLevel = ((waterAvailable - waterToTake) * 100) / WATER_TANK_RATIO
+              remainingConsumption -= waterToTake
             }
           }
+          // Mettre à jour le montant d'eau avec le total des cuves
+          resource.amount = calculateTotalWaterStorage()
         }
-      } else if (key === 'vetements') {
-        // Gestion spéciale pour les vêtements
-        resources.value.vetements.amount = calculateTotalClothes()
-        
-        // Si consommation de vêtements
-        if (net < 0) {
-          const clothesNeeded = -net
-          const clothesItems = inventory.value.filter(item => item.type === 'vetements' && item.quantity > 0)
-          
-          if (clothesItems.length > 0) {
-            const item = clothesItems[0]
-            const itemsToConsume = Math.ceil(clothesNeeded)
-            if (itemsToConsume > 0) {
-              const actualConsumption = Math.min(itemsToConsume, item.quantity)
-              removeItem(item.id, actualConsumption)
-            }
-          }
+      } else if (key === 'energie') {
+        // Gestion de l'énergie
+        // Si déficit d'énergie, désactiver certaines salles
+        if (energyNet < 0) {
+          levels.value.forEach(level => {
+            const allRooms = [...level.leftRooms, ...level.rightRooms]
+            allRooms.forEach(room => {
+              if (room.isBuilt && room.type !== 'generateur') {
+                room.isDisabled = true
+              }
+            })
+          })
+        } else {
+          // Réactiver les salles si assez d'énergie
+          levels.value.forEach(level => {
+            const allRooms = [...level.leftRooms, ...level.rightRooms]
+            allRooms.forEach(room => {
+              room.isDisabled = false
+            })
+          })
         }
       } else {
-        // Gestion normale pour les autres ressources
-        const newAmount = Math.max(0, Math.min(resource.amount + net, resource.capacity))
-        resources.value[key as ResourceKey].amount = newAmount
+        // Autres ressources : gestion standard
+        const net = (resource.production - resource.consumption) * weeksElapsed
+        resource.amount = Math.max(0, resource.amount + net)
+      }
+      
+      // Réinitialiser les compteurs sauf pour l'eau et l'énergie
+      if (key !== 'eau' && key !== 'energie') {
+        resource.production = 0
+        resource.consumption = 0
       }
     })
   }
@@ -1989,8 +2065,6 @@ export const useGameStore = defineStore('game', () => {
     room.stairsPosition = position
     return true
   }
-
-  const WATER_TANK_RATIO = 2 // 1% de fuelLevel = 2 unités d'eau
 
   function findWaterTanks(): Room[] {
     const tanks: Room[] = []

@@ -81,6 +81,6 @@ export function handleRoomProduction(
           resources[resource as ResourceKey].consumption += Math.abs(amount) * nbWorkers * gridSize * mergeMultiplier
         }
       }
-    })
+    });
   }
 } 
