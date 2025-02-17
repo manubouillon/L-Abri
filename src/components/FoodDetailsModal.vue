@@ -95,8 +95,8 @@ import { ref, computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useGameStore } from '../stores/gameStore'
 import { ROOMS_CONFIG } from '../config/roomsConfig'
-import { ITEMS_CONFIG } from '../config/itemsConfig'
-import type { Room, ItemType, Item, FoodItemConfig } from '../stores/gameStore'
+import { ITEMS_CONFIG, type ItemType, type FoodItemConfig } from '../config/itemsConfig'
+import type { Room, Item } from '../stores/gameStore'
 
 const props = defineProps<{
   room: Room
@@ -201,15 +201,15 @@ function getFoodRatio(type: string): number {
 }
 
 function calculateFoodConsumption(item: Item): number {
-  const totalConsumption = resources.value.nourriture.consumption * gameSpeed.value
+  const baseConsumption = population.value * 1 // 1 unité par habitant par semaine
   const foodCount = availableFoodItems.value.length
   if (foodCount === 0) return 0
   
-  const consumptionPerType = totalConsumption / foodCount
   const config = ITEMS_CONFIG[item.type as keyof typeof ITEMS_CONFIG]
   const ratio = config && isFoodItemConfig(config) ? config.ratio : 1
   
-  return Math.ceil(consumptionPerType * ratio)
+  // Répartir la consommation en fonction du ratio de chaque type de nourriture
+  return Math.ceil(baseConsumption * ratio / foodCount)
 }
 
 function calculateTotalProduction(): number {

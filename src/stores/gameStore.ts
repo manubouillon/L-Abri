@@ -828,6 +828,12 @@ export const useGameStore = defineStore('game', () => {
   }
 
   function updateResources(weeksElapsed: number) {
+    // Réinitialiser les productions et consommations
+    Object.values(resources.value).forEach(resource => {
+      resource.production = 0
+      resource.consumption = 0
+    })
+
     // Mettre à jour les productions et consommations
     updateRoomProduction(weeksElapsed)
 
@@ -941,12 +947,6 @@ export const useGameStore = defineStore('game', () => {
         // Autres ressources : gestion standard
         const net = (resource.production - resource.consumption) * weeksElapsed
         resource.amount = Math.max(0, resource.amount + net)
-      }
-      
-      // Réinitialiser les compteurs sauf pour l'eau et l'énergie
-      if (key !== 'eau' && key !== 'energie') {
-        resource.production = 0
-        resource.consumption = 0
       }
     })
   }

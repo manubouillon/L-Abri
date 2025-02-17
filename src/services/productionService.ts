@@ -1,6 +1,7 @@
 import type { Room } from '../stores/gameStore'
 import type { RoomConfig, ResourceKey } from '../config/roomsConfig'
 import type { ItemType } from '../config/itemsConfig'
+import { GAME_CONFIG } from '../config/gameConfig'
 
 interface Resource {
   amount: number
@@ -26,7 +27,9 @@ export function handleRoomProduction(
 ) {
 
   const gridSize = room.gridSize || 1
-  const mergeMultiplier = room.gridSize && room.gridSize > 1 ? 1.2 : 1
+  const mergeMultiplier = gridSize > 1 
+    ? GAME_CONFIG.MERGE_MULTIPLIERS[Math.min(gridSize, 6) as keyof typeof GAME_CONFIG.MERGE_MULTIPLIERS] || 1
+    : 1
 
   // Gestion de la consommation d'eau
   if ('waterConsumption' in config && config.waterConsumption) {
@@ -119,13 +122,41 @@ export function handleRoomProduction(
     Object.entries(config.productionPerWorker).forEach(([resource, amount]) => {
       if (amount && resource in resources) {
         if (amount > 0) {
-          const production = amount * nbWorkers * gridSize * mergeMultiplier * productionBonus
+          const production = amount * nbWorkers * gridSize * mergeMultiplier * productionBonus * weeksElapsed
           resources[resource as ResourceKey].production += production
         } else {
-          const consumption = Math.abs(amount) * nbWorkers * gridSize * mergeMultiplier
+          const consumption = Math.abs(amount) * nbWorkers * gridSize * mergeMultiplier * weeksElapsed
           resources[resource as ResourceKey].consumption += consumption
         }
       }
     });
+  }
+
+  // Gestion spéciale de la production de nourriture des serres
+  if (room.type === 'serre' && 'productionPerWorker' in config) {
+    // Production de base (laitue)
+    const laitueProduction = 2 * nbWorkers * gridSize * mergeMultiplier * productionBonus * weeksElapsed
+    addItem('laitue', Math.floor(laitueProduction))
+
+    // Vérifier les équipements
+    const hasTomates = room.equipments?.some(e => e.type === 'culture-tomates' && !e.isUnderConstruction)
+    const hasAvoine = room.equipments?.some(e => e.type === 'culture-avoine' && !e.isUnderConstruction)
+
+    if (hasTomates) {
+      const tomatoProduction = 1.5 * nbWorkers * gridSize * mergeMultiplier * productionBonus * weeksElapsed
+      addItem('tomates', Math.floor(tomatoProduction))
+    }
+    if (hasAvoine) {
+      const avoineProduction = 2 * nbWorkers * gridSize * mergeMultiplier * productionBonus * weeksElapsed
+      addItem('avoine', Math.floor(avoineProduction))
+    }
+
+    // Convertir la production en unités de nourriture
+    const totalNourritureFromSerre = (
+      (laitueProduction / 2) + // 2 laitues = 1 unité de nourriture
+      (hasTomates ? (laitueProduction * 1.5 / 1.5) : 0) + // 1.5 tomates = 1 unité de nourriture
+      (hasAvoine ? (2 * nbWorkers * gridSize * mergeMultiplier * productionBonus * weeksElapsed) : 0) // 1 avoine = 1 unité de nourriture
+    )
+    resources.nourriture.production += totalNourritureFromSerre
   }
 } 
