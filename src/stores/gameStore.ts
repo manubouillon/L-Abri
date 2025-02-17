@@ -721,10 +721,32 @@ export const useGameStore = defineStore('game', () => {
   const WATER_TANK_RATIO = 2 // 1% de fuelLevel = 2 unités d'eau
 
   function calculateTotalWaterStorage(): number {
+    let totalCapacity = 0
+
+    // Calculer la capacité des cuves d'eau
     const tanks = findWaterTanks()
-    return tanks.reduce((total, tank) => {
-      return total + ((tank.fuelLevel || 0) * WATER_TANK_RATIO)
+    totalCapacity += tanks.reduce((total, tank) => {
+      const gridSize = tank.gridSize || 1
+      const mergeMultiplier = gridSize > 1 ? 1.2 : 1
+      return total + (200 * gridSize * mergeMultiplier) // Capacité de base d'une cuve d'eau
     }, 0)
+
+    // Calculer la capacité des entrepôts
+    levels.value.forEach(level => {
+      const allRooms = [...level.leftRooms, ...level.rightRooms]
+      allRooms.forEach(room => {
+        if (room.isBuilt && room.type === 'entrepot' && !room.isDisabled) {
+          const config = ROOMS_CONFIG[room.type] as StorageRoomConfig
+          const gridSize = room.gridSize || 1
+          const mergeMultiplier = gridSize > 1 ? 1.2 : 1
+          if (config.capacityPerWorker.eau) {
+            totalCapacity += config.capacityPerWorker.eau * config.maxWorkers * gridSize * mergeMultiplier
+          }
+        }
+      })
+    })
+
+    return totalCapacity
   }
 
   function calculateWaterProduction(): number {
@@ -778,7 +800,7 @@ export const useGameStore = defineStore('game', () => {
     levels.value.forEach(level => {
       const allRooms = [...level.leftRooms, ...level.rightRooms]
       allRooms.forEach(room => {
-        if (room.isBuilt && room.type === 'generateur' && room.fuelLevel && room.fuelLevel > 0) {
+        if (room.isBuilt && room.type === 'generateur' && room.fuelLevel && room.fuelLevel > 0 && !room.isDisabled) {
           const config = ROOMS_CONFIG[room.type]
           if (!config || !('productionPerWorker' in config)) return
 
@@ -831,6 +853,7 @@ export const useGameStore = defineStore('game', () => {
     resources.value.medicaments.consumption += nbHabitants * 0.05 // 0.05 unité de médicaments par habitant par semaine
 
     // Gestion spéciale de l'eau
+    resources.value.eau.capacity = calculateTotalWaterStorage() // Mise à jour de la capacité totale
     resources.value.eau.production = calculateWaterProduction()
     resources.value.eau.consumption = calculateWaterConsumption()
     const waterNet = (resources.value.eau.production - resources.value.eau.consumption) * weeksElapsed
@@ -838,6 +861,33 @@ export const useGameStore = defineStore('game', () => {
     // Gestion spéciale de l'énergie
     resources.value.energie.production = calculateEnergyProduction()
     resources.value.energie.consumption = calculateEnergyConsumption()
+    const energyNet = resources.value.energie.production - resources.value.energie.consumption
+
+    // Si déficit d'énergie, désactiver certaines salles
+    if (energyNet < 0) {
+      // Ne désactiver que les salles qui ne sont pas déjà désactivées manuellement
+      levels.value.forEach(level => {
+        const allRooms = [...level.leftRooms, ...level.rightRooms]
+        allRooms.forEach(room => {
+          if (room.isBuilt && room.type !== 'generateur' && !room.isManuallyDisabled) {
+            room.isDisabled = true
+          }
+        })
+      })
+    } else {
+      // Réactiver uniquement les salles qui n'ont pas été désactivées manuellement
+      levels.value.forEach(level => {
+        const allRooms = [...level.leftRooms, ...level.rightRooms]
+        allRooms.forEach(room => {
+          if (!room.isManuallyDisabled) {
+            room.isDisabled = false
+          }
+        })
+      })
+    }
+
+    // Mettre à jour la quantité d'énergie
+    resources.value.energie.amount = Math.max(0, resources.value.energie.amount + (energyNet * weeksElapsed))
 
     // Appliquer les changements pour chaque ressource
     Object.entries(resources.value).forEach(([key, resource]) => {
@@ -1653,8 +1703,19 @@ export const useGameStore = defineStore('game', () => {
       console.error('Store: Salle non trouvée')
       return
     }
-    room.isDisabled = !room.isDisabled
-    room.isManuallyDisabled = room.isDisabled // Mettre à jour l'état de désactivation manuelle
+    
+    // Inverser l'état de désactivation manuelle
+    room.isManuallyDisabled = !room.isManuallyDisabled
+    
+    // Si on active manuellement la salle, vérifier si on a assez d'énergie
+    if (!room.isManuallyDisabled) {
+      const energyNet = resources.value.energie.production - resources.value.energie.consumption
+      room.isDisabled = energyNet < 0 && room.type !== 'generateur'
+    } else {
+      // Si on désactive manuellement, la salle est toujours désactivée
+      room.isDisabled = true
+    }
+    
     updateRoomProduction()
   }
 

@@ -26,6 +26,9 @@
         <div class="food-quality">
           Qualité nourriture: {{ averageFoodQuality }}/10 {{ foodQualityEmoji }}
         </div>
+        <div class="energy-status" :class="{ 'energy-surplus': energyNet > 0, 'energy-deficit': energyNet < 0 }">
+          Énergie: {{ energyNet > 0 ? '+' : '' }}{{ energyNet }} ⚡
+        </div>
       </div>
       <div class="game-controls">
         <button @click="showSaveModal = true">Sauvegarde</button>
@@ -164,6 +167,12 @@ provide('notifications', {
     notificationSystem.value?.addNotification(title, message, type)
   }
 })
+
+// Ajouter le calcul du bilan énergétique
+const energyNet = computed(() => {
+  const energie = gameStore.resourcesList.find(([name]: [string, any]) => name === 'energie')?.[1]
+  return energie ? Math.floor(energie.production - energie.consumption) : 0
+})
 </script>
 
 <style lang="scss">
@@ -222,6 +231,25 @@ body {
     .warning {
       color: #e74c3c;
       font-size: 0.9em;
+    }
+  }
+
+  .energy-status {
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+
+    &.energy-surplus {
+      background-color: rgba(46, 204, 113, 0.2);
+      color: #2ecc71;
+      box-shadow: 0 0 10px rgba(46, 204, 113, 0.3);
+    }
+
+    &.energy-deficit {
+      background-color: rgba(231, 76, 60, 0.2);
+      color: #e74c3c;
+      box-shadow: 0 0 10px rgba(231, 76, 60, 0.3);
     }
   }
 

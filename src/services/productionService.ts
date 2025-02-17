@@ -35,6 +35,7 @@ export function handleRoomProduction(
       1000 // Limite de sécurité par salle
     )
     resources.eau.consumption += waterConsumptionValue
+    console.log('Consommation d\'eau:', waterConsumptionValue)
   }
 
   // Gestion de la raffinerie
