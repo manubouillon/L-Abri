@@ -108,6 +108,7 @@ export interface Room {
   equipments: Equipment[]
   fuelLevel?: number
   isDisabled?: boolean
+  isManuallyDisabled?: boolean  // Nouvelle propriété
   nextMineralsToProcess?: {
     input: { type: ItemType, amount: number }[]
     output: { type: ItemType, amount: number }
@@ -676,7 +677,10 @@ export const useGameStore = defineStore('game', () => {
   function updateRoomProduction(weeksElapsed: number = 0) {
     levels.value.forEach(level => {
       [...level.leftRooms, ...level.rightRooms].forEach(room => {
-        if (!room.isBuilt || room.isDisabled) return
+        
+        if (!room.isBuilt || room.isDisabled) {
+          return
+        }
 
         const config = ROOMS_CONFIG[room.type]
         if (!config) return
@@ -834,54 +838,63 @@ export const useGameStore = defineStore('game', () => {
     // Gestion spéciale de l'énergie
     resources.value.energie.production = calculateEnergyProduction()
     resources.value.energie.consumption = calculateEnergyConsumption()
-    const energyNet = resources.value.energie.production - resources.value.energie.consumption
 
     // Appliquer les changements pour chaque ressource
     Object.entries(resources.value).forEach(([key, resource]) => {
       if (key === 'eau') {
         if (waterNet > 0) {
           // Production d'eau : stocker dans les cuves
-          addWater(waterNet)
+          const waterToAdd = Math.min(waterNet, 1000) // Limite de sécurité à 1000 unités par mise à jour
+          addWater(waterToAdd)
         } else {
           // Consommation d'eau : prendre des cuves
           const tanks = findWaterTanks()
-          let remainingConsumption = Math.abs(waterNet)
+          let remainingConsumption = Math.min(Math.abs(waterNet), 1000) // Limite de sécurité
           
           for (const tank of tanks) {
             if (remainingConsumption <= 0) break
             
-            const waterAvailable = ((tank.fuelLevel || 0) * WATER_TANK_RATIO)
+            const currentLevel = Math.min(100, Math.max(0, Number(tank.fuelLevel || 0)))
+            const waterAvailable = Math.min(200, currentLevel * WATER_TANK_RATIO)
             const waterToTake = Math.min(waterAvailable, remainingConsumption)
             
             if (waterToTake > 0) {
-              tank.fuelLevel = ((waterAvailable - waterToTake) * 100) / WATER_TANK_RATIO
+              const newLevel = Math.max(0, currentLevel - (waterToTake / WATER_TANK_RATIO))
+              tank.fuelLevel = Math.min(100, newLevel)
               remainingConsumption -= waterToTake
             }
           }
           // Mettre à jour le montant d'eau avec le total des cuves
-          resource.amount = calculateTotalWaterStorage()
+          resource.amount = Math.min(calculateTotalWaterStorage(), resource.capacity)
         }
       } else if (key === 'energie') {
         // Gestion de l'énergie
+        const energyNet = resource.production - resource.consumption
+        
         // Si déficit d'énergie, désactiver certaines salles
         if (energyNet < 0) {
           levels.value.forEach(level => {
             const allRooms = [...level.leftRooms, ...level.rightRooms]
             allRooms.forEach(room => {
-              if (room.isBuilt && room.type !== 'generateur') {
+              if (room.isBuilt && room.type !== 'generateur' && !room.isManuallyDisabled) {
                 room.isDisabled = true
               }
             })
           })
         } else {
-          // Réactiver les salles si assez d'énergie
+          // Réactiver uniquement les salles qui n'ont pas été désactivées manuellement
           levels.value.forEach(level => {
             const allRooms = [...level.leftRooms, ...level.rightRooms]
             allRooms.forEach(room => {
-              room.isDisabled = false
+              if (!room.isManuallyDisabled) {
+                room.isDisabled = false
+              }
             })
           })
         }
+        
+        // Mettre à jour la quantité d'énergie
+        resource.amount = Math.max(0, resource.amount + (energyNet * weeksElapsed))
       } else {
         // Autres ressources : gestion standard
         const net = (resource.production - resource.consumption) * weeksElapsed
@@ -1634,6 +1647,17 @@ export const useGameStore = defineStore('game', () => {
     return false
   }
 
+  function toggleRoomDisabled(levelId: number, position: 'left' | 'right', roomIndex: number) {
+    const room = getRoomById(levelId, position, roomIndex)
+    if (!room) {
+      console.error('Store: Salle non trouvée')
+      return
+    }
+    room.isDisabled = !room.isDisabled
+    room.isManuallyDisabled = room.isDisabled // Mettre à jour l'état de désactivation manuelle
+    updateRoomProduction()
+  }
+
   // Nouvelle version moins agressive de la vérification de cohérence
   function verifierCoherenceAffectations() {
     // 1. Nettoyer les références aux habitants qui n'existent plus
@@ -1970,7 +1994,6 @@ export const useGameStore = defineStore('game', () => {
     // Calculer la quantité totale disponible
     const totalAvailable = matchingItems.reduce((sum, item) => sum + item.quantity, 0)
     if (totalAvailable < quantity) {
-      console.log('Quantité insuffisante:', totalAvailable, '<', quantity)
       return false
     }
 
@@ -2093,16 +2116,17 @@ export const useGameStore = defineStore('game', () => {
 
     // Trouver la cuve la moins remplie
     const leastFilledTank = tanks.reduce((min, tank) => 
-      (tank.fuelLevel || 0) < (min.fuelLevel || 0) ? tank : min
+      (Number(tank.fuelLevel) || 0) < (Number(min.fuelLevel) || 0) ? tank : min
     , tanks[0])
 
     const tankCapacity = 100 // Capacité maximale en pourcentage
-    const currentLevel = leastFilledTank.fuelLevel || 0
+    const currentLevel = Number(leastFilledTank.fuelLevel || 0)
     const spaceLeft = tankCapacity - currentLevel
     const waterToAdd = Math.min(amount, spaceLeft * WATER_TANK_RATIO)
 
     if (waterToAdd > 0) {
-      leastFilledTank.fuelLevel = currentLevel + (waterToAdd / WATER_TANK_RATIO)
+      const newLevel = Math.min(100, currentLevel + (waterToAdd / WATER_TANK_RATIO))
+      leastFilledTank.fuelLevel = newLevel
       console.log(`Ajout de ${waterToAdd} unités d'eau, niveau cuve: ${leastFilledTank.fuelLevel}%`)
       return waterToAdd
     }
@@ -2116,15 +2140,19 @@ export const useGameStore = defineStore('game', () => {
 
     // Trouver la cuve la plus remplie
     const mostFilledTank = tanks.reduce((max, tank) => 
-      (tank.fuelLevel || 0) > (max.fuelLevel || 0) ? tank : max
+      (Number(tank.fuelLevel) || 0) > (Number(max.fuelLevel) || 0) ? tank : max
     , tanks[0])
 
-    const currentLevel = mostFilledTank.fuelLevel || 0
-    const waterAvailable = currentLevel * WATER_TANK_RATIO
+    // S'assurer que le niveau actuel est un nombre valide entre 0 et 100
+    const currentLevel = Math.min(100, Math.max(0, Number(mostFilledTank.fuelLevel || 0)))
+    // Calculer l'eau disponible (2 unités d'eau par % de niveau)
+    const waterAvailable = Math.min(200, currentLevel * WATER_TANK_RATIO) // Maximum 200 unités par cuve
     const waterToRemove = Math.min(amount, waterAvailable)
 
     if (waterToRemove > 0) {
-      mostFilledTank.fuelLevel = currentLevel - (waterToRemove / WATER_TANK_RATIO)
+      // Calculer le nouveau niveau en pourcentage (2 unités d'eau = 1%)
+      const newLevel = Math.max(0, currentLevel - (waterToRemove / WATER_TANK_RATIO))
+      mostFilledTank.fuelLevel = Math.min(100, newLevel)
       return waterToRemove
     }
 
@@ -2418,6 +2446,7 @@ export const useGameStore = defineStore('game', () => {
     showDeathModal,
     deceasedHabitant,
     handleHabitantDeath,
-    checkMortality
+    checkMortality,
+    toggleRoomDisabled
   }
 }) 

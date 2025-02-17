@@ -597,7 +597,7 @@ function updateRefineryRecipe(recipe: {
 }
 
 function toggleRoom() {
-  props.room.isDisabled = !props.room.isDisabled
+  store.toggleRoomDisabled(props.levelId, props.room.position, props.room.index)
 }
 
 function getProcessingCapacity(): number {

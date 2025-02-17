@@ -24,12 +24,17 @@ export function handleRoomProduction(
   removeItem: (type: ItemType, quantity: number) => boolean,
   getItemQuantity: (type: ItemType) => number
 ) {
+
   const gridSize = room.gridSize || 1
   const mergeMultiplier = room.gridSize && room.gridSize > 1 ? 1.2 : 1
 
   // Gestion de la consommation d'eau
   if ('waterConsumption' in config && config.waterConsumption) {
-    resources.eau.consumption += config.waterConsumption * nbWorkers * gridSize * mergeMultiplier
+    const waterConsumptionValue = Math.min(
+      config.waterConsumption * nbWorkers * gridSize * mergeMultiplier,
+      1000 // Limite de sécurité par salle
+    )
+    resources.eau.consumption += waterConsumptionValue
   }
 
   // Gestion de la raffinerie
@@ -76,9 +81,11 @@ export function handleRoomProduction(
     Object.entries(config.productionPerWorker).forEach(([resource, amount]) => {
       if (amount && resource in resources) {
         if (amount > 0) {
-          resources[resource as ResourceKey].production += amount * nbWorkers * gridSize * mergeMultiplier * productionBonus
+          const production = amount * nbWorkers * gridSize * mergeMultiplier * productionBonus
+          resources[resource as ResourceKey].production += production
         } else {
-          resources[resource as ResourceKey].consumption += Math.abs(amount) * nbWorkers * gridSize * mergeMultiplier
+          const consumption = Math.abs(amount) * nbWorkers * gridSize * mergeMultiplier
+          resources[resource as ResourceKey].consumption += consumption
         }
       }
     });

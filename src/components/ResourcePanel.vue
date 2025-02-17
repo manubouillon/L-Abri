@@ -8,8 +8,8 @@
         :key="name"
         class="resource-item"
         :class="{ 
-          'energy-surplus': name === 'energie' && resource.production > resource.consumption,
-          'energy-deficit': name === 'energie' && resource.production < resource.consumption
+          'resource-surplus': resource.production > resource.consumption,
+          'resource-deficit': resource.production < resource.consumption
         }"
       >
         <div class="resource-header">
@@ -153,11 +153,11 @@ const { globalHappiness, averageFoodQuality, foodQualityEmoji } = storeToRefs(ga
   border-radius: 4px;
   transition: background-color 0.3s ease;
 
-  &.energy-surplus {
+  &.resource-surplus {
     background-color: #2d4f3c; // Vert foncé subtil
   }
 
-  &.energy-deficit {
+  &.resource-deficit {
     background-color: #4f2d2d; // Rouge foncé subtil
   }
 }
