@@ -813,7 +813,7 @@ export const useGameStore = defineStore('game', () => {
     levels.value.forEach(level => {
       const allRooms = [...level.leftRooms, ...level.rightRooms]
       allRooms.forEach(room => {
-        if (room.isBuilt) {
+        if (room.isBuilt && !room.isDisabled) {  // Vérifier si la salle n'est pas désactivée
           const config = ROOMS_CONFIG[room.type]
           if (!config) return
           
