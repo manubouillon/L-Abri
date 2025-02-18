@@ -38,11 +38,13 @@ import { ref, computed } from 'vue'
 import type { CompetenceTest } from '../services/competenceTestService'
 import { getResultatEmoji, getResultatColor } from '../services/competenceTestService'
 import { ROOM_TYPES } from '../config/roomsConfig'
+import { useGameStore } from '../stores/gameStore'
 
 const props = defineProps<{
   tests: CompetenceTest[]
 }>()
 
+const gameStore = useGameStore()
 const isMinimized = ref(false)
 const testList = ref<HTMLElement | null>(null)
 
@@ -56,8 +58,8 @@ function toggleMinimize() {
 }
 
 function formatTimestamp(timestamp: number): string {
-  const date = new Date(timestamp)
-  return `Semaine ${Math.floor(timestamp / (7 * 24 * 60 * 60 * 1000))}`
+  // Le timestamp est déjà en semaines
+  return `Semaine ${Math.floor(timestamp)}`
 }
 
 function getRoomName(roomType: string): string {

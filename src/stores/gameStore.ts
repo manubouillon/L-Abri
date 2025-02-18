@@ -706,6 +706,11 @@ export const useGameStore = defineStore('game', () => {
         )
       })
     })
+
+    // Limiter le nombre de tests stockés à 100
+    if (competenceTests.value.length > 100) {
+      competenceTests.value = competenceTests.value.slice(-100)
+    }
   }
 
   function calculateTotalFood(): number {
@@ -1152,27 +1157,6 @@ export const useGameStore = defineStore('game', () => {
       
       // Sauvegarder l'état du jeu
       saveGame()
-
-      // Effectuer les tests de compétences pour chaque travailleur
-      levels.value.forEach(level => {
-        const allRooms = [...level.leftRooms, ...level.rightRooms]
-        allRooms.forEach(room => {
-          if (room.isBuilt && !room.isDisabled) {
-            room.occupants.forEach(habitantId => {
-              const habitant = habitants.value.find(h => h.id === habitantId)
-              if (habitant) {
-                const test = effectuerTest(habitant, room)
-                competenceTests.value.push(test)
-              }
-            })
-          }
-        })
-      })
-
-      // Limiter le nombre de tests stockés à 100
-      if (competenceTests.value.length > 100) {
-        competenceTests.value = competenceTests.value.slice(-100)
-      }
     }
   }
 
@@ -1591,6 +1575,7 @@ export const useGameStore = defineStore('game', () => {
     inventory.value = [] // Vider complètement l'inventaire
     inventoryCapacity.value = 1000
     gameSpeed.value = 1
+competenceTests.value = [] // Réinitialiser les tests de compétence
     
     // Réinitialiser le jeu avec les valeurs par défaut
     initGame()
@@ -2318,7 +2303,6 @@ export const useGameStore = defineStore('game', () => {
         }
       })
     })
-    console.log('Cuves d\'eau trouvées:', tanks.length)
     return tanks
   }
 
@@ -2712,6 +2696,7 @@ export const useGameStore = defineStore('game', () => {
     checkMortality,
     toggleRoomDisabled,
     calculateTotalFoodStorage,
-    competenceTests: computed(() => competenceTests.value)
+    competenceTests: computed(() => competenceTests.value),
+    calculateProductionBonus
   }
 }) 

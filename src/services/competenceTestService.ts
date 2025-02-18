@@ -1,5 +1,6 @@
 import type { Habitant, Room } from '../stores/gameStore'
 import { ROOM_TYPES } from '../config/roomsConfig'
+import { useGameStore } from '../stores/gameStore'
 
 export interface CompetenceTest {
   id: string
@@ -14,6 +15,8 @@ export interface CompetenceTest {
 }
 
 export function effectuerTest(habitant: Habitant, room: Room): CompetenceTest {
+  const gameStore = useGameStore()
+  
   // Trouver la compétence requise pour la salle
   const roomType = ROOM_TYPES.find(rt => rt.id === room.type)
   if (!roomType) {
@@ -39,8 +42,8 @@ export function effectuerTest(habitant: Habitant, room: Room): CompetenceTest {
   }
 
   return {
-    id: `${Date.now()}-${habitant.id}`,
-    timestamp: Date.now(),
+    id: `${gameStore.gameTime}-${habitant.id}`,
+    timestamp: gameStore.gameTime,
     habitantId: habitant.id,
     habitantNom: habitant.nom,
     salle: room.type,

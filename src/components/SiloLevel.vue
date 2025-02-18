@@ -86,12 +86,15 @@
             </template>
             <div class="room-overlay" v-else-if="room.isExcavated" @click="openRoomTypeModal('left', room.index)">
               <template v-if="room.isUnderConstruction">
-                <div class="construction-progress">
-                  <div 
-                    class="progress-bar"
-                    :style="{ width: `${getConstructionProgress(room)}%` }"
-                  ></div>
-                  <div class="remaining-time">Construction: {{ Math.round(getRemainingConstructionTime(room)) }} semaines</div>
+                <div class="construction-container">
+                  <span class="construction-icon">🚧</span>
+                  <div class="construction-progress">
+                    <div 
+                      class="progress-bar"
+                      :style="{ width: `${getConstructionProgress(room)}%` }"
+                    ></div>
+                    <div class="remaining-time">Construction: {{ Math.round(getRemainingConstructionTime(room)) }} semaines</div>
+                  </div>
                 </div>
               </template>
               <template v-else>
@@ -215,12 +218,15 @@
             </template>
             <div class="room-overlay" v-else-if="room.isExcavated" @click="openRoomTypeModal('right', room.index)">
               <template v-if="room.isUnderConstruction">
-                <div class="construction-progress">
-                  <div 
-                    class="progress-bar"
-                    :style="{ width: `${getConstructionProgress(room)}%` }"
-                  ></div>
-                  <div class="remaining-time">Construction: {{ getRemainingConstructionTime(room) }} semaines</div>
+                <div class="construction-container">
+                  <span class="construction-icon">🚧</span>
+                  <div class="construction-progress">
+                    <div 
+                      class="progress-bar"
+                      :style="{ width: `${getConstructionProgress(room)}%` }"
+                    ></div>
+                    <div class="remaining-time">{{ Math.round(getRemainingConstructionTime(room))  }} semaines</div>
+                  </div>
                 </div>
               </template>
               <template v-else>
@@ -443,12 +449,13 @@ function getRoomProduction(room: Room): string {
   const mergeMultiplier = mergeConfig?.useMultiplier 
     ? store.GAME_CONFIG.MERGE_MULTIPLIERS[Math.min(gridSize, 6) as keyof typeof store.GAME_CONFIG.MERGE_MULTIPLIERS] || 1
     : 1
+  const productionBonus = store.calculateProductionBonus(room)
 
   // Pour la serre
   if (room.type === 'serre') {
     const productions = []
     // Production de base (laitue)
-    const laitueProduction = 2 * nbWorkers * gridSize * mergeMultiplier
+    const laitueProduction = 2 * nbWorkers * gridSize * mergeMultiplier * productionBonus
     productions.push(`🥬${laitueProduction.toFixed(0)}/s`)
 
     // Vérifier les équipements
@@ -457,15 +464,15 @@ function getRoomProduction(room: Room): string {
     const hasVersSoie = room.equipments?.some(e => e.type === 'vers-soie' && !e.isUnderConstruction)
 
     if (hasTomates) {
-      const tomatoProduction = 1.5 * nbWorkers * gridSize * mergeMultiplier
+      const tomatoProduction = 1.5 * nbWorkers * gridSize * mergeMultiplier * productionBonus
       productions.push(`🍅${tomatoProduction.toFixed(0)}/s`)
     }
     if (hasAvoine) {
-      const avoineProduction = 2 * nbWorkers * gridSize * mergeMultiplier
+      const avoineProduction = 2 * nbWorkers * gridSize * mergeMultiplier * productionBonus
       productions.push(`🌾${avoineProduction.toFixed(0)}/s`)
     }
     if (hasVersSoie) {
-      const soieProduction = 0.5 * nbWorkers * gridSize * mergeMultiplier
+      const soieProduction = 0.5 * nbWorkers * gridSize * mergeMultiplier * productionBonus
       productions.push(`🪱${soieProduction.toFixed(0)}/s`)
     }
 
@@ -476,7 +483,7 @@ function getRoomProduction(room: Room): string {
   if (room.type === 'atelier') {
     const hasAtelierCouture = room.equipments?.some(e => e.type === 'atelier-couture' && !e.isUnderConstruction)
     if (hasAtelierCouture) {
-      const production = 2 * nbWorkers * gridSize * mergeMultiplier
+      const production = 2 * nbWorkers * gridSize * mergeMultiplier * productionBonus
       return `👔${production.toFixed(0)}/sem`
     }
     return ''
@@ -493,7 +500,7 @@ function getRoomProduction(room: Room): string {
 
   return Object.entries(productionPerWorker)
     .map(([resource, amount]) => {
-      const total = amount * nbWorkers * gridSize * mergeMultiplier
+      const total = amount * nbWorkers * gridSize * mergeMultiplier * productionBonus
       if (total <= 0) return ''
       const icon = resourceIcons[resource] || ''
       return `${icon}${total.toFixed(0)}/sem`
@@ -988,6 +995,21 @@ onMounted(() => {
     font-size: 0.7rem;
     color: #ecf0f1;
   }
+}
+
+.construction-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.5rem;
+}
+
+.construction-icon {
+  font-size: 1.5rem;
+  opacity: 0.8;
+  margin-bottom: 0.5rem;
 }
 
 .construction-progress {
