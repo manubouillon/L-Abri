@@ -729,8 +729,7 @@ export const useGameStore = defineStore('game', () => {
     const tanks = findWaterTanks()
     totalCapacity += tanks.reduce((total, tank) => {
       const gridSize = tank.gridSize || 1
-      const mergeMultiplier = gridSize > 1 ? 1.2 : 1
-      return total + (100 * gridSize) // Capacité de base d'une cuve d'eau
+      return total + (200 * gridSize) // 200 unités par cuve (100% = 200 unités) * taille de la cuve
     }, 0)
 
     return totalCapacity
@@ -940,12 +939,13 @@ export const useGameStore = defineStore('game', () => {
           for (const tank of tanks) {
             if (remainingConsumption <= 0) break
             
+            const gridSize = tank.gridSize || 1
             const currentLevel = Math.min(100, Math.max(0, Number(tank.fuelLevel || 0)))
-            const waterAvailable = currentLevel * WATER_TANK_RATIO
+            const waterAvailable = currentLevel * WATER_TANK_RATIO * gridSize
             const waterToTake = Math.min(waterAvailable, remainingConsumption)
             
             if (waterToTake > 0) {
-              const newLevel = Math.max(0, currentLevel - (waterToTake / WATER_TANK_RATIO))
+              const newLevel = Math.max(0, currentLevel - (waterToTake / (WATER_TANK_RATIO * gridSize)))
               tank.fuelLevel = Math.min(100, newLevel)
               remainingConsumption -= waterToTake
             }
@@ -956,8 +956,9 @@ export const useGameStore = defineStore('game', () => {
         const tanks = findWaterTanks()
         let totalWater = 0
         for (const tank of tanks) {
+          const gridSize = tank.gridSize || 1
           const currentLevel = Math.min(100, Math.max(0, Number(tank.fuelLevel || 0)))
-          totalWater += currentLevel * WATER_TANK_RATIO
+          totalWater += currentLevel * WATER_TANK_RATIO * gridSize
         }
         resource.amount = totalWater
       } else if (key === 'energie') {
@@ -2301,28 +2302,47 @@ export const useGameStore = defineStore('game', () => {
   function addWater(amount: number): number {
     const tanks = findWaterTanks()
     if (tanks.length === 0) {
-      console.log('Pas de cuve disponible pour stocker l\'eau')
-      return 0
+        console.log('Pas de cuve disponible pour stocker l\'eau')
+        return 0
     }
 
-    // Trouver la cuve la moins remplie
-    const leastFilledTank = tanks.reduce((min, tank) => 
-      (Number(tank.fuelLevel) || 0) < (Number(min.fuelLevel) || 0) ? tank : min
-    , tanks[0])
+    let remainingWater = amount
+    let totalAdded = 0
 
-    const tankCapacity = 100 // Capacité maximale en pourcentage
-    const currentLevel = Number(leastFilledTank.fuelLevel || 0)
-    const spaceLeft = tankCapacity - currentLevel
-    const waterToAdd = Math.min(amount, spaceLeft * WATER_TANK_RATIO)
+    // Continuer tant qu'il reste de l'eau à ajouter et qu'au moins une cuve n'est pas pleine
+    while (remainingWater > 0) {
+        // Trouver la cuve la moins remplie en tenant compte de la taille
+        const leastFilledTank = tanks.reduce((min, tank) => {
+            const tankGridSize = tank.gridSize || 1
+            const minGridSize = min.gridSize || 1
+            const tankLevel = (Number(tank.fuelLevel) || 0) / tankGridSize
+            const minLevel = (Number(min.fuelLevel) || 0) / minGridSize
+            return tankLevel < minLevel ? tank : min
+        }, tanks[0])
 
-    if (waterToAdd > 0) {
-      const newLevel = Math.min(100, currentLevel + (waterToAdd / WATER_TANK_RATIO))
-      leastFilledTank.fuelLevel = newLevel
-      console.log(`Ajout de ${waterToAdd} unités d'eau, niveau cuve: ${leastFilledTank.fuelLevel}%`)
-      return waterToAdd
+        const tankGridSize = leastFilledTank.gridSize || 1
+        const currentLevel = Number(leastFilledTank.fuelLevel || 0)
+        const maxLevel = 100 * tankGridSize // Le niveau max est multiplié par la taille
+        
+        if (currentLevel >= maxLevel) {
+            break // Cette cuve est pleine
+        }
+
+        const spaceLeft = maxLevel - currentLevel
+        // Le ratio d'eau est multiplié par la taille de la cuve
+        const waterToAdd = Math.min(remainingWater, spaceLeft * (WATER_TANK_RATIO / tankGridSize))
+
+        if (waterToAdd > 0) {
+            const newLevel = Math.min(maxLevel, currentLevel + (waterToAdd / WATER_TANK_RATIO * tankGridSize))
+            leastFilledTank.fuelLevel = newLevel
+            remainingWater -= waterToAdd
+            totalAdded += waterToAdd
+        } else {
+            break
+        }
     }
 
-    return 0
+    return totalAdded
   }
 
   function removeWater(amount: number): number {

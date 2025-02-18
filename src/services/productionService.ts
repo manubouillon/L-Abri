@@ -147,34 +147,45 @@ export function handleRoomProduction(
 
   // Gestion spéciale de la production de nourriture des serres
   if (room.type === 'serre' && 'productionPerWorker' in config) {
-    // Production de base (laitue)
-    const laitueProduction = 2 * nbWorkers * gridSize * mergeMultiplier * productionBonus * weeksElapsed
-    addItem('laitue', Math.floor(laitueProduction))
+    // Vérifier la disponibilité de l'eau
+    const waterConsumptionPerWorker = 2 // 2 unités d'eau par travailleur par semaine
+    const totalWaterNeeded = waterConsumptionPerWorker * nbWorkers * gridSize * mergeMultiplier * weeksElapsed
+    
+    if (resources.eau.amount >= totalWaterNeeded) {
+      // Consommer l'eau
+      resources.eau.consumption += totalWaterNeeded
+      resources.eau.amount -= totalWaterNeeded
 
-    // Vérifier les équipements
-    const hasTomates = room.equipments?.some(e => e.type === 'culture-tomates' && !e.isUnderConstruction)
-    const hasAvoine = room.equipments?.some(e => e.type === 'culture-avoine' && !e.isUnderConstruction)
-    const hasVersSoie = room.equipments?.some(e => e.type === 'vers-soie' && !e.isUnderConstruction)
+      // Production de base (laitue)
+      const laitueProduction = 2 * nbWorkers * gridSize * mergeMultiplier * productionBonus * weeksElapsed
+      addItem('laitue', Math.floor(laitueProduction))
 
-    if (hasTomates) {
-      const tomatoProduction = 1.5 * nbWorkers * gridSize * mergeMultiplier * productionBonus * weeksElapsed
-      addItem('tomates', Math.floor(tomatoProduction))
-    }
-    if (hasAvoine) {
-      const avoineProduction = 2 * nbWorkers * gridSize * mergeMultiplier * productionBonus * weeksElapsed
-      addItem('avoine', Math.floor(avoineProduction))
-    }
-    if (hasVersSoie) {
-      const soieProduction = 0.5 * nbWorkers * gridSize * mergeMultiplier * productionBonus * weeksElapsed
-      addItem('soie', Math.floor(soieProduction))
-    }
+      // Vérifier les équipements
+      const hasTomates = room.equipments?.some(e => e.type === 'culture-tomates' && !e.isUnderConstruction)
+      const hasAvoine = room.equipments?.some(e => e.type === 'culture-avoine' && !e.isUnderConstruction)
+      const hasVersSoie = room.equipments?.some(e => e.type === 'vers-soie' && !e.isUnderConstruction)
 
-    // Convertir la production en unités de nourriture
-    const totalNourritureFromSerre = (
-      (laitueProduction / 2) + // 2 laitues = 1 unité de nourriture
-      (hasTomates ? (1.5 * nbWorkers * gridSize * mergeMultiplier * productionBonus * weeksElapsed / 3) : 0) + // 3 tomates = 1 unité de nourriture
-      (hasAvoine ? (2 * nbWorkers * gridSize * mergeMultiplier * productionBonus * weeksElapsed) : 0) // 1 avoine = 1 unité de nourriture
-    )
-    resources.nourriture.production += totalNourritureFromSerre
+      if (hasTomates) {
+        const tomatoProduction = 1.5 * nbWorkers * gridSize * mergeMultiplier * productionBonus * weeksElapsed
+        addItem('tomates', Math.floor(tomatoProduction))
+      }
+      if (hasAvoine) {
+        const avoineProduction = 2 * nbWorkers * gridSize * mergeMultiplier * productionBonus * weeksElapsed
+        addItem('avoine', Math.floor(avoineProduction))
+      }
+      if (hasVersSoie) {
+        const soieProduction = 0.5 * nbWorkers * gridSize * mergeMultiplier * productionBonus * weeksElapsed
+        addItem('soie', Math.floor(soieProduction))
+      }
+
+      // Convertir la production en unités de nourriture
+      const totalNourritureFromSerre = (
+        (laitueProduction / 2) + // 2 laitues = 1 unité de nourriture
+        (hasTomates ? (1.5 * nbWorkers * gridSize * mergeMultiplier * productionBonus * weeksElapsed / 3) : 0) + // 3 tomates = 1 unité de nourriture
+        (hasAvoine ? (2 * nbWorkers * gridSize * mergeMultiplier * productionBonus * weeksElapsed) : 0) // 1 avoine = 1 unité de nourriture
+      )
+      resources.nourriture.production += totalNourritureFromSerre
+    }
+    // Si pas assez d'eau, la serre ne produit rien
   }
 } 
