@@ -91,7 +91,7 @@
                     class="progress-bar"
                     :style="{ width: `${getConstructionProgress(room)}%` }"
                   ></div>
-                  <div class="remaining-time">Construction: {{ getRemainingConstructionTime(room) }} semaines</div>
+                  <div class="remaining-time">Construction: {{ Math.round(getRemainingConstructionTime(room)) }} semaines</div>
                 </div>
               </template>
               <template v-else>

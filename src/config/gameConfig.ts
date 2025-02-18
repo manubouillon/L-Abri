@@ -68,6 +68,7 @@ export const GAME_CONFIG = {
       levelId: 1,
       rooms: [
         { position: 'left', index: 0, type: 'cuve', gridSize: 1, workers: 0 },
+        { position: 'left', index: 4, type: 'chambre-froide', gridSize: 1, workers: 0 },
         { position: 'left', index: 5, type: 'entrepot', gridSize: 2, workers: 0 },
       ]
     }

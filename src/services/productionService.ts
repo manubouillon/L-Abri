@@ -154,6 +154,7 @@ export function handleRoomProduction(
     // Vérifier les équipements
     const hasTomates = room.equipments?.some(e => e.type === 'culture-tomates' && !e.isUnderConstruction)
     const hasAvoine = room.equipments?.some(e => e.type === 'culture-avoine' && !e.isUnderConstruction)
+    const hasVersSoie = room.equipments?.some(e => e.type === 'vers-soie' && !e.isUnderConstruction)
 
     if (hasTomates) {
       const tomatoProduction = 1.5 * nbWorkers * gridSize * mergeMultiplier * productionBonus * weeksElapsed
@@ -163,11 +164,15 @@ export function handleRoomProduction(
       const avoineProduction = 2 * nbWorkers * gridSize * mergeMultiplier * productionBonus * weeksElapsed
       addItem('avoine', Math.floor(avoineProduction))
     }
+    if (hasVersSoie) {
+      const soieProduction = 0.5 * nbWorkers * gridSize * mergeMultiplier * productionBonus * weeksElapsed
+      addItem('soie', Math.floor(soieProduction))
+    }
 
     // Convertir la production en unités de nourriture
     const totalNourritureFromSerre = (
       (laitueProduction / 2) + // 2 laitues = 1 unité de nourriture
-      (hasTomates ? (laitueProduction * 1.5 / 1.5) : 0) + // 1.5 tomates = 1 unité de nourriture
+      (hasTomates ? (1.5 * nbWorkers * gridSize * mergeMultiplier * productionBonus * weeksElapsed / 3) : 0) + // 3 tomates = 1 unité de nourriture
       (hasAvoine ? (2 * nbWorkers * gridSize * mergeMultiplier * productionBonus * weeksElapsed) : 0) // 1 avoine = 1 unité de nourriture
     )
     resources.nourriture.production += totalNourritureFromSerre
