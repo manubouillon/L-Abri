@@ -2103,12 +2103,25 @@ export const useGameStore = defineStore('game', () => {
 
   // Fonctions de gestion de l'inventaire
   function addItem(type: ItemType, quantity: number = 1): boolean {
-
     // Vérifier si on ne dépasse pas la taille du stack
     const config = ITEMS_CONFIG[type];
     if (!config) {
       console.log('Type d\'item non trouvé:', type);
       return false;
+    }
+
+    // Si c'est de la nourriture, vérifier la capacité des chambres froides
+    if (config.category === 'nourriture') {
+      const currentFoodStacks = inventory.value
+        .filter(item => item.category === 'nourriture')
+        .length
+      
+      const maxFoodStacks = calculateTotalFoodStorage()
+      
+      // Si on n'a plus de place dans les chambres froides, on ne peut pas ajouter de nourriture
+      if (currentFoodStacks >= maxFoodStacks) {
+        return false
+      }
     }
 
     let remainingQuantity = quantity;
@@ -2125,6 +2138,19 @@ export const useGameStore = defineStore('game', () => {
         existingItem.quantity += toAdd;
         remainingQuantity -= toAdd;
       } else {
+        // Pour la nourriture, vérifier si on peut créer un nouveau stack
+        if (config.category === 'nourriture') {
+          const currentFoodStacks = inventory.value
+            .filter(item => item.category === 'nourriture')
+            .length
+          
+          const maxFoodStacks = calculateTotalFoodStorage()
+          
+          if (currentFoodStacks >= maxFoodStacks) {
+            break // On ne peut plus créer de nouveaux stacks
+          }
+        }
+
         // Créer un nouveau stack
         const stackSize = Math.min(remainingQuantity, config.stackSize);
         const newItem: Item = {
@@ -2141,7 +2167,7 @@ export const useGameStore = defineStore('game', () => {
     }
 
     saveGame();
-    return true;
+    return remainingQuantity === 0; // Retourne true seulement si tout a été stocké
   }
 
   function removeItem(type: ItemType | string, quantity: number = 1): boolean {
@@ -2549,6 +2575,29 @@ export const useGameStore = defineStore('game', () => {
     }
   }
 
+  function calculateTotalFoodStorage(): number {
+    let totalCapacity = 0
+
+    // Calculer la capacité des chambres froides
+    levels.value.forEach(level => {
+      [...level.leftRooms, ...level.rightRooms].forEach(room => {
+        if (room.isBuilt && !room.isDisabled && room.type === 'chambre-froide') {
+          const gridSize = room.gridSize || 1
+          
+          // Une chambre froide peut stocker 1 stack de chaque type de nourriture
+          const foodTypes = Object.entries(ITEMS_CONFIG)
+            .filter(([_, config]) => config.category === 'nourriture')
+            .length
+
+          // Capacité totale = nombre de types de nourriture * taille de stack * multiplicateur de fusion
+          totalCapacity += foodTypes * gridSize
+        }
+      })
+    })
+
+    return totalCapacity
+  }
+
   return {
     // État
     resources,
@@ -2618,6 +2667,7 @@ export const useGameStore = defineStore('game', () => {
     deceasedHabitant,
     handleHabitantDeath,
     checkMortality,
-    toggleRoomDisabled
+    toggleRoomDisabled,
+    calculateTotalFoodStorage
   }
 }) 
