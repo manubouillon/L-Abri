@@ -72,7 +72,7 @@ export const ITEMS_CONFIG: { [key in ItemType]: ItemConfig } = {
   } as FoodItemConfig,
   'nourriture-conserve': {
     name: 'Nourriture en conserve',
-    stackSize: 1000,
+    stackSize: 200,
     description: 'De la nourriture en conserve produite dans la cuisine.',
     category: 'nourriture',
     ratio: 1,

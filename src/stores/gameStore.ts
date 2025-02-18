@@ -204,26 +204,26 @@ export const MINERAL_DISTRIBUTION: { [key: number]: {
 
 export const useGameStore = defineStore('game', () => {
   // État du jeu
-  const levels = ref<Level[]>([])
-  const gameTime = ref(0) // En semaines
-  const population = ref(0)
-  const happiness = ref(100)
-  const lastUpdateTime = ref(Date.now())
-  const excavationsInProgress = ref<ExcavationProgress[]>([])
-  const habitants = ref<Habitant[]>([])
-  const excavations = ref<Excavation[]>([])
-  const gameSpeed = ref(1)
-  const resources = ref<{ [key: string]: Resource }>({
+  const resources = ref<Resource>({
     energie: { amount: 0, capacity: 200, production: 0, consumption: 0 },
     eau: { amount: 0, capacity: 200, production: 0, consumption: 0 },
     nourriture: { amount: 0, capacity: 200, production: 0, consumption: 0 },
     vetements: { amount: 0, capacity: 200, production: 0, consumption: 0 },
     medicaments: { amount: 0, capacity: 200, production: 0, consumption: 0 }
   })
-
-  // Inventaire
+  const levels = ref<Level[]>([])
+  const gameTime = ref(0)
+  const population = ref(0)
+  const happiness = ref(100)
+  const lastUpdateTime = ref(Date.now())
+  const excavations = ref<ExcavationProgress[]>([])
+  const habitants = ref<Habitant[]>([])
   const inventory = ref<Item[]>([])
   const inventoryCapacity = ref(1000)
+  const gameSpeed = ref(1)
+  const isPaused = ref(false)
+  const showDeathModal = ref(false)
+  const deceasedHabitant = ref<Habitant | null>(null)
 
   // Getters
   const resourcesList = computed(() => Object.entries(resources.value))
@@ -845,6 +845,42 @@ export const useGameStore = defineStore('game', () => {
     resources.value.vetements.consumption += nbHabitants * 0.1 // 0.1 unité de vêtements par habitant par semaine
     resources.value.medicaments.consumption += nbHabitants * 0.05 // 0.05 unité de médicaments par habitant par semaine
 
+    // Gestion de la nourriture
+    const foodConsumption = nbHabitants * weeksElapsed // 1 ration par habitant par semaine
+    if (foodConsumption > 0) {
+      // Calculer le nombre total de rations disponibles
+      let totalRations = 0
+      const foodItems = inventory.value.filter(item => item.category === 'nourriture' && item.quantity > 0)
+      
+      foodItems.forEach(item => {
+        const itemConfig = ITEMS_CONFIG[item.type as ItemType]
+        if (itemConfig && isFoodItem(itemConfig)) {
+          // Une ration nécessite ratio items
+          totalRations += Math.floor(item.quantity / itemConfig.ratio)
+        }
+      })
+
+      // Si on a des rations disponibles, les consommer proportionnellement
+      if (totalRations > 0) {
+        const rationsToConsume = Math.min(totalRations, foodConsumption)
+        resources.value.nourriture.amount = totalRations - rationsToConsume
+
+        // Consommer les items proportionnellement à leur contribution en rations
+        foodItems.forEach(item => {
+          const itemConfig = ITEMS_CONFIG[item.type as ItemType]
+          if (itemConfig && isFoodItem(itemConfig)) {
+            const itemRations = Math.floor(item.quantity / itemConfig.ratio)
+            const rationProportion = itemRations / totalRations
+            const rationsToConsumeFromThisType = Math.floor(rationsToConsume * rationProportion)
+            const itemsToConsume = rationsToConsumeFromThisType * itemConfig.ratio
+            removeItem(item.type, Math.min(itemsToConsume, item.quantity))
+          }
+        })
+      } else {
+        resources.value.nourriture.amount = 0
+      }
+    }
+
     // Gestion spéciale de l'eau
     resources.value.eau.capacity = calculateTotalWaterStorage() // Mise à jour de la capacité totale
     resources.value.eau.production = calculateWaterProduction()
@@ -961,6 +997,12 @@ export const useGameStore = defineStore('game', () => {
   }
 
   function update(speed: number) {
+    // Ne pas mettre à jour si le jeu est en pause
+    if (isPaused.value) {
+      lastUpdateTime.value = Date.now()
+      return
+    }
+
     const currentTime = Date.now()
     const deltaTime = currentTime - lastUpdateTime.value
     lastUpdateTime.value = currentTime
@@ -2299,9 +2341,6 @@ export const useGameStore = defineStore('game', () => {
     return isFoodItem(itemConfig) ? itemConfig.ratio : 1
   }
 
-  const showDeathModal = ref(false)
-  const deceasedHabitant = ref<Habitant | null>(null)
-
   // Fonction pour gérer le décès d'un habitant
   function handleHabitantDeath(habitant: Habitant) {
     // Sauvegarder l'habitant décédé pour la modale
@@ -2503,6 +2542,13 @@ export const useGameStore = defineStore('game', () => {
       : level.rightRooms[roomIndex] || null
   }
 
+  function togglePause() {
+    isPaused.value = !isPaused.value
+    if (!isPaused.value) {
+      lastUpdateTime.value = Date.now()
+    }
+  }
+
   return {
     // État
     resources,
@@ -2516,6 +2562,7 @@ export const useGameStore = defineStore('game', () => {
     habitantsLibres,
     habitantsOccupes,
     enfants,
+    isPaused,
     
     // Getters
     resourcesList,
@@ -2547,6 +2594,7 @@ export const useGameStore = defineStore('game', () => {
     addEquipment,
     createNewHabitant,
     EQUIPMENT_CONFIG,
+    togglePause,
     
     // Inventaire
     inventory,

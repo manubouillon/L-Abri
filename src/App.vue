@@ -91,8 +91,7 @@ import DeathModal from './components/DeathModal.vue'
 
 // État du jeu
 const gameStore = useGameStore()
-const { levels, inventorySpace, gameSpeed, globalHappiness, habitants, averageFoodQuality, foodQualityEmoji, showDeathModal, deceasedHabitant } = storeToRefs(gameStore)
-const isPaused = ref(false)
+const { levels, inventorySpace, gameSpeed, globalHappiness, habitants, averageFoodQuality, foodQualityEmoji, showDeathModal, deceasedHabitant, isPaused } = storeToRefs(gameStore)
 const scrollPosition = ref(0)
 const showHabitantsList = ref(false)
 const showInventory = ref(false)
@@ -109,7 +108,7 @@ const displayableLevels = computed(() => {
 
 // Contrôles du jeu
 const togglePause = () => {
-  isPaused.value = !isPaused.value
+  gameStore.togglePause()
 }
 
 const increaseSpeed = () => {
