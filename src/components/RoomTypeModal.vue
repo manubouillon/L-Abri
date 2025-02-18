@@ -60,7 +60,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { storeToRefs } from 'pinia'
-import { ROOM_CATEGORIES, ROOM_CONSTRUCTION_COSTS } from '../config/roomsConfig'
+import { ROOM_CATEGORIES, ROOM_CONSTRUCTION_COSTS, ROOM_TYPES, ROOM_COLORS } from '../config/roomsConfig'
 import { useGameStore } from '../stores/gameStore'
 import { ITEMS_CONFIG, type ItemType } from '../config/itemsConfig'
 
@@ -70,116 +70,8 @@ const selectedCategory = ref<string | null>(null)
 
 const categories = ROOM_CATEGORIES
 
-const roomTypes = [
-  {
-    id: 'entrepot',
-    name: 'Entrepôt',
-    icon: '📦',
-    description: 'Augmente la capacité de stockage des ressources',
-    category: 'stockage'
-  },
-  {
-    id: 'cuve',
-    name: 'Cuve',
-    icon: '🛢️',
-    description: 'Stocke de l\'eau ou du pétrole en grande quantité',
-    category: 'stockage'
-  },
-  {
-    id: 'dortoir',
-    name: 'Dortoir',
-    icon: '🛏️',
-    description: 'Héberge jusqu\'à 8 habitants',
-    category: 'logements'
-  },
-  {
-    id: 'quartiers',
-    name: 'Quartiers',
-    icon: '🏘️',
-    description: 'Héberge jusqu\'à 6 habitants avec plus de confort',
-    category: 'logements'
-  },
-  {
-    id: 'appartement',
-    name: 'Appartement',
-    icon: '🏢',
-    description: 'Héberge jusqu\'à 4 habitants avec un grand confort',
-    category: 'logements'
-  },
-  {
-    id: 'suite',
-    name: 'Suite',
-    icon: '🏰',
-    description: 'Héberge jusqu\'à 2 habitants dans un luxe absolu',
-    category: 'logements'
-  },
-  {
-    id: 'cuisine',
-    name: 'Cuisine',
-    icon: '🍳',
-    description: 'Produit de la nourriture',
-    category: 'alimentation'
-  },
-  {
-    id: 'station-traitement',
-    name: 'Station de traitement',
-    icon: '💧',
-    description: 'Produit de l\'eau potable',
-    category: 'eau'
-  },
-  {
-    id: 'generateur',
-    name: 'Générateur',
-    icon: '⚡',
-    description: 'Produit de l\'énergie',
-    category: 'energie'
-  },
-  {
-    id: 'infirmerie',
-    name: 'Infirmerie',
-    icon: '🏥',
-    description: 'Produit des médicaments',
-    category: 'sante'
-  },
-  {
-    id: 'serre',
-    name: 'Serre',
-    icon: '🌱',
-    description: 'Produit de la nourriture',
-    category: 'alimentation'
-  },
-  {
-    id: 'raffinerie',
-    name: 'Raffinerie',
-    icon: '⚒️',
-    description: 'Raffine les minerais en lingots',
-    category: 'production'
-  },
-  {
-    id: 'derrick',
-    name: 'Derrick',
-    icon: '🛢️',
-    description: 'Extrait du pétrole pour alimenter les générateurs',
-    category: 'production'
-  },
-  {
-    id: 'atelier',
-    name: 'Atelier',
-    icon: '⚒️',
-    description: 'Produit des objets manufacturés',
-    category: 'production'
-  },
-  {
-    id: 'salle-controle',
-    name: 'Salle de contrôle',
-    icon: '🎮',
-    description: 'Permet de contrôler et surveiller l\'ensemble de l\'abri',
-    category: 'production'
-  }
-]
-
 function getRoomsByCategory(categoryId: string) {
-  return roomTypes.filter(room => room.category === categoryId)
+  return ROOM_TYPES.filter(room => room.category === categoryId)
 }
 
 function isItemType(resource: string): resource is ItemType {
@@ -191,7 +83,7 @@ function canAffordRoom(type: string): boolean {
   if (!costs) return true
 
   return Object.entries(costs).every(([resource, amount]) => {
-    if (!isItemType(resource)) return true
+    if (!isItemType(resource) || amount === undefined) return true
     return store.getItemQuantity(resource) >= amount
   })
 }
@@ -215,7 +107,7 @@ function getMissingResources(type: string): Record<ItemType, number> {
 
   const missing: Record<ItemType, number> = {} as Record<ItemType, number>
   Object.entries(costs).forEach(([resource, amount]) => {
-    if (isItemType(resource)) {
+    if (isItemType(resource) && amount !== undefined) {
       const currentAmount = store.getItemQuantity(resource)
       if (currentAmount < amount) {
         missing[resource] = amount - currentAmount
@@ -279,23 +171,13 @@ defineEmits<{
   text-align: left;
   transition: all 0.2s ease;
 
-  @each $type, $color in (
-    stockage: var(--category-stockage-color),
-    logements: var(--category-logements-color),
-    alimentation: var(--category-alimentation-color),
-    eau: var(--category-eau-color),
-    energie: var(--category-energie-color),
-    sante: var(--category-sante-color),
-    production: var(--room-production-color)
-  ) {
-    &.category-#{$type} {
-      border-color: $color;
-      
-      &:hover {
-        background-color: rgba($color, 0.1);
-      }
-    }
-  }
+  &.category-stockage { border-color: v-bind('ROOM_COLORS.categories.stockage'); }
+  &.category-logements { border-color: v-bind('ROOM_COLORS.categories.logements'); }
+  &.category-alimentation { border-color: v-bind('ROOM_COLORS.categories.alimentation'); }
+  &.category-eau { border-color: v-bind('ROOM_COLORS.categories.eau'); }
+  &.category-energie { border-color: v-bind('ROOM_COLORS.categories.energie'); }
+  &.category-sante { border-color: v-bind('ROOM_COLORS.categories.sante'); }
+  &.category-production { border-color: v-bind('ROOM_COLORS.categories.production'); }
 
   &:hover {
     transform: translateY(-2px);
@@ -329,31 +211,39 @@ defineEmits<{
     transform: translateY(-2px);
   }
 
-  @each $type, $color in (
-    entrepot: var(--room-entrepot-color),
-    cuve: var(--room-cuve-color),
-    dortoir: var(--room-dortoir-color),
-    quartiers: var(--room-quartiers-color),
-    appartement: var(--room-appartement-color),
-    suite: var(--room-suite-color),
-    cuisine: var(--room-cuisine-color),
-    station-traitement: var(--room-station-traitement-color),
-    generateur: var(--room-generateur-color),
-    infirmerie: var(--room-infirmerie-color),
-    serre: var(--room-serre-color),
-    raffinerie: var(--room-raffinerie-color),
-    derrick: var(--room-derrick-color),
-    atelier: var(--room-atelier-color),
-    salle-controle: var(--room-salle-controle-color)
-  ) {
-    &.room-type-#{$type} {
-      border-color: $color;
-      
-      &:hover {
-        background-color: rgba($color, 0.1);
-      }
-    }
-  }
+  &.room-type-chambre-froide { border-color: v-bind('ROOM_COLORS.rooms["chambre-froide"]'); }
+  &.room-type-entrepot { border-color: v-bind('ROOM_COLORS.rooms.entrepot'); }
+  &.room-type-cuve { border-color: v-bind('ROOM_COLORS.rooms.cuve'); }
+  &.room-type-dortoir { border-color: v-bind('ROOM_COLORS.rooms.dortoir'); }
+  &.room-type-quartiers { border-color: v-bind('ROOM_COLORS.rooms.quartiers'); }
+  &.room-type-appartement { border-color: v-bind('ROOM_COLORS.rooms.appartement'); }
+  &.room-type-suite { border-color: v-bind('ROOM_COLORS.rooms.suite'); }
+  &.room-type-cuisine { border-color: v-bind('ROOM_COLORS.rooms.cuisine'); }
+  &.room-type-station-traitement { border-color: v-bind('ROOM_COLORS.rooms["station-traitement"]'); }
+  &.room-type-generateur { border-color: v-bind('ROOM_COLORS.rooms.generateur'); }
+  &.room-type-infirmerie { border-color: v-bind('ROOM_COLORS.rooms.infirmerie'); }
+  &.room-type-serre { border-color: v-bind('ROOM_COLORS.rooms.serre'); }
+  &.room-type-raffinerie { border-color: v-bind('ROOM_COLORS.rooms.raffinerie'); }
+  &.room-type-derrick { border-color: v-bind('ROOM_COLORS.rooms.derrick'); }
+  &.room-type-atelier { border-color: v-bind('ROOM_COLORS.rooms.atelier'); }
+  &.room-type-salle-controle { border-color: v-bind('ROOM_COLORS.rooms["salle-controle"]'); }
+
+  &.room-type-chambre-froide:hover { background-color: v-bind('`${ROOM_COLORS.rooms["chambre-froide"]}22`'); }
+  &.room-type-entrepot:hover { background-color: v-bind('`${ROOM_COLORS.rooms.entrepot}22`'); }
+  &.room-type-cuve:hover { background-color: v-bind('`${ROOM_COLORS.rooms.cuve}22`'); }
+  &.room-type-dortoir:hover { background-color: v-bind('`${ROOM_COLORS.rooms.dortoir}22`'); }
+  &.room-type-quartiers:hover { background-color: v-bind('`${ROOM_COLORS.rooms.quartiers}22`'); }
+  &.room-type-appartement:hover { background-color: v-bind('`${ROOM_COLORS.rooms.appartement}22`'); }
+  &.room-type-suite:hover { background-color: v-bind('`${ROOM_COLORS.rooms.suite}22`'); }
+  &.room-type-cuisine:hover { background-color: v-bind('`${ROOM_COLORS.rooms.cuisine}22`'); }
+  &.room-type-station-traitement:hover { background-color: v-bind('`${ROOM_COLORS.rooms["station-traitement"]}22`'); }
+  &.room-type-generateur:hover { background-color: v-bind('`${ROOM_COLORS.rooms.generateur}22`'); }
+  &.room-type-infirmerie:hover { background-color: v-bind('`${ROOM_COLORS.rooms.infirmerie}22`'); }
+  &.room-type-serre:hover { background-color: v-bind('`${ROOM_COLORS.rooms.serre}22`'); }
+  &.room-type-raffinerie:hover { background-color: v-bind('`${ROOM_COLORS.rooms.raffinerie}22`'); }
+  &.room-type-derrick:hover { background-color: v-bind('`${ROOM_COLORS.rooms.derrick}22`'); }
+  &.room-type-atelier:hover { background-color: v-bind('`${ROOM_COLORS.rooms.atelier}22`'); }
+  &.room-type-salle-controle:hover { background-color: v-bind('`${ROOM_COLORS.rooms["salle-controle"]}22`'); }
 
   &.disabled {
     opacity: 0.7;

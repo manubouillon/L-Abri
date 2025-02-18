@@ -109,12 +109,9 @@ export function handleRoomProduction(
       }
     }
     
-    // Si pas de carburant, désactiver la production
-    if (room.fuelLevel <= 0) {
-      room.isDisabled = true
-    } else {
-      room.isDisabled = room.isManuallyDisabled || false
-    }
+    // Le générateur ne se désactive plus automatiquement sans carburant
+    // Il reste dans l'état défini par l'utilisateur (isManuallyDisabled)
+    room.isDisabled = room.isManuallyDisabled || false
   }
 
   // Gestion de la production de vêtements dans les ateliers

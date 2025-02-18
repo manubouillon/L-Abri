@@ -324,7 +324,7 @@ export const useGameStore = defineStore('game', () => {
       occupants: [],
       position: side,
       index,
-      isExcavated: isFirstLevel,
+      isExcavated: isFirstLevel, // Les salles sont excavées si c'est un niveau initial
       equipments: [] as Equipment[],
       gridSize: 1,
       fuelLevel: undefined,
@@ -338,23 +338,25 @@ export const useGameStore = defineStore('game', () => {
         levelConfig.rooms.forEach(roomConfig => {
           if (roomConfig.position === side) {
             const room = rooms[roomConfig.index]
-            room.type = roomConfig.type
-            room.isBuilt = true
-            room.gridSize = roomConfig.gridSize
-            // Initialiser le niveau de carburant pour le générateur
-            if (room.type === 'generateur') {
-              room.fuelLevel = 100
-            }
-            // Ajouter automatiquement la cuve à eau dans la cuve
-            if (room.type === 'cuve') {
-              room.fuelLevel = 100
-              room.equipments.push({
-                id: `${room.id}-cuve-eau`,
-                type: 'cuve-eau',
-                isUnderConstruction: false,
-                constructionStartTime: 0,
-                constructionDuration: EQUIPMENT_CONFIG.cuve['cuve-eau'].constructionTime
-              })
+            if (room) { // Vérifier que la salle existe
+              room.type = roomConfig.type
+              room.isBuilt = true // Seules les salles configurées sont construites instantanément
+              room.gridSize = roomConfig.gridSize
+              // Initialiser le niveau de carburant pour le générateur
+              if (room.type === 'generateur') {
+                room.fuelLevel = 100
+              }
+              // Ajouter automatiquement la cuve à eau dans la cuve
+              if (room.type === 'cuve') {
+                room.fuelLevel = 100
+                room.equipments.push({
+                  id: `${room.id}-cuve-eau`,
+                  type: 'cuve-eau',
+                  isUnderConstruction: false,
+                  constructionStartTime: 0,
+                  constructionDuration: EQUIPMENT_CONFIG.cuve['cuve-eau'].constructionTime
+                })
+              }
             }
           }
         })
@@ -871,7 +873,14 @@ export const useGameStore = defineStore('game', () => {
         const allRooms = [...level.leftRooms, ...level.rightRooms]
         allRooms.forEach(room => {
           if (!room.isManuallyDisabled) {
-            room.isDisabled = false
+            // Ne pas réactiver automatiquement les générateurs sans carburant
+            if (room.type === 'generateur') {
+              if (room.fuelLevel && room.fuelLevel > 0) {
+                room.isDisabled = false
+              }
+            } else {
+              room.isDisabled = false
+            }
           }
         })
       })
@@ -1039,6 +1048,8 @@ export const useGameStore = defineStore('game', () => {
               if (habitant) {
                 habitant.affectation = { type: null }
               }
+              // Vérifier si on peut fusionner la salle
+              checkAndMergeRooms(level, room)
               // Notifier la fin de la construction
               window.dispatchEvent(new CustomEvent('excavation-complete', {
                 detail: {
@@ -1049,12 +1060,41 @@ export const useGameStore = defineStore('game', () => {
               }))
             }
           }
+
+          // Vérifier la construction des équipements
+          room.equipments.forEach(equipment => {
+            if (equipment.isUnderConstruction && equipment.constructionStartTime !== undefined && equipment.constructionDuration !== undefined) {
+              const elapsed = Math.floor(gameTime.value) - equipment.constructionStartTime
+              if (elapsed >= equipment.constructionDuration) {
+                equipment.isUnderConstruction = false
+                // Initialiser l'état de la nurserie si c'est une nurserie
+                if (equipment.type === 'nurserie') {
+                  equipment.nurserieState = {
+                    isIncubating: false
+                  }
+                }
+                // Notifier la fin de la construction
+                window.dispatchEvent(new CustomEvent('excavation-complete', {
+                  detail: {
+                    title: 'Équipement installé',
+                    message: `Un nouvel équipement (${equipment.type}) est opérationnel dans la salle de type ${room.type} au niveau ${level.id + 1}.`,
+                    type: 'success'
+                  }
+                }))
+              }
+            }
+          })
         })
       })
 
       // Mettre à jour les ressources
       updateRoomProduction(elapsedWeeks)
       updateResources(elapsedWeeks)
+      
+      // Mettre à jour l'âge des habitants
+      habitants.value.forEach(habitant => {
+        habitant.age += elapsedWeeks
+      })
       
       // Vérifier les incubations
       checkAndFinalizeIncubation()
@@ -1209,11 +1249,26 @@ export const useGameStore = defineStore('game', () => {
     if (level && !level.isStairsExcavated && !isExcavationInProgress(levelId, 'stairs')) {
       // Vérifier que le niveau précédent a ses escaliers excavés
       if (previousLevel && previousLevel.isStairsExcavated) {
+        // Vérifier si un habitant libre est disponible
+        const habitantLibre = habitants.value.find(h => h.affectation.type === null)
+        
+        // Si l'habitant est un enfant, afficher un message d'erreur
+        if (habitantLibre && isEnfant(habitantLibre.age)) {
+          window.dispatchEvent(new CustomEvent('excavation-complete', {
+            detail: {
+              title: 'Excavation impossible',
+              message: 'Les enfants de moins de 7 ans ne peuvent pas excaver d\'escaliers.',
+              type: 'error'
+            }
+          }))
+          return false
+        }
+        
         // Trouver un habitant libre qui a plus de 7 ans
-        const habitantLibre = habitants.value.find(h => h.affectation.type === null && h.age >= 7)
-        if (habitantLibre) {
+        const habitantAdulte = habitants.value.find(h => h.affectation.type === null && h.age >= 7 * 52)
+        if (habitantAdulte) {
           // Affecter l'habitant à l'excavation
-          affecterHabitant(habitantLibre.id, {
+          affecterHabitant(habitantAdulte.id, {
             type: 'excavation',
             levelId,
             position: 'stairs'
@@ -1252,7 +1307,7 @@ export const useGameStore = defineStore('game', () => {
             levelId,
             position: 'stairs',
             startTime: gameTime.value,
-            habitantId: habitantLibre.id,
+            habitantId: habitantAdulte.id,
             duration: getExcavationTime(levelId),
             mineralsFound
           })
@@ -1270,11 +1325,26 @@ export const useGameStore = defineStore('game', () => {
       const room = rooms[roomIndex]
 
       if (room && !room.isBuilt) {
+        // Vérifier si un habitant libre est disponible
+        const habitantLibre = habitants.value.find(h => h.affectation.type === null)
+        
+        // Si l'habitant est un enfant, afficher un message d'erreur
+        if (habitantLibre && isEnfant(habitantLibre.age)) {
+          window.dispatchEvent(new CustomEvent('excavation-complete', {
+            detail: {
+              title: 'Excavation impossible',
+              message: 'Les enfants de moins de 7 ans ne peuvent pas excaver de salles.',
+              type: 'error'
+            }
+          }))
+          return false
+        }
+        
         // Trouver un habitant libre qui a plus de 7 ans
-        const habitantLibre = habitants.value.find(h => h.affectation.type === null && h.age >= 7)
-        if (habitantLibre) {
+        const habitantAdulte = habitants.value.find(h => h.affectation.type === null && h.age >= 7 * 52)
+        if (habitantAdulte) {
           // Affecter l'habitant à l'excavation
-          affecterHabitant(habitantLibre.id, {
+          affecterHabitant(habitantAdulte.id, {
             type: 'excavation',
             levelId,
             position,
@@ -1315,7 +1385,7 @@ export const useGameStore = defineStore('game', () => {
             position,
             roomIndex,
             startTime: gameTime.value,
-            habitantId: habitantLibre.id,
+            habitantId: habitantAdulte.id,
             duration: getExcavationTime(levelId),
             mineralsFound
           })
@@ -1377,7 +1447,7 @@ export const useGameStore = defineStore('game', () => {
           room.type = roomType // Définir le type immédiatement
           // Initialiser le niveau de carburant pour le générateur ou le derrick
           if (roomType === 'generateur') {
-            room.fuelLevel = 100
+            room.fuelLevel = 0 // Changé de 100 à 0 pour que le générateur démarre vide
           } else if (roomType === 'derrick') {
             room.fuelLevel = 0
           }

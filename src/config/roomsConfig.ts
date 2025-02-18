@@ -54,6 +54,14 @@ export interface StorageTankConfig extends RoomConfigBase {
 export type RoomConfig = StorageRoomConfig | DortoryRoomConfig | ProductionRoomConfig | StorageTankConfig
 
 export const ROOMS_CONFIG: { [key: string]: RoomConfig } = {
+  'chambre-froide': {
+    type: 'storage',
+    maxWorkers: 2,
+    energyConsumption: 3,
+    capacityPerWorker: {
+      'nourriture': 200
+    }
+  },
   'cuve': {
     type: 'tank',
     maxWorkers: 0,
@@ -126,7 +134,7 @@ export const ROOMS_CONFIG: { [key: string]: RoomConfig } = {
         output: 'lingot-or',
         ratio: 0.3
       },
-      'minerai-fer-acier': {
+      'lingot-fer': {
         output: 'lingot-acier',
         ratio: 0.5,
         requires: {
@@ -206,11 +214,134 @@ export interface RoomCategory {
   rooms: string[]
 }
 
+export interface RoomType {
+  id: string
+  name: string
+  icon: string
+  description: string
+  category: string
+}
+
+export const ROOM_TYPES: RoomType[] = [
+  {
+    id: 'chambre-froide',
+    name: 'Chambre froide',
+    icon: '❄️',
+    description: 'Stocke de la nourriture avec une capacité accrue',
+    category: 'stockage'
+  },
+  {
+    id: 'entrepot',
+    name: 'Entrepôt',
+    icon: '📦',
+    description: 'Augmente la capacité de stockage des ressources',
+    category: 'stockage'
+  },
+  {
+    id: 'cuve',
+    name: 'Cuve',
+    icon: '🛢️',
+    description: 'Stocke de l\'eau ou du pétrole en grande quantité',
+    category: 'stockage'
+  },
+  {
+    id: 'dortoir',
+    name: 'Dortoir',
+    icon: '🛏️',
+    description: 'Héberge jusqu\'à 8 habitants',
+    category: 'logements'
+  },
+  {
+    id: 'quartiers',
+    name: 'Quartiers',
+    icon: '🏘️',
+    description: 'Héberge jusqu\'à 6 habitants avec plus de confort',
+    category: 'logements'
+  },
+  {
+    id: 'appartement',
+    name: 'Appartement',
+    icon: '🏢',
+    description: 'Héberge jusqu\'à 4 habitants avec un grand confort',
+    category: 'logements'
+  },
+  {
+    id: 'suite',
+    name: 'Suite',
+    icon: '🏰',
+    description: 'Héberge jusqu\'à 2 habitants dans un luxe absolu',
+    category: 'logements'
+  },
+  {
+    id: 'cuisine',
+    name: 'Cuisine',
+    icon: '🍳',
+    description: 'Produit de la nourriture',
+    category: 'alimentation'
+  },
+  {
+    id: 'station-traitement',
+    name: 'Station de traitement',
+    icon: '💧',
+    description: 'Produit de l\'eau potable',
+    category: 'eau'
+  },
+  {
+    id: 'generateur',
+    name: 'Générateur',
+    icon: '⚡',
+    description: 'Produit de l\'énergie',
+    category: 'energie'
+  },
+  {
+    id: 'infirmerie',
+    name: 'Infirmerie',
+    icon: '🏥',
+    description: 'Produit des médicaments',
+    category: 'sante'
+  },
+  {
+    id: 'serre',
+    name: 'Serre',
+    icon: '🌱',
+    description: 'Produit de la nourriture',
+    category: 'alimentation'
+  },
+  {
+    id: 'raffinerie',
+    name: 'Raffinerie',
+    icon: '⚒️',
+    description: 'Raffine les minerais en lingots',
+    category: 'production'
+  },
+  {
+    id: 'derrick',
+    name: 'Derrick',
+    icon: '🛢️',
+    description: 'Extrait du pétrole pour alimenter les générateurs',
+    category: 'production'
+  },
+  {
+    id: 'atelier',
+    name: 'Atelier',
+    icon: '⚒️',
+    description: 'Produit des objets manufacturés',
+    category: 'production'
+  },
+  {
+    id: 'salle-controle',
+    name: 'Salle de contrôle',
+    icon: '🎮',
+    description: 'Permet de contrôler et surveiller l\'ensemble de l\'abri',
+    category: 'production'
+  }
+]
+
 export const ROOM_CATEGORIES: RoomCategory[] = [
   {
     id: 'stockage',
     name: 'Stockage',
-    rooms: ['entrepot', 'cuve']
+    rooms: ['entrepot', 'cuve', 'chambre-froide']
   },
   {
     id: 'logements',
@@ -246,6 +377,7 @@ export const ROOM_CATEGORIES: RoomCategory[] = [
 
 // Configuration des multiplicateurs de fusion par type de salle
 export const ROOM_MERGE_CONFIG: { [key: string]: { useMultiplier: boolean } } = {
+  'chambre-froide': { useMultiplier: true },
   entrepot: { useMultiplier: true },
   dortoir: { useMultiplier: false },
   quartiers: { useMultiplier: false },
@@ -265,6 +397,12 @@ export const ROOM_MERGE_CONFIG: { [key: string]: { useMultiplier: boolean } } = 
 
 // Configuration des coûts de construction par type de salle
 export const ROOM_CONSTRUCTION_COSTS: { [key: string]: { [key in ItemType]?: number } } = {
+  'chambre-froide': {
+    'lingot-fer': 35,
+    'lingot-acier': 20,
+    'lingot-cuivre': 15,
+    'lingot-silicium': 10
+  },
   entrepot: {
     'lingot-fer': 20,
     'lingot-acier': 10
@@ -355,5 +493,36 @@ export const ROOM_CONSTRUCTION_COSTS: { [key: string]: { [key in ItemType]?: num
     'lingot-acier': 20,
     'lingot-cuivre': 15,
     'lingot-silicium': 10
+  }
+} as const
+
+// Configuration des couleurs
+export const ROOM_COLORS = {
+  categories: {
+    stockage: '#3498db',     // Bleu
+    logements: '#2ecc71',    // Vert
+    alimentation: '#e67e22', // Orange
+    eau: '#3498db',         // Bleu
+    energie: '#f1c40f',     // Jaune
+    sante: '#e74c3c',       // Rouge
+    production: '#9b59b6'   // Violet
+  },
+  rooms: {
+    'chambre-froide': '#3498db',
+    'entrepot': '#3498db',
+    'cuve': '#3498db',
+    'dortoir': '#2ecc71',
+    'quartiers': '#2ecc71',
+    'appartement': '#2ecc71',
+    'suite': '#2ecc71',
+    'cuisine': '#e67e22',
+    'station-traitement': '#3498db',
+    'generateur': '#f1c40f',
+    'infirmerie': '#e74c3c',
+    'serre': '#e67e22',
+    'raffinerie': '#9b59b6',
+    'derrick': '#9b59b6',
+    'atelier': '#9b59b6',
+    'salle-controle': '#9b59b6'
   }
 } as const 

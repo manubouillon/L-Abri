@@ -147,6 +147,14 @@ onMounted(() => {
     const { title, message, type } = event.detail
     notificationSystem.value?.addNotification(title, message, type)
   }) as EventListener)
+
+  // Ajouter l'écouteur pour la touche Espace
+  window.addEventListener('keydown', (event) => {
+    if (event.code === 'Space') {
+      event.preventDefault() // Empêcher le défilement de la page
+      togglePause()
+    }
+  })
 })
 
 onUnmounted(() => {
@@ -157,6 +165,14 @@ onUnmounted(() => {
     const { title, message, type } = event.detail
     notificationSystem.value?.addNotification(title, message, type)
   }) as EventListener)
+
+  // Supprimer l'écouteur de la touche Espace
+  window.removeEventListener('keydown', (event) => {
+    if (event.code === 'Space') {
+      event.preventDefault()
+      togglePause()
+    }
+  })
 })
 
 const notificationSystem = ref()
