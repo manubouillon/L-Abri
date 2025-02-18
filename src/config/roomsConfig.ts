@@ -220,6 +220,7 @@ export interface RoomType {
   icon: string
   description: string
   category: string
+  competence: 'force' | 'dexterite' | 'charme' | 'relations' | 'instinct' | 'savoir'
 }
 
 export const ROOM_TYPES: RoomType[] = [
@@ -228,112 +229,128 @@ export const ROOM_TYPES: RoomType[] = [
     name: 'Chambre froide',
     icon: '❄️',
     description: 'Stocke de la nourriture avec une capacité accrue',
-    category: 'stockage'
+    category: 'stockage',
+    competence: 'dexterite' // ?
   },
   {
     id: 'entrepot',
     name: 'Entrepôt',
     icon: '📦',
     description: 'Augmente la capacité de stockage des ressources',
-    category: 'stockage'
+    category: 'stockage',
+    competence: 'force'     // ?
   },
   {
     id: 'cuve',
     name: 'Cuve',
     icon: '🛢️',
     description: 'Stocke de l\'eau ou du pétrole en grande quantité',
-    category: 'stockage'
+    category: 'stockage',
+    competence: 'dexterite' // ?
   },
   {
     id: 'dortoir',
     name: 'Dortoir',
     icon: '🛏️',
     description: 'Héberge jusqu\'à 8 habitants',
-    category: 'logements'
+    category: 'logements',
+    competence: 'charme'
   },
   {
     id: 'quartiers',
     name: 'Quartiers',
     icon: '🏘️',
     description: 'Héberge jusqu\'à 6 habitants avec plus de confort',
-    category: 'logements'
+    category: 'logements',
+    competence: 'charme'
   },
   {
     id: 'appartement',
     name: 'Appartement',
     icon: '🏢',
     description: 'Héberge jusqu\'à 4 habitants avec un grand confort',
-    category: 'logements'
+    category: 'logements',
+    competence: 'charme'
   },
   {
     id: 'suite',
     name: 'Suite',
     icon: '🏰',
     description: 'Héberge jusqu\'à 2 habitants dans un luxe absolu',
-    category: 'logements'
+    category: 'logements',
+    competence: 'charme'
   },
   {
     id: 'cuisine',
     name: 'Cuisine',
     icon: '🍳',
     description: 'Produit de la nourriture',
-    category: 'alimentation'
+    category: 'alimentation',
+    competence: 'dexterite'
   },
   {
     id: 'station-traitement',
     name: 'Station de traitement',
     icon: '💧',
     description: 'Produit de l\'eau potable',
-    category: 'eau'
+    category: 'eau',
+    competence: 'savoir'
   },
   {
     id: 'generateur',
     name: 'Générateur',
     icon: '⚡',
     description: 'Produit de l\'énergie',
-    category: 'energie'
+    category: 'energie',
+    competence: 'force'
   },
   {
     id: 'infirmerie',
     name: 'Infirmerie',
     icon: '🏥',
     description: 'Produit des médicaments',
-    category: 'sante'
+    category: 'sante',
+    competence: 'savoir'
   },
   {
     id: 'serre',
     name: 'Serre',
     icon: '🌱',
     description: 'Produit de la nourriture',
-    category: 'alimentation'
+    category: 'alimentation',
+    competence: 'instinct'
   },
   {
     id: 'raffinerie',
     name: 'Raffinerie',
     icon: '⚒️',
     description: 'Raffine les minerais en lingots',
-    category: 'production'
+    category: 'production',
+    competence: 'force'
   },
   {
     id: 'derrick',
     name: 'Derrick',
     icon: '🛢️',
     description: 'Extrait du pétrole pour alimenter les générateurs',
-    category: 'production'
+    category: 'production',
+    competence: 'force'
   },
   {
     id: 'atelier',
     name: 'Atelier',
     icon: '⚒️',
     description: 'Produit des objets manufacturés',
-    category: 'production'
+    category: 'production',
+    competence: 'dexterite'
   },
   {
     id: 'salle-controle',
     name: 'Salle de contrôle',
     icon: '🎮',
     description: 'Permet de contrôler et surveiller l\'ensemble de l\'abri',
-    category: 'production'
+    category: 'production',
+    competence: 'relations'
   }
 ]
 

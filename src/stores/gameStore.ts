@@ -2558,12 +2558,12 @@ export const useGameStore = defineStore('game', () => {
   function generateRandomCompetences(): Competences {
     const competences = ['force', 'dexterite', 'charme', 'relations', 'instinct', 'savoir']
     const points = Array(6).fill(1) // Chaque compétence commence à 1
-    let remainingPoints = 21 // 27 - 6 points déjà distribués
+    let remainingPoints = 13
 
     // Distribution aléatoire des points restants
     while (remainingPoints > 0) {
       const index = Math.floor(Math.random() * competences.length)
-      if (points[index] < 10) { // Maximum de 10 points par compétence
+      if (points[index] < 7) { // Maximum de 10 points par compétence
         points[index]++
         remainingPoints--
       }

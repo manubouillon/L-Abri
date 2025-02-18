@@ -59,6 +59,10 @@
               <span class="label">Multiplicateur de fusion:</span>
               <span>{{ getMergeMultiplier }}✨</span>
             </div>
+            <div class="formula-row">
+              <span class="label">Compétence requise:</span>
+              <span>{{ getRoomCompetence(room.type) }}</span>
+            </div>
             <div class="formula-row total" v-if="isProductionRoom && room.type !== 'raffinerie'">
               <span class="label">Production totale:</span>
               <span>{{ getTotalProduction }}</span>
@@ -155,7 +159,12 @@
                 :key="habitantId"
                 class="worker"
               >
-                <span class="name">{{ getHabitantName(habitantId) }}</span>
+                <span class="name">
+                  {{ getHabitantName(habitantId) }}
+                  <span class="competence">
+                    ({{ getHabitantCompetence(habitantId) }})
+                  </span>
+                </span>
                 <button class="remove" @click="retirerHabitant(habitantId)">Retirer</button>
               </div>
             </div>
@@ -168,7 +177,7 @@
                   :key="habitant.id"
                   :value="habitant.id"
                 >
-                  {{ habitant.nom }}
+                  {{ habitant.nom }} ({{ habitant.competenceLevel }})
                 </option>
               </select>
               <button 
@@ -301,10 +310,11 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useGameStore } from '../stores/gameStore'
-import { ROOM_MERGE_CONFIG, ROOMS_CONFIG, type ProductionRoomConfig, type StorageRoomConfig, type DortoryRoomConfig } from '../config/roomsConfig'
+import { ROOM_MERGE_CONFIG, ROOMS_CONFIG, ROOM_TYPES } from '../config/roomsConfig'
 import { ITEMS_CONFIG, type ItemType } from '../config/itemsConfig'
 import type { Room, Equipment } from '../stores/gameStore'
 import NurserieInterface from './NurserieInterface.vue'
+import type { ProductionRoomConfig, StorageRoomConfig, DortoryRoomConfig } from '../config/roomsConfig'
 
 const props = defineProps<{
   room: Room
@@ -492,19 +502,31 @@ const canAddOccupant = computed(() => {
 })
 
 const availableHabitants = computed(() => {
-  if (isLogementRoom.value) {
-    // Pour les logements, on peut affecter n'importe quel habitant sans logement
-    return habitants.value.filter(h => !h.logement)
-  }
-  // Pour les autres salles, seulement les adultes sans affectation
-  return habitants.value.filter(h => 
-    h.affectation.type === null && h.age >= (7 * 52)
-  )
+  return habitants.value.filter(h => {
+    if (isLogementRoom.value) {
+      return !h.logement
+    } else {
+      return h.affectation.type === null
+    }
+  }).map(h => ({
+    ...h,
+    competenceLevel: h.competences[getRoomCompetence(props.room.type).toLowerCase() as keyof typeof h.competences] || 0
+  }))
 })
 
 function getHabitantName(habitantId: string): string {
   const habitant = habitants.value.find(h => h.id === habitantId)
   return habitant ? habitant.nom : 'Inconnu'
+}
+
+function getHabitantCompetence(habitantId: string): number {
+  const habitant = habitants.value.find(h => h.id === habitantId)
+  if (!habitant) return 0
+  
+  const roomType = ROOM_TYPES.find(r => r.id === props.room.type)
+  if (!roomType) return 0
+  
+  return habitant.competences[roomType.competence] || 0
 }
 
 function retirerHabitant(habitantId: string) {
@@ -751,6 +773,22 @@ watch([() => props.room.isDisabled, () => store.gameTime], () => {
     }
   }
 }, { deep: true })
+
+function getRoomCompetence(type: string): string {
+  const roomType = ROOM_TYPES.find(room => room.id === type)
+  if (!roomType) return 'Inconnue'
+  
+  const competenceNames: Record<string, string> = {
+    force: 'Force',
+    dexterite: 'Dextérité',
+    charme: 'Charme',
+    relations: 'Relations',
+    instinct: 'Instinct',
+    savoir: 'Savoir'
+  }
+  
+  return competenceNames[roomType.competence] || 'Inconnue'
+}
 </script>
 
 <style lang="scss" scoped>
@@ -832,6 +870,12 @@ watch([() => props.room.isDisabled, () => store.gameTime], () => {
 
     .name {
       color: #ecf0f1;
+      
+      .competence {
+        color: #3498db;
+        font-size: 0.9em;
+        margin-left: 0.5rem;
+      }
     }
 
     .remove {
