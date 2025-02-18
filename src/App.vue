@@ -74,6 +74,7 @@
       :habitant="deceasedHabitant!"
       @close="showDeathModal = false" 
     />
+    <CompetenceTestPanel :tests="competenceTests" />
   </div>
 </template>
 
@@ -88,10 +89,23 @@ import InventoryModal from './components/InventoryModal.vue'
 import SaveModal from './components/SaveModal.vue'
 import NotificationSystem from './components/NotificationSystem.vue'
 import DeathModal from './components/DeathModal.vue'
+import CompetenceTestPanel from './components/CompetenceTestPanel.vue'
 
 // État du jeu
 const gameStore = useGameStore()
-const { levels, inventorySpace, gameSpeed, globalHappiness, habitants, averageFoodQuality, foodQualityEmoji, showDeathModal, deceasedHabitant, isPaused } = storeToRefs(gameStore)
+const { 
+  levels, 
+  inventorySpace, 
+  gameSpeed, 
+  globalHappiness, 
+  habitants, 
+  averageFoodQuality, 
+  foodQualityEmoji, 
+  showDeathModal, 
+  deceasedHabitant, 
+  isPaused,
+  competenceTests 
+} = storeToRefs(gameStore)
 const scrollPosition = ref(0)
 const showHabitantsList = ref(false)
 const showInventory = ref(false)
