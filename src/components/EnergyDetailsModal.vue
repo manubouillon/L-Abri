@@ -56,7 +56,7 @@ const productions = computed(() => {
   store.levels.forEach(level => {
     const allRooms = [...level.leftRooms, ...level.rightRooms]
     allRooms.forEach(room => {
-      if (room.isBuilt && room.type === 'generateur') {
+      if (room.isBuilt && room.type === 'generateur' && !room.isDisabled) {
         const config = ROOMS_CONFIG[room.type]
         if (!config || !('productionPerWorker' in config)) return
 
@@ -66,11 +66,12 @@ const productions = computed(() => {
         const mergeMultiplier = mergeConfig?.useMultiplier 
           ? store.GAME_CONFIG.MERGE_MULTIPLIERS[Math.min(gridSize, 6) as keyof typeof store.GAME_CONFIG.MERGE_MULTIPLIERS] || 1
           : 1
+        const productionBonus = store.calculateProductionBonus(room)
 
-        const production = config.productionPerWorker.energie! * nbWorkers * gridSize * mergeMultiplier
+        const production = config.productionPerWorker.energie! * nbWorkers * gridSize * mergeMultiplier * productionBonus
         if (production > 0) {
           prods.push({
-            description: `Générateur niveau ${level.id + 1} (${nbWorkers}👥 × ${gridSize}📦 × ${mergeMultiplier}✨)`,
+            description: `Générateur niveau ${level.id + 1} (${nbWorkers}👥 × ${gridSize}📦 × ${mergeMultiplier}✨ × ${productionBonus}⭐)`,
             amount: production
           })
         }

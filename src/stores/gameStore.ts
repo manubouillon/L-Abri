@@ -679,31 +679,35 @@ export const useGameStore = defineStore('game', () => {
   }
 
   function updateRoomProduction(weeksElapsed: number = 0) {
+    // Réinitialiser les productions et consommations
+    Object.values(resources.value).forEach(resource => {
+      resource.production = 0
+      resource.consumption = 0
+    })
+
+    // Mettre à jour les productions et consommations
     levels.value.forEach(level => {
-      [...level.leftRooms, ...level.rightRooms].forEach(room => {
-        
-        if (!room.isBuilt || room.isDisabled) {
-          return
+      const allRooms = [...level.leftRooms, ...level.rightRooms]
+      allRooms.forEach(room => {
+        if (room.isBuilt && !room.isDisabled) {
+          const config = ROOMS_CONFIG[room.type]
+          const nbWorkers = room.occupants.length
+          const productionBonus = calculateProductionBonus(room)
+
+          handleRoomProduction(
+            room,
+            config,
+            nbWorkers,
+            resources.value,
+            weeksElapsed,
+            productionBonus,
+            addItem,
+            removeItem,
+            getItemQuantity,
+            habitants.value,
+            (test: CompetenceTest) => competenceTests.value.push(test)
+          )
         }
-
-        const config = ROOMS_CONFIG[room.type]
-        if (!config) return
-
-        const nbWorkers = room.occupants.length
-        if (nbWorkers === 0) return
-
-        const productionBonus = calculateProductionBonus(room)
-        handleRoomProduction(
-          room,
-          config,
-          nbWorkers,
-          resources.value,
-          weeksElapsed,
-          productionBonus,
-          addItem,
-          removeItem,
-          getItemQuantity
-        )
       })
     })
 
@@ -759,7 +763,22 @@ export const useGameStore = defineStore('game', () => {
             ? GAME_CONFIG.MERGE_MULTIPLIERS[Math.min(gridSize, 6) as keyof typeof GAME_CONFIG.MERGE_MULTIPLIERS] || 1
             : 1
 
-          const production = config.productionPerWorker.eau! * nbWorkers * gridSize * mergeMultiplier
+          // Calculer le bonus de production basé sur les tests de compétences
+          const testsBonus = room.occupants.reduce((bonus, habitantId) => {
+            const recentTests = competenceTests.value
+              .filter(t => t.habitantId === habitantId && t.salle === room.type)
+              .slice(-3) // Prendre les 3 derniers tests
+            
+            if (recentTests.length === 0) return bonus
+            
+            const avgSuccess = recentTests.reduce((sum, test) => {
+              return sum + (test.type === 'succes' ? 1 : test.type === 'critique' ? 1.5 : 0)
+            }, 0) / recentTests.length
+            
+            return bonus + avgSuccess
+          }, 1)
+
+          const production = config.productionPerWorker.eau! * nbWorkers * gridSize * mergeMultiplier * testsBonus
           if (production > 0) {
             totalProduction += production
           }
@@ -804,7 +823,22 @@ export const useGameStore = defineStore('game', () => {
             ? GAME_CONFIG.MERGE_MULTIPLIERS[Math.min(gridSize, 6) as keyof typeof GAME_CONFIG.MERGE_MULTIPLIERS] || 1
             : 1
 
-          const production = config.productionPerWorker.energie! * nbWorkers * gridSize * mergeMultiplier
+          // Calculer le bonus de production basé sur les tests de compétences
+          const testsBonus = room.occupants.reduce((bonus, habitantId) => {
+            const recentTests = competenceTests.value
+              .filter(t => t.habitantId === habitantId && t.salle === room.type)
+              .slice(-3) // Prendre les 3 derniers tests
+            
+            if (recentTests.length === 0) return bonus
+            
+            const avgSuccess = recentTests.reduce((sum, test) => {
+              return sum + (test.type === 'succes' ? 1 : test.type === 'critique' ? 1.5 : 0)
+            }, 0) / recentTests.length
+            
+            return bonus + avgSuccess
+          }, 1)
+
+          const production = config.productionPerWorker.energie! * nbWorkers * gridSize * mergeMultiplier * testsBonus
           if (production > 0) {
             totalProduction += production
           }
@@ -1575,7 +1609,7 @@ export const useGameStore = defineStore('game', () => {
     inventory.value = [] // Vider complètement l'inventaire
     inventoryCapacity.value = 1000
     gameSpeed.value = 1
-competenceTests.value = [] // Réinitialiser les tests de compétence
+    competenceTests.value = [] // Réinitialiser les tests de compétence
     
     // Réinitialiser le jeu avec les valeurs par défaut
     initGame()

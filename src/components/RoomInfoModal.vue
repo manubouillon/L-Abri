@@ -413,13 +413,14 @@ const getTotalProduction = computed(() => {
   const nbWorkers = props.room.occupants.length
   const gridSize = props.room.gridSize || 1
   const mergeMultiplier = getMergeMultiplier.value
+  const productionBonus = store.calculateProductionBonus(props.room)
 
   const productions = []
   
   // Pour la serre, afficher toutes les productions
   if (props.room.type === 'serre') {
     for (const [resource, amount] of Object.entries(baseProduction.value)) {
-      const total = amount * nbWorkers * gridSize * mergeMultiplier
+      const total = amount * nbWorkers * gridSize * mergeMultiplier * productionBonus
       productions.push(`${resource}: +${total.toFixed(1)}/semaine`)
     }
     // Ajouter la consommation d'eau
@@ -431,7 +432,7 @@ const getTotalProduction = computed(() => {
     const hasAtelierCouture = props.room.equipments?.some(e => e.type === 'atelier-couture' && !e.isUnderConstruction)
     if (hasAtelierCouture) {
       const soieDisponible = store.getItemQuantity('soie')
-      const productionBase = 2 * nbWorkers * gridSize * mergeMultiplier
+      const productionBase = 2 * nbWorkers * gridSize * mergeMultiplier * productionBonus
       productions.push(`vêtements: +${productionBase.toFixed(1)}/semaine`)
       productions.push(`soie: -${(productionBase * 2).toFixed(1)}/semaine`)
       if (soieDisponible === 0) {

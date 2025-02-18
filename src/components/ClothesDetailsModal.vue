@@ -116,7 +116,8 @@ function calculateRoomProduction(room: Room): number {
   if ('productionPerWorker' in config && config.productionPerWorker.vetements) {
     const gridSize = room.gridSize || 1
     const mergeMultiplier = store.GAME_CONFIG.MERGE_MULTIPLIERS[Math.min(gridSize, 6) as keyof typeof store.GAME_CONFIG.MERGE_MULTIPLIERS] || 1
-    return config.productionPerWorker.vetements * room.occupants.length * gridSize * mergeMultiplier
+    const productionBonus = store.calculateProductionBonus(room)
+    return config.productionPerWorker.vetements * room.occupants.length * gridSize * mergeMultiplier * productionBonus
   }
   return 0
 }

@@ -62,11 +62,12 @@ const productions = computed(() => {
         const mergeMultiplier = mergeConfig?.useMultiplier 
           ? store.GAME_CONFIG.MERGE_MULTIPLIERS[Math.min(gridSize, 6) as keyof typeof store.GAME_CONFIG.MERGE_MULTIPLIERS] || 1
           : 1
+        const productionBonus = store.calculateProductionBonus(room)
 
-        const production = config.productionPerWorker.eau! * nbWorkers * gridSize * mergeMultiplier
+        const production = config.productionPerWorker.eau! * nbWorkers * gridSize * mergeMultiplier * productionBonus
         if (production > 0) {
           prods.push({
-            description: `Station de traitement niveau ${level.id + 1} (${nbWorkers}👥 × ${gridSize}📦 × ${mergeMultiplier}✨)${room.isDisabled ? ' (Désactivée)' : ''}`,
+            description: `Station de traitement niveau ${level.id + 1} (${nbWorkers}👥 × ${gridSize}📦 × ${mergeMultiplier}✨ × ${productionBonus}⭐)${room.isDisabled ? ' (Désactivée)' : ''}`,
             amount: production
           })
         }

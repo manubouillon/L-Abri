@@ -2,6 +2,9 @@ import type { Room } from '../stores/gameStore'
 import type { RoomConfig, ResourceKey } from '../config/roomsConfig'
 import type { ItemType } from '../config/itemsConfig'
 import { GAME_CONFIG } from '../config/gameConfig'
+import { effectuerTest, type CompetenceTest } from './competenceTestService'
+import type { Habitant } from '../stores/gameStore'
+import { useGameStore } from '../stores/gameStore'
 
 interface Resource {
   amount: number
@@ -14,6 +17,9 @@ interface Resources {
   [key: string]: Resource
 }
 
+// Garder en mémoire les derniers tests effectués
+const lastTests = new Map<string, number>()
+
 export function handleRoomProduction(
   room: Room,
   config: RoomConfig,
@@ -23,8 +29,59 @@ export function handleRoomProduction(
   productionBonus: number = 1,
   addItem: (type: ItemType, quantity: number) => boolean,
   removeItem: (type: ItemType, quantity: number) => boolean,
-  getItemQuantity: (type: ItemType) => number
+  getItemQuantity: (type: ItemType) => number,
+  habitants: Habitant[],
+  addCompetenceTest: (test: CompetenceTest) => void
 ) {
+  const gameStore = useGameStore()
+  const currentWeek = Math.floor(gameStore.gameTime)
+  
+  // Effectuer les tests de compétences pour chaque travailleur
+  const tests: CompetenceTest[] = []
+  const travailleurs = habitants.filter(h => room.occupants.includes(h.id))
+  
+  // Calculer le bonus de production basé sur les tests
+  let testBonus = 1
+
+  // Ne faire les tests qu'une fois par semaine pour chaque travailleur dans cette salle
+  travailleurs.forEach(travailleur => {
+    const testKey = `${room.id}-${travailleur.id}-${currentWeek}`
+    if (!lastTests.has(testKey)) {
+      const test = effectuerTest(travailleur, room)
+      tests.push(test)
+      lastTests.set(testKey, currentWeek)
+      
+      // Ajuster le bonus en fonction du résultat du test
+      switch (test.type) {
+        case 'critique':
+          testBonus += 0.5 // +50% de production
+          break
+        case 'succes':
+          testBonus += 0.2 // +20% de production
+          break
+        case 'echec':
+          testBonus -= 0.2 // -20% de production
+          break
+        case 'echec-critique':
+          testBonus -= 0.5 // -50% de production
+          break
+      }
+    }
+  })
+  
+  // Enregistrer les tests
+  tests.forEach(test => addCompetenceTest(test))
+  
+  // Nettoyer les anciens tests (garder seulement les 2 dernières semaines)
+  for (const [key, week] of lastTests.entries()) {
+    if (week < currentWeek - 2) {
+      lastTests.delete(key)
+    }
+  }
+  
+  // Ajuster le bonus de production final
+  testBonus = Math.max(0.1, testBonus) // Minimum 10% de la production normale
+  productionBonus *= testBonus
 
   const gridSize = room.gridSize || 1
   const mergeMultiplier = gridSize > 1 
@@ -38,7 +95,6 @@ export function handleRoomProduction(
       1000 // Limite de sécurité par salle
     )
     resources.eau.consumption += waterConsumptionValue
-    console.log('Consommation d\'eau:', waterConsumptionValue)
   }
 
   // Gestion de la raffinerie
@@ -68,7 +124,7 @@ export function handleRoomProduction(
     if (room.fuelLevel >= 100) {
       const nbBarilsVides = getItemQuantity('baril-vide')
       if (nbBarilsVides > 0 && 'resourceProduction' in config && config.resourceProduction?.['baril-petrole']) {
-        const productionPetrole = config.resourceProduction['baril-petrole'] * nbWorkers * gridSize * mergeMultiplier
+        const productionPetrole = config.resourceProduction['baril-petrole'] * nbWorkers * gridSize * mergeMultiplier * productionBonus
         const nbBarilsAProduire = Math.min(nbBarilsVides, Math.floor(productionPetrole))
 
         if (nbBarilsAProduire > 0) {
@@ -132,13 +188,17 @@ export function handleRoomProduction(
 
   // Gestion des productions et consommations standards
   if ('productionPerWorker' in config) {
+
+
     Object.entries(config.productionPerWorker).forEach(([resource, amount]) => {
       if (amount && resource in resources) {
         if (amount > 0) {
           const production = amount * nbWorkers * gridSize * mergeMultiplier * productionBonus * weeksElapsed
+            console.log('productionPerWorker', room.type, 'bonus:'+productionBonus, 'nbWorkers:'+nbWorkers, 'gridSize:'+gridSize, 'mergeMultiplier:'+mergeMultiplier, 'weeksElapsed:'+weeksElapsed, 'production:'+production)
           resources[resource as ResourceKey].production += production
         } else {
           const consumption = Math.abs(amount) * nbWorkers * gridSize * mergeMultiplier * weeksElapsed
+          console.log('productionPerWorker', room.type, 'bonus:'+productionBonus, 'nbWorkers:'+nbWorkers, 'gridSize:'+gridSize, 'mergeMultiplier:'+mergeMultiplier, 'weeksElapsed:'+weeksElapsed, 'consumption:'+consumption)
           resources[resource as ResourceKey].consumption += consumption
         }
       }

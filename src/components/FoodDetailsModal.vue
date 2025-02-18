@@ -155,16 +155,17 @@ function calculateRoomProduction(room: Room): number {
   if ('productionPerWorker' in config) {
     const gridSize = room.gridSize || 1
     const mergeMultiplier = store.GAME_CONFIG.MERGE_MULTIPLIERS[Math.min(gridSize, 6) as keyof typeof store.GAME_CONFIG.MERGE_MULTIPLIERS] || 1
+    const productionBonus = store.calculateProductionBonus(room)
     
     if (room.type === 'cuisine' && 'nourriture' in config.productionPerWorker) {
       const production = config.productionPerWorker.nourriture
       if (typeof production === 'number') {
-        return production * room.occupants.length * gridSize * mergeMultiplier * gameSpeed.value
+        return production * room.occupants.length * gridSize * mergeMultiplier * productionBonus * gameSpeed.value
       }
     } else if (room.type === 'serre' && 'laitue' in config.productionPerWorker) {
       const production = config.productionPerWorker.laitue
       if (typeof production === 'number') {
-        return production * room.occupants.length * gridSize * mergeMultiplier * gameSpeed.value
+        return production * room.occupants.length * gridSize * mergeMultiplier * productionBonus * gameSpeed.value
       }
     }
   }
