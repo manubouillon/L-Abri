@@ -1,5 +1,11 @@
 <template>
-  <div class="resource-panel">
+  <button 
+    class="toggle-panel-button"
+    @click="isPanelVisible = !isPanelVisible"
+  >
+    {{ isPanelVisible ? '❌' : '📊' }}
+  </button>
+  <div class="resource-panel" :class="{ 'hidden': !isPanelVisible }">
     <h2>Ressources</h2>
     
     <div class="resources-grid">
@@ -128,6 +134,7 @@ const showClothesDetails = ref(false)
 const showMedicineDetails = ref(false)
 const gameStore = useGameStore()
 const { globalHappiness, averageFoodQuality, foodQualityEmoji } = storeToRefs(gameStore)
+const isPanelVisible = ref(window.innerWidth > 768)
 </script>
 
 <style lang="scss" scoped>
@@ -247,6 +254,50 @@ const { globalHappiness, averageFoodQuality, foodQualityEmoji } = storeToRefs(ga
 
   &:hover {
     background-color: #2980b9;
+  }
+}
+
+.toggle-panel-button {
+  display: none;
+  position: fixed;
+  bottom: 80px;
+  right: 20px;
+  z-index: 1000;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background-color: #3498db;
+  border: none;
+  color: white;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding:0;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+
+  &:hover {
+    background-color: #2980b9;
+  }
+}
+
+@media (max-width: 768px) {
+  .toggle-panel-button {
+    display: block;
+  }
+
+  .resource-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 80%;
+    max-width: 300px;
+    z-index: 999;
+    overflow-y: auto;
+    transition: transform 0.3s ease;
+
+    &.hidden {
+      transform: translateX(100%);
+    }
   }
 }
 </style> 
