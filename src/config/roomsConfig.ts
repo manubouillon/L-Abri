@@ -191,7 +191,7 @@ export const ROOMS_CONFIG: { [key: string]: RoomConfig } = {
     energyConsumption: 4,
     productionPerWorker: {},
     resourceProduction: {
-      'baril-petrole': 1
+      'baril-petrole': 2
     }
   },
   'salle-controle': {
