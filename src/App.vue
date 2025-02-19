@@ -206,12 +206,54 @@ const energyNet = computed(() => {
 
 <style lang="scss">
 :root {
-  --room-stockage-color: #e67e22;
-  --room-dortoir-color: #3498db;
-  --room-cuisine-color: #e74c3c;
-  --room-eau-color: #2980b9;
-  --room-energie-color: #f1c40f;
-  --room-medical-color: #2ecc71;
+  font-family: Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: #ecf0f1;
+  background-color: #2c3e50;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  /* Couleurs des catégories */
+  --category-stockage-color: #3498db;
+  --category-logements-color: #2ecc71;
+  --category-alimentation-color: #e67e22;
+  --category-eau-color: #3498db;
+  --category-energie-color: #f1c40f;
+  --category-sante-color: #e74c3c;
+  --category-production-color: #9b59b6;
+
+  /* Couleurs des types de salles */
+  --room-stockage-color: var(--category-stockage-color);
+  --room-logements-color: var(--category-logements-color);
+  --room-alimentation-color: var(--category-alimentation-color);
+  --room-eau-color: var(--category-eau-color);
+  --room-energie-color: var(--category-energie-color);
+  --room-sante-color: var(--category-sante-color);
+  --room-production-color: var(--category-production-color);
+
+  /* Couleurs des pièces spécifiques */
+  --room-type-chambre-froide-color: var(--category-stockage-color);
+  --room-type-entrepot-color: var(--category-stockage-color);
+  --room-type-cuve-color: var(--category-eau-color);
+  --room-type-dortoir-color: var(--category-logements-color);
+  --room-type-quartiers-color: var(--category-logements-color);
+  --room-type-appartement-color: var(--category-logements-color);
+  --room-type-suite-color: var(--category-logements-color);
+  --room-type-cuisine-color: var(--category-alimentation-color);
+  --room-type-station-traitement-color: var(--category-eau-color);
+  --room-type-generateur-color: var(--category-energie-color);
+  --room-type-infirmerie-color: var(--category-sante-color);
+  --room-type-serre-color: var(--category-alimentation-color);
+  --room-type-raffinerie-color: var(--category-production-color);
+  --room-type-derrick-color: var(--category-production-color);
+  --room-type-atelier-color: var(--category-production-color);
+  --room-type-salle-controle-color: var(--category-production-color);
 }
 
 * {

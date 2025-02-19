@@ -24,10 +24,11 @@
           v-for="type in getRoomsByCategory(selectedCategory)" 
           :key="type.id"
           class="room-type-button"
-          :class="[
-            `room-type-${type.id}`,
-            { 'disabled': !canAffordRoom(type.id) }
-          ]"
+          :class="{ 'disabled': !canAffordRoom(type.id) }"
+          :style="{
+            borderColor: getRoomColor(type.id),
+            '--hover-color': `${getRoomColor(type.id)}22`
+          }"
           @click="canAffordRoom(type.id) && $emit('select', type.id)"
           :disabled="!canAffordRoom(type.id)"
         >
@@ -72,6 +73,10 @@ const categories = ROOM_CATEGORIES
 
 function getRoomsByCategory(categoryId: string) {
   return ROOM_TYPES.filter(room => room.category === categoryId)
+}
+
+function getRoomColor(roomId: string): string {
+  return ROOM_COLORS.rooms[roomId as keyof typeof ROOM_COLORS.rooms] || '#ffffff'
 }
 
 function isItemType(resource: string): resource is ItemType {
@@ -209,41 +214,8 @@ defineEmits<{
 
   &:hover {
     transform: translateY(-2px);
+    background-color: var(--hover-color, transparent);
   }
-
-  &.room-type-chambre-froide { border-color: v-bind('ROOM_COLORS.rooms["chambre-froide"]'); }
-  &.room-type-entrepot { border-color: v-bind('ROOM_COLORS.rooms.entrepot'); }
-  &.room-type-cuve { border-color: v-bind('ROOM_COLORS.rooms.cuve'); }
-  &.room-type-dortoir { border-color: v-bind('ROOM_COLORS.rooms.dortoir'); }
-  &.room-type-quartiers { border-color: v-bind('ROOM_COLORS.rooms.quartiers'); }
-  &.room-type-appartement { border-color: v-bind('ROOM_COLORS.rooms.appartement'); }
-  &.room-type-suite { border-color: v-bind('ROOM_COLORS.rooms.suite'); }
-  &.room-type-cuisine { border-color: v-bind('ROOM_COLORS.rooms.cuisine'); }
-  &.room-type-station-traitement { border-color: v-bind('ROOM_COLORS.rooms["station-traitement"]'); }
-  &.room-type-generateur { border-color: v-bind('ROOM_COLORS.rooms.generateur'); }
-  &.room-type-infirmerie { border-color: v-bind('ROOM_COLORS.rooms.infirmerie'); }
-  &.room-type-serre { border-color: v-bind('ROOM_COLORS.rooms.serre'); }
-  &.room-type-raffinerie { border-color: v-bind('ROOM_COLORS.rooms.raffinerie'); }
-  &.room-type-derrick { border-color: v-bind('ROOM_COLORS.rooms.derrick'); }
-  &.room-type-atelier { border-color: v-bind('ROOM_COLORS.rooms.atelier'); }
-  &.room-type-salle-controle { border-color: v-bind('ROOM_COLORS.rooms["salle-controle"]'); }
-
-  &.room-type-chambre-froide:hover { background-color: v-bind('`${ROOM_COLORS.rooms["chambre-froide"]}22`'); }
-  &.room-type-entrepot:hover { background-color: v-bind('`${ROOM_COLORS.rooms.entrepot}22`'); }
-  &.room-type-cuve:hover { background-color: v-bind('`${ROOM_COLORS.rooms.cuve}22`'); }
-  &.room-type-dortoir:hover { background-color: v-bind('`${ROOM_COLORS.rooms.dortoir}22`'); }
-  &.room-type-quartiers:hover { background-color: v-bind('`${ROOM_COLORS.rooms.quartiers}22`'); }
-  &.room-type-appartement:hover { background-color: v-bind('`${ROOM_COLORS.rooms.appartement}22`'); }
-  &.room-type-suite:hover { background-color: v-bind('`${ROOM_COLORS.rooms.suite}22`'); }
-  &.room-type-cuisine:hover { background-color: v-bind('`${ROOM_COLORS.rooms.cuisine}22`'); }
-  &.room-type-station-traitement:hover { background-color: v-bind('`${ROOM_COLORS.rooms["station-traitement"]}22`'); }
-  &.room-type-generateur:hover { background-color: v-bind('`${ROOM_COLORS.rooms.generateur}22`'); }
-  &.room-type-infirmerie:hover { background-color: v-bind('`${ROOM_COLORS.rooms.infirmerie}22`'); }
-  &.room-type-serre:hover { background-color: v-bind('`${ROOM_COLORS.rooms.serre}22`'); }
-  &.room-type-raffinerie:hover { background-color: v-bind('`${ROOM_COLORS.rooms.raffinerie}22`'); }
-  &.room-type-derrick:hover { background-color: v-bind('`${ROOM_COLORS.rooms.derrick}22`'); }
-  &.room-type-atelier:hover { background-color: v-bind('`${ROOM_COLORS.rooms.atelier}22`'); }
-  &.room-type-salle-controle:hover { background-color: v-bind('`${ROOM_COLORS.rooms["salle-controle"]}22`'); }
 
   &.disabled {
     opacity: 0.7;

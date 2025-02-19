@@ -23,6 +23,7 @@
               'has-stairs': room.stairsPosition === 'left',
               'is-disabled': room.isDisabled
             }"
+            :data-category="getRoomCategory(room)"
             :style="getRoomStyle(room)"
             @click="handleRoomClick('left', room)"
           >
@@ -159,6 +160,7 @@
               'has-stairs': room.stairsPosition === 'right',
               'is-disabled': room.isDisabled
             }"
+            :data-category="getRoomCategory(room)"
             :style="getRoomStyle(room)"
             @click="handleRoomClick('right', room)"
           >
@@ -285,9 +287,10 @@
     />
 
     <RoomInfoModal 
-      v-if="showRoomInfoModal"
+      v-if="showRoomInfoModal && selectedRoomForInfo"
       :room="selectedRoomForInfo"
       :levelId="level.id"
+      :position="selectedRoomForInfo.position"
       @close="closeRoomInfoModal"
     />
   </div>
@@ -296,7 +299,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useGameStore, ROOMS_PER_SIDE } from '../stores/gameStore'
-import { ROOMS_CONFIG, type DortoryRoomConfig } from '../config/roomsConfig'
+import { ROOMS_CONFIG, type DortoryRoomConfig, ROOM_TYPES, ROOM_COLORS, type RoomType } from '../config/roomsConfig'
 import type { Level, Room } from '../stores/gameStore'
 import RoomTypeModal from './RoomTypeModal.vue'
 import RoomInfoModal from './RoomInfoModal.vue'
@@ -601,15 +604,13 @@ function closeRoomInfoModal() {
   showRoomInfoModal.value = false
   selectedRoomForInfo.value = null
 }
-
 function getRoomStyle(room: Room) {
   if (!room.isBuilt) return {}
   
-  const gridSize = room.gridSize || 1
+  const roomColor = ROOM_COLORS.rooms[room.type as keyof typeof ROOM_COLORS.rooms]
+
   return {
-    gridColumn: `span ${gridSize}`,
-    width: gridSize > 1 ? `calc(${100 * gridSize}% + ${(gridSize - 1) * 0.5}rem)` : undefined,
-    marginRight: gridSize > 1 ? '0' : undefined
+    borderColor: roomColor || 'transparent'
   }
 }
 
@@ -637,6 +638,18 @@ function getRoomCapacity(room: Room): number {
 
 function hasCuveEau(room: Room): boolean {
   return room.equipments.some(e => e.type === 'cuve-eau' && !e.isUnderConstruction)
+}
+
+function getRoomTypeClasses(room: Room): Record<string, boolean> {
+  return {
+    [`room-type-${room.type}`]: room.isBuilt
+  }
+}
+
+function getRoomCategory(room: Room): string {
+  if (!room.isBuilt) return ''
+  const roomType = ROOM_TYPES.find(rt => rt.id === room.type)
+  return roomType?.category || ''
 }
 
 onMounted(() => {
@@ -765,10 +778,15 @@ onMounted(() => {
     filter: grayscale(70%);
   }
 
-  @each $type in (entrepot, cuve, dortoir, cuisine, station-traitement, generateur, infirmerie, serre, raffinerie, derrick, salle-controle, quartiers, appartement, suite, atelier) {
-    &.room-type-#{$type} {
-      --room-color: var(--room-#{$type}-color);
-      border-color: var(--room-#{$type}-color);
+  // Styles dynamiques pour les types de salles
+  &[class*="room-type-"] {
+    --room-color: var(--category-color);
+    border-color: var(--category-color);
+  }
+
+  @each $category in (stockage, logements, alimentation, eau, energie, sante, production) {
+    .room[class*="room-type-"][data-category="#{$category}"] {
+      --category-color: var(--category-#{$category}-color);
     }
   }
 }

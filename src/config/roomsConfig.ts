@@ -1,4 +1,4 @@
-import type { ItemType } from '../stores/gameStore'
+import type { ItemType } from './itemsConfig'
 
 export type ResourceKey = 'energie' | 'eau' | 'nourriture' | 'vetements' | 'medicaments' | 'laitue'
 
@@ -221,6 +221,7 @@ export interface RoomType {
   description: string
   category: string
   competence: 'force' | 'dexterite' | 'charme' | 'relations' | 'instinct' | 'savoir'
+  classes?: string[]
 }
 
 export const ROOM_TYPES: RoomType[] = [
@@ -516,26 +517,28 @@ export const ROOM_CONSTRUCTION_COSTS: { [key: string]: { [key in ItemType]?: num
 // Configuration des couleurs
 export const ROOM_COLORS = {
   categories: {
-    stockage: '#3498db',     // Bleu
-    logements: '#2ecc71',    // Vert
-    alimentation: '#e67e22', // Orange
-    eau: '#3498db',         // Bleu
-    energie: '#f1c40f',     // Jaune
-    sante: '#e74c3c',       // Rouge
-    production: '#9b59b6'   // Violet
+    stockage: '#A9A9A9',
+    logements: '#FF69B4',
+    alimentation: '#e67e22',
+    eau: '#3498db',
+    energie: '#f1c40f',
+    sante: '#2ecc71',
+    production: '#9b59b6'
   },
   rooms: {
-    'chambre-froide': '#3498db',
-    'entrepot': '#3498db',
-    'cuve': '#3498db',
-    'dortoir': '#2ecc71',
-    'quartiers': '#2ecc71',
-    'appartement': '#2ecc71',
-    'suite': '#2ecc71',
+    'dortoir': '#FF69B4',
+    'quartiers': '#FFB6C1',
+    'appartement': '#FFC0CB', 
+    'suite': '#FFF0F5',
+
+    'chambre-froide': '#808080', // Gris
+    'entrepot': '#A9A9A9', // Gris foncé
+    'cuve': '#C0C0C0', // Gris clair
+    
     'cuisine': '#e67e22',
     'station-traitement': '#3498db',
     'generateur': '#f1c40f',
-    'infirmerie': '#e74c3c',
+    'infirmerie': '#2ecc71',
     'serre': '#e67e22',
     'raffinerie': '#9b59b6',
     'derrick': '#9b59b6',

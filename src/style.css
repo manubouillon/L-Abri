@@ -13,35 +13,13 @@
   -moz-osx-font-smoothing: grayscale;
 
   /* Couleurs des catégories */
-  --category-stockage-color: #e67e22;
-  --category-logements-color: #3498db;
-  --category-alimentation-color: #e74c3c;
-  --category-eau-color: #2980b9;
-  --category-energie-color: #f1c40f;
-  --category-sante-color: #2ecc71;
-  --category-production-color: #8e44ad;
-
-  /* Couleurs des types de salles */
-  --room-entrepot-color: #d35400;
-  --room-cuve-color: #e67e22;
-  --room-dortoir-color: #2980b9;
-  --room-quartiers-color: #2980b9;
-  --room-appartement-color: #3498db;
-  --room-suite-color: #48c9ff;
-  --room-cuisine-color: #c0392b;
-  --room-station-traitement-color: #2980b9;
-  --room-generateur-color: #f39c12;
-  --room-infirmerie-color: #27ae60;
-  --room-serre-color: #e74c3c;
-  --room-stockage-color: #e67e22;
-  --room-eau-color: #2980b9;
-  --room-energie-color: #f1c40f;
-  --room-medical-color: #2ecc71;
-  --room-production-color: #8e44ad;
-  --room-raffinerie-color: #9b59b6;
-  --room-derrick-color: #8e44ad;
-  --room-atelier-color: #9b59b6;
-  --room-salle-controle-color: #b92930;
+  --category-stockage-color: #3498db;     /* Bleu */
+  --category-logements-color: #3498db;    /* Bleu */
+  --category-alimentation-color: #e67e22; /* Orange */
+  --category-eau-color: #3498db;         /* Bleu */
+  --category-energie-color: #f1c40f;     /* Jaune */
+  --category-sante-color: #2ecc71;       /* Vert */
+  --category-production-color: #9b59b6;   /* Violet */
 
   /* Bordures */
   --border-exterior-color: #757575;
@@ -146,3 +124,5 @@ button:disabled {
   border-top:solid 3px #27ae60;
   top:200px;
 }
+
+/* Suppression des styles statiques des types de salles car ils sont maintenant gérés dynamiquement */
