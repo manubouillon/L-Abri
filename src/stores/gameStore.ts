@@ -1836,6 +1836,13 @@ export const useGameStore = defineStore('game', () => {
           habitant.affectation.roomIndex === targetRoom.index) {
         targetRoom.occupants = targetRoom.occupants.filter(id => id !== habitantId)
         habitant.affectation = { type: null }
+
+        // Désactiver la salle si elle n'a plus de travailleurs
+        if (targetRoom.occupants.length === 0) {
+          targetRoom.isDisabled = true
+          targetRoom.isManuallyDisabled = true
+        }
+
         updateRoomProduction()
         return true
       }
@@ -2456,6 +2463,11 @@ export const useGameStore = defineStore('game', () => {
           : level.rightRooms[habitant.affectation.roomIndex!]
         if (room) {
           room.occupants = room.occupants.filter(id => id !== habitant.id)
+          // Désactiver la salle si elle n'a plus de travailleurs
+          if (room.occupants.length === 0) {
+            room.isDisabled = true
+            room.isManuallyDisabled = true
+          }
         }
       }
     }
