@@ -1570,18 +1570,34 @@ export const useGameStore = defineStore('game', () => {
   }
 
   function resetGame() {
-    // Réinitialiser tous les états du jeu
-    this.habitants = []
-    this.levels = initializeLevels()
-    this.inventory = initializeInventory()
-    this.gameSpeed = 1
-    this.isPaused = false
-    this.showDeathModal = false
-    this.deceasedHabitant = null
-    this.competenceTests = []
+    // Supprimer la sauvegarde
+    localStorage.removeItem('abriGameState')
     
-    // Ajouter les premiers habitants
-    this.addInitialHabitants()
+    // Réinitialiser toutes les variables d'état
+    resources.value = {
+      energie: { amount: 0, capacity: 200, production: 0, consumption: 0 },
+      eau: { amount: 0, capacity: 200, production: 0, consumption: 0 },
+      nourriture: { amount: 0, capacity: 200, production: 0, consumption: 0 },
+      vetements: { amount: 0, capacity: 200, production: 0, consumption: 0 },
+      medicaments: { amount: 0, capacity: 200, production: 0, consumption: 0 }
+    }
+    levels.value = []
+    gameTime.value = 0
+    population.value = 0
+    happiness.value = 100
+    lastUpdateTime.value = Date.now()
+    excavations.value = []
+    habitants.value = []
+    inventory.value = []
+    inventoryCapacity.value = 1000
+    gameSpeed.value = 1
+    isPaused.value = false
+    showDeathModal.value = false
+    deceasedHabitant.value = null
+    competenceTests.value = []
+    
+    // Réinitialiser le jeu avec les valeurs par défaut
+    initGame()
   }
 
   // Ajouter la fonction utilitaire
