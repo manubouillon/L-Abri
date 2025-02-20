@@ -2,13 +2,32 @@
   <div class="modal-overlay" @click="$emit('close')">
     <div class="habitants-list" @click.stop>
       <div class="modal-header">
-        <h2>Liste des habitants</h2>
+        <h2>Gestion de l'Abri</h2>
         <div class="global-happiness">
           Bonheur global : {{ globalHappiness }}%
         </div>
         <button class="close-button" @click="$emit('close')">×</button>
       </div>
-      <div class="habitants-grid">
+
+      <div class="tabs">
+        <button 
+          class="tab-button" 
+          :class="{ active: activeTab === 'habitants' }"
+          @click="activeTab = 'habitants'"
+        >
+          Habitants
+        </button>
+        <button 
+          class="tab-button" 
+          :class="{ active: activeTab === 'logements' }"
+          @click="activeTab = 'logements'"
+        >
+          Logements
+        </button>
+      </div>
+
+      <!-- Tab Habitants -->
+      <div v-if="activeTab === 'habitants'" class="tab-content habitants-grid">
         <div 
           v-for="habitant in habitants" 
           :key="habitant.id"
@@ -104,6 +123,124 @@
           </div>
         </div>
       </div>
+
+      <!-- Tab Logements -->
+      <div v-if="activeTab === 'logements'" class="tab-content">
+        <div class="logements-header">
+          <div class="logements-stats">
+            <div class="stat">
+              <span class="label">Habitants sans logement :</span>
+              <span class="value">{{ habitantsSansLogement.length }}</span>
+            </div>
+            <div class="stat">
+              <span class="label">Logements disponibles :</span>
+              <span class="value">{{ logementsDisponibles }}</span>
+            </div>
+          </div>
+          <button 
+            class="auto-assign-button"
+            :disabled="habitantsSansLogement.length === 0 || logementsDisponibles === 0"
+          >
+            <span class="icon">🏠</span>
+            Attribuer automatiquement
+          </button>
+        </div>
+        
+        <div v-if="niveauxAvecLogements.length === 0" class="no-content-message">
+          Aucun logement disponible dans l'abri
+        </div>
+        
+        <div v-else class="logements-grid">
+          <div 
+            v-for="level in niveauxAvecLogements" 
+            :key="level.id" 
+            class="level-section"
+          >
+            <h3 class="level-title">
+              Niveau {{ level.id + 1 }}
+              <span class="level-stats">
+                ({{ getLogementsOccupes(level) }}/{{ getTotalLogements(level) }} occupés)
+              </span>
+            </h3>
+            
+            <div class="rooms-container">
+              <!-- Salles de gauche -->
+              <div class="rooms-column">
+                <template v-for="(room, index) in level.leftRooms" :key="`left-${index}`">
+                  <div 
+                    v-if="isLogementRoom(room?.type) && room?.isBuilt"
+                    class="room-card"
+                    :class="{ 'room-full': isRoomFull(level.id, 'left', index) }"
+                  >
+                    <div class="room-header">
+                      <span class="room-type">{{ getRoomName(room.type) }}</span>
+                      <span class="room-position">(Gauche)</span>
+                    </div>
+                    <div class="room-occupants">
+                      <div 
+                        v-for="habitant in getOccupants(level.id, 'left', index)"
+                        :key="habitant.id"
+                        class="occupant"
+                      >
+                        {{ habitant.nom }}
+                        <div class="occupant-info">
+                          <span class="genre-icon">{{ habitant.genre === 'H' ? '👨' : '👩' }}</span>
+                          <span class="bonheur-icon" :style="{ color: getHappinessColor(habitant.bonheur) }">
+                            {{ getHappinessEmoji(habitant.bonheur) }}
+                          </span>
+                        </div>
+                      </div>
+                      <div 
+                        v-if="getOccupants(level.id, 'left', index).length === 0" 
+                        class="no-occupants"
+                      >
+                        Vacant
+                      </div>
+                    </div>
+                  </div>
+                </template>
+              </div>
+
+              <!-- Salles de droite -->
+              <div class="rooms-column">
+                <template v-for="(room, index) in level.rightRooms" :key="`right-${index}`">
+                  <div 
+                    v-if="isLogementRoom(room?.type) && room?.isBuilt"
+                    class="room-card"
+                    :class="{ 'room-full': isRoomFull(level.id, 'right', index) }"
+                  >
+                    <div class="room-header">
+                      <span class="room-type">{{ getRoomName(room.type) }}</span>
+                      <span class="room-position">(Droite)</span>
+                    </div>
+                    <div class="room-occupants">
+                      <div 
+                        v-for="habitant in getOccupants(level.id, 'right', index)"
+                        :key="habitant.id"
+                        class="occupant"
+                      >
+                        {{ habitant.nom }}
+                        <div class="occupant-info">
+                          <span class="genre-icon">{{ habitant.genre === 'H' ? '👨' : '👩' }}</span>
+                          <span class="bonheur-icon" :style="{ color: getHappinessColor(habitant.bonheur) }">
+                            {{ getHappinessEmoji(habitant.bonheur) }}
+                          </span>
+                        </div>
+                      </div>
+                      <div 
+                        v-if="getOccupants(level.id, 'right', index).length === 0" 
+                        class="no-occupants"
+                      >
+                        Vacant
+                      </div>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -111,15 +248,18 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
 import { useGameStore } from '../stores/gameStore'
-import type { Habitant } from '../stores/gameStore'
-import { onMounted, onUnmounted } from 'vue'
+import type { Habitant, Room, Level } from '../stores/gameStore'
+import { onMounted, onUnmounted, ref, computed } from 'vue'
+import { ROOMS_CONFIG, ROOM_TYPES } from '../config/roomsConfig'
 
 const store = useGameStore()
-const { habitants, globalHappiness } = storeToRefs(store)
+const { habitants, globalHappiness, levels } = storeToRefs(store)
 
 const emit = defineEmits<{
   (e: 'close'): void
 }>()
+
+const activeTab = ref('habitants')
 
 function handleEscape(event: KeyboardEvent) {
   if (event.key === 'Escape') {
@@ -188,6 +328,111 @@ function formatAge(age: number): string {
     return `${ageEnAnnees} ans ${mois} mois`
   }
   return `${ageEnAnnees} ans`
+}
+
+function getOccupants(levelId: number, position: 'left' | 'right', roomIndex: number): Habitant[] {
+  return habitants.value.filter(h => 
+    h.logement && 
+    h.logement.levelId === levelId && 
+    h.logement.position === position && 
+    h.logement.roomIndex === roomIndex
+  )
+}
+
+// Computed properties pour les logements
+const habitantsSansLogement = computed(() => {
+  return habitants.value.filter(h => !h.logement)
+})
+
+const niveauxAvecLogements = computed(() => {
+  return levels.value.filter(level => {
+    const hasLeftLogement = level.leftRooms.some(room => isLogementRoom(room.type) && room.isBuilt)
+    const hasRightLogement = level.rightRooms.some(room => isLogementRoom(room.type) && room.isBuilt)
+    return level.isStairsExcavated && (hasLeftLogement || hasRightLogement)
+  })
+})
+
+const logementsDisponibles = computed(() => {
+  let total = 0
+  niveauxAvecLogements.value.forEach(level => {
+    level.leftRooms.forEach((room, index) => {
+      if (isLogementRoom(room.type) && room.isBuilt) {
+        const occupants = getOccupants(level.id, 'left', index)
+        total += Math.max(0, getRoomCapacity(room) - occupants.length)
+      }
+    })
+    level.rightRooms.forEach((room, index) => {
+      if (isLogementRoom(room.type) && room.isBuilt) {
+        const occupants = getOccupants(level.id, 'right', index)
+        total += Math.max(0, getRoomCapacity(room) - occupants.length)
+      }
+    })
+  })
+  return total
+})
+
+function isLogementRoom(type: string): boolean {
+  return ['dortoir', 'quartiers', 'appartement', 'suite'].includes(type)
+}
+
+function getRoomCapacity(room: Room): number {
+  const config = ROOMS_CONFIG[room.type]
+  if (!config || !('capacityPerResident' in config)) return 2
+  return (config.capacityPerResident * (room.gridSize || 1))
+}
+
+function isRoomFull(levelId: number, position: 'left' | 'right', roomIndex: number): boolean {
+  const level = levels.value.find(l => l.id === levelId)
+  if (!level) return false
+  
+  const room = position === 'left' ? level.leftRooms[roomIndex] : level.rightRooms[roomIndex]
+  if (!room) return false
+  
+  const occupants = getOccupants(levelId, position, roomIndex)
+  return occupants.length >= getRoomCapacity(room)
+}
+
+function getLogementsOccupes(level: Level): number {
+  let occupied = 0
+  level.leftRooms.forEach((room, index) => {
+    if (isLogementRoom(room.type) && room.isBuilt) {
+      occupied += getOccupants(level.id, 'left', index).length
+    }
+  })
+  level.rightRooms.forEach((room, index) => {
+    if (isLogementRoom(room.type) && room.isBuilt) {
+      occupied += getOccupants(level.id, 'right', index).length
+    }
+  })
+  return occupied
+}
+
+function getTotalLogements(level: Level): number {
+  let total = 0
+  level.leftRooms.forEach(room => {
+    if (isLogementRoom(room.type) && room.isBuilt) {
+      total += getRoomCapacity(room)
+    }
+  })
+  level.rightRooms.forEach(room => {
+    if (isLogementRoom(room.type) && room.isBuilt) {
+      total += getRoomCapacity(room)
+    }
+  })
+  return total
+}
+
+function getHappinessEmoji(happiness: number): string {
+  if (happiness >= 80) return '😄'
+  if (happiness >= 60) return '😊'
+  if (happiness >= 40) return '😐'
+  if (happiness >= 20) return '😟'
+  return '😢'
+}
+
+function getRoomName(type: string): string {
+  const roomType = ROOM_TYPES.find(rt => rt.id === type)
+  return roomType ? roomType.name : type
 }
 </script>
 
@@ -400,5 +645,214 @@ function formatAge(age: number): string {
   padding: 2px 6px;
   border-radius: 4px;
   margin-left: 6px;
+}
+
+.tabs {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 0.5rem;
+}
+
+.tab-button {
+  background: none;
+  border: none;
+  color: #bdc3c7;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  font-size: 1rem;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+
+  &.active {
+    color: #3498db;
+    background-color: rgba(52, 152, 219, 0.1);
+  }
+}
+
+.tab-content {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.placeholder-message {
+  color: #bdc3c7;
+  text-align: center;
+  padding: 2rem;
+  font-style: italic;
+}
+
+.logements-header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 1rem;
+  padding: 0 1rem;
+}
+
+.auto-assign-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: #3498db;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background-color 0.3s ease;
+
+  &:hover {
+    background-color: #2980b9;
+  }
+
+  .icon {
+    font-size: 1.2rem;
+  }
+}
+
+.logements-grid {
+  padding: 0 1rem;
+}
+
+.level-section {
+  margin-bottom: 2rem;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.level-title {
+  color: #ecf0f1;
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
+}
+
+.rooms-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.rooms-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.room-card {
+  background-color: #2c3e50;
+  border-radius: 4px;
+  padding: 1rem;
+}
+
+.room-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  color: #ecf0f1;
+
+  .room-type {
+    font-weight: bold;
+  }
+
+  .room-position {
+    font-size: 0.9rem;
+    color: #bdc3c7;
+  }
+}
+
+.room-occupants {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.occupant {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #ecf0f1;
+  padding: 0.25rem 0;
+
+  .genre-icon {
+    font-size: 1rem;
+  }
+}
+
+.no-occupants {
+  color: #95a5a6;
+  font-style: italic;
+  text-align: center;
+  padding: 0.5rem 0;
+}
+
+.logements-stats {
+  display: flex;
+  gap: 2rem;
+}
+
+.stat {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #ecf0f1;
+
+  .label {
+    color: #bdc3c7;
+  }
+
+  .value {
+    font-weight: bold;
+    font-size: 1.1rem;
+  }
+}
+
+.level-stats {
+  font-size: 0.9rem;
+  color: #bdc3c7;
+  font-weight: normal;
+  margin-left: 0.5rem;
+}
+
+.room-card {
+  &.room-full {
+    border: 1px solid #e74c3c;
+  }
+}
+
+.occupant-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.bonheur-icon {
+  font-size: 1rem;
+}
+
+.no-content-message {
+  color: #bdc3c7;
+  text-align: center;
+  padding: 2rem;
+  font-style: italic;
+}
+
+.auto-assign-button {
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    
+    &:hover {
+      background-color: #3498db;
+    }
+  }
 }
 </style> 
