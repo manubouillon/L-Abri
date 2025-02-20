@@ -66,7 +66,14 @@ const productions = computed(() => {
         const mergeMultiplier = mergeConfig?.useMultiplier 
           ? store.GAME_CONFIG.MERGE_MULTIPLIERS[Math.min(gridSize, 6) as keyof typeof store.GAME_CONFIG.MERGE_MULTIPLIERS] || 1
           : 1
-        const productionBonus = store.calculateProductionBonus(room)
+        
+        // Récupérer les tests de compétence récents pour cette salle
+        const recentTests = store.competenceTests.filter(t => 
+          t.salle === room.type && 
+          room.occupants.includes(t.habitantId)
+        ).slice(-3)
+        
+        const productionBonus = store.calculateProductionBonus(recentTests)
 
         const production = config.productionPerWorker.energie! * nbWorkers * gridSize * mergeMultiplier * productionBonus
         if (production > 0) {

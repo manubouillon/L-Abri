@@ -2,20 +2,9 @@ import type { Room } from '../stores/gameStore'
 import type { RoomConfig, ResourceKey } from '../config/roomsConfig'
 import type { ItemType } from '../config/itemsConfig'
 import { GAME_CONFIG } from '../config/gameConfig'
-import { effectuerTest, type CompetenceTest } from './competenceTestService'
-import type { Habitant } from '../stores/gameStore'
+import { effectuerTest, type CompetenceTest, calculateProductionBonus } from './competenceTestService'
+import type { Habitant, Resource, Resources } from '../stores/gameStore'
 import { useGameStore } from '../stores/gameStore'
-
-interface Resource {
-  amount: number
-  capacity: number
-  production: number
-  consumption: number
-}
-
-interface Resources {
-  [key: string]: Resource
-}
 
 // Garder en mémoire les derniers tests effectués
 const lastTests = new Map<string, number>()
@@ -40,9 +29,6 @@ export function handleRoomProduction(
   const tests: CompetenceTest[] = []
   const travailleurs = habitants.filter(h => room.occupants.includes(h.id))
   
-  // Calculer le bonus de production basé sur les tests
-  let testBonus = 1
-
   // Ne faire les tests qu'une fois par semaine pour chaque travailleur dans cette salle
   travailleurs.forEach(travailleur => {
     const testKey = `${room.id}-${travailleur.id}-${currentWeek}`
@@ -50,22 +36,6 @@ export function handleRoomProduction(
       const test = effectuerTest(travailleur, room)
       tests.push(test)
       lastTests.set(testKey, currentWeek)
-      
-      // Ajuster le bonus en fonction du résultat du test
-      switch (test.type) {
-        case 'critique':
-          testBonus += 0.5 // +50% de production
-          break
-        case 'succes':
-          testBonus += 0.2 // +20% de production
-          break
-        case 'echec':
-          testBonus -= 0.2 // -20% de production
-          break
-        case 'echec-critique':
-          testBonus -= 0.5 // -50% de production
-          break
-      }
     }
   })
   
@@ -79,8 +49,8 @@ export function handleRoomProduction(
     }
   }
   
-  // Ajuster le bonus de production final
-  testBonus = Math.max(0.1, testBonus) // Minimum 10% de la production normale
+  // Calculer le bonus de production basé sur les tests
+  const testBonus = calculateProductionBonus(tests)
   productionBonus *= testBonus
 
   const gridSize = room.gridSize || 1

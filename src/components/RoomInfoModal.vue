@@ -413,7 +413,14 @@ const getTotalProduction = computed(() => {
   const nbWorkers = props.room.occupants.length
   const gridSize = props.room.gridSize || 1
   const mergeMultiplier = getMergeMultiplier.value
-  const productionBonus = store.calculateProductionBonus(props.room)
+  
+  // Récupérer les tests de compétence récents pour cette salle
+  const recentTests = store.competenceTests.filter(t => 
+    t.salle === props.room.type && 
+    props.room.occupants.includes(t.habitantId)
+  ).slice(-3)
+  
+  const productionBonus = store.calculateProductionBonus(recentTests)
 
   const productions = []
   

@@ -1,6 +1,6 @@
 import type { ItemType } from './itemsConfig'
 
-export type ResourceKey = 'energie' | 'eau' | 'nourriture' | 'vetements' | 'medicaments' | 'laitue'
+export type ResourceKey = 'energie' | 'eau' | 'nourriture' | 'vetements' | 'medicaments'
 
 export interface RoomConfigBase {
   maxWorkers: number
@@ -546,3 +546,19 @@ export const ROOM_COLORS = {
     'salle-controle': '#9b59b6'
   }
 } as const 
+
+export interface ProductionPerWorker {
+  energie?: number
+  eau?: number
+  nourriture?: number
+  vetements?: number
+  medicaments?: number
+}
+
+export interface CapacityPerWorker {
+  energie?: number
+  eau?: number
+  nourriture?: number
+  vetements?: number
+  medicaments?: number
+} 

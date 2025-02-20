@@ -39,6 +39,10 @@ import { useGameStore } from '../stores/gameStore'
 import { ROOMS_CONFIG } from '../config/roomsConfig'
 import type { Room } from '../stores/gameStore'
 
+const props = defineProps<{
+  room?: Room
+}>()
+
 const emit = defineEmits<{
   (e: 'close'): void
 }>()

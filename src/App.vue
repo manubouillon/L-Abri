@@ -161,6 +161,12 @@ onMounted(() => {
     notificationSystem.value?.addNotification(title, message, type)
   }) as EventListener)
 
+  // Écouter les événements de notification
+  window.addEventListener('notification', ((event: CustomEvent) => {
+    const { title, message, type } = event.detail
+    notificationSystem.value?.addNotification(title, message, type)
+  }) as EventListener)
+
   // Ajouter l'écouteur pour la touche Espace
   window.addEventListener('keydown', (event) => {
     if (event.code === 'Space') {
@@ -175,6 +181,12 @@ onUnmounted(() => {
 
   // Supprimer les écouteurs d'événements
   window.removeEventListener('excavation-complete', ((event: CustomEvent) => {
+    const { title, message, type } = event.detail
+    notificationSystem.value?.addNotification(title, message, type)
+  }) as EventListener)
+
+  // Supprimer l'écouteur de notification
+  window.removeEventListener('notification', ((event: CustomEvent) => {
     const { title, message, type } = event.detail
     notificationSystem.value?.addNotification(title, message, type)
   }) as EventListener)

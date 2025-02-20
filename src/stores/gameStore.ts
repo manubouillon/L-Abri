@@ -30,6 +30,8 @@ import {
   ITEMS_CONFIG
 } from '../config/itemsConfig'
 import { effectuerTest, type CompetenceTest } from '../services/competenceTestService'
+import { ROOM_TYPES } from '../config/roomsConfig'
+import { calculateProductionBonus } from '../services/competenceTestService'
 
 export interface NurserieState {
   isIncubating: boolean
@@ -42,6 +44,14 @@ export interface Resource {
   capacity: number
   production: number
   consumption: number
+}
+
+export interface Resources {
+  energie: Resource
+  eau: Resource
+  nourriture: Resource
+  vetements: Resource
+  medicaments: Resource
 }
 
 export interface ExcavationProgress {
@@ -76,6 +86,7 @@ export interface Habitant {
   sante: number
   affectation: Affectation
   competences: Competences
+  experience: { [key in keyof Competences]: number }
   bonheur: number
   logement: {
     levelId: number
@@ -154,6 +165,9 @@ export const ROOMS_PER_SIDE = GAME_CONFIG.ROOMS_PER_SIDE
 export const BASE_EXCAVATION_TIME = GAME_CONFIG.BASE_EXCAVATION_TIME
 export const DEPTH_TIME_MULTIPLIER = GAME_CONFIG.DEPTH_TIME_MULTIPLIER
 
+// Ratio de conversion pour le stockage d'eau (2 unités d'eau par % de niveau)
+export const WATER_TANK_RATIO = 2
+
 // Configuration des minerais par niveau
 export const MINERAL_DISTRIBUTION: { [key: number]: {
   [key in ItemType]?: {
@@ -204,13 +218,31 @@ export const MINERAL_DISTRIBUTION: { [key: number]: {
 } as const
 
 export const useGameStore = defineStore('game', () => {
+  // Utilitaires pour la génération de personnages
+  const PRENOMS = [
+    'Jean', 'Pierre', 'Luc', 'Louis', 'Thomas', 'Paul', 'Nicolas', 'Antoine',
+    'Michel', 'François', 'Henri', 'Marcel', 'André', 'Philippe', 'Jacques', 'Robert',
+    'Daniel', 'Joseph', 'Claude', 'Georges', 'Roger', 'Bernard', 'Alain', 'René', // Prénoms masculins
+    'Marie', 'Sophie', 'Emma', 'Julie', 'Claire', 'Alice', 'Laura', 'Léa',
+    'Anne', 'Catherine', 'Isabelle', 'Jeanne', 'Marguerite', 'Françoise', 'Hélène', 'Louise',
+    'Madeleine', 'Thérèse', 'Suzanne', 'Monique', 'Simone', 'Yvette', 'Nicole', 'Denise' // Prénoms féminins
+  ]
+
+  const NOMS = [
+    'Martin', 'Bernard', 'Dubois', 'Thomas', 'Robert', 'Richard', 'Petit', 'Durand',
+    'Leroy', 'Moreau', 'Simon', 'Laurent', 'Lefebvre', 'Michel', 'Garcia', 'David',
+    'Bertrand', 'Roux', 'Vincent', 'Fournier', 'Morel', 'Girard', 'Andre', 'Lefevre',
+    'Mercier', 'Dupont', 'Lambert', 'Bonnet', 'Francois', 'Martinez', 'Legrand', 'Garnier',
+    'Faure', 'Rousseau', 'Blanc', 'Guerin', 'Muller', 'Henry', 'Roussel', 'Nicolas'
+  ]
+
   // État du jeu
-  const resources = ref<Resource>({
-    energie: { amount: 0, capacity: 200, production: 0, consumption: 0 },
-    eau: { amount: 0, capacity: 200, production: 0, consumption: 0 },
-    nourriture: { amount: 0, capacity: 200, production: 0, consumption: 0 },
-    vetements: { amount: 0, capacity: 200, production: 0, consumption: 0 },
-    medicaments: { amount: 0, capacity: 200, production: 0, consumption: 0 }
+  const resources = ref<Resources>({
+    energie: { amount: 100, capacity: 200, production: 15, consumption: 0 },
+    eau: { amount: 200, capacity: 400, production: 0, consumption: 0 },
+    nourriture: { amount: 200, capacity: 400, production: 0, consumption: 0 },
+    vetements: { amount: 50, capacity: 100, production: 0, consumption: 0 },
+    medicaments: { amount: 50, capacity: 100, production: 0, consumption: 0 }
   })
   const levels = ref<Level[]>([])
   const gameTime = ref(0)
@@ -455,7 +487,7 @@ export const useGameStore = defineStore('game', () => {
         age,
         sante: 100, // Santé initiale à 100%
         affectation: { type: null },
-        competences: generateRandomCompetences(),
+        ...generateRandomCompetences(),
         bonheur: 50, // Score de bonheur par défaut
         logement: null
       }
@@ -463,11 +495,11 @@ export const useGameStore = defineStore('game', () => {
 
     // Initialiser les ressources avec les nouvelles valeurs
     resources.value = {
-      energie: { amount: 100, capacity: 200, production: 15, consumption: 0 } as Resource,
-      eau: { amount: 200, capacity: 400, production: 0, consumption: 0 } as Resource,
-      nourriture: { amount: 200, capacity: 400, production: 0, consumption: 0 } as Resource,
-      vetements: { amount: 50, capacity: 100, production: 0, consumption: 0 } as Resource,
-      medicaments: { amount: 100, capacity: 200, production: 0, consumption: 0 } as Resource,
+      energie: { amount: 100, capacity: 200, production: 15, consumption: 0 },
+      eau: { amount: 200, capacity: 400, production: 0, consumption: 0 },
+      nourriture: { amount: 200, capacity: 400, production: 0, consumption: 0 },
+      vetements: { amount: 50, capacity: 100, production: 0, consumption: 0 },
+      medicaments: { amount: 50, capacity: 100, production: 0, consumption: 0 }
     }
 
     // Réinitialiser l'inventaire
@@ -667,17 +699,6 @@ export const useGameStore = defineStore('game', () => {
       .reduce((total, item) => total + item.quantity, 0)
   }
 
-  function calculateProductionBonus(room: Room): number {
-    let bonus = 1
-    
-    // Bonus de production pour la cuisine avancée
-    if (room.type === 'cuisine' && room.equipments?.some(e => e.type === 'cuisine-avancee' && !e.isUnderConstruction)) {
-      bonus = 1.5 // +50% de production
-    }
-    
-    return bonus
-  }
-
   function updateRoomProduction(weeksElapsed: number = 0) {
     // Réinitialiser les productions et consommations
     Object.values(resources.value).forEach(resource => {
@@ -692,7 +713,13 @@ export const useGameStore = defineStore('game', () => {
         if (room.isBuilt && !room.isDisabled) {
           const config = ROOMS_CONFIG[room.type]
           const nbWorkers = room.occupants.length
-          const productionBonus = calculateProductionBonus(room)
+
+          // Calculer le bonus de production basé sur les tests de compétences
+          const recentTests = competenceTests.value
+            .filter(t => t.habitantId && room.occupants.includes(t.habitantId) && t.salle === room.type)
+            .slice(-3) // Prendre les 3 derniers tests par habitant
+          
+          const productionBonus = calculateProductionBonus(recentTests)
 
           handleRoomProduction(
             room,
@@ -717,33 +744,21 @@ export const useGameStore = defineStore('game', () => {
     }
   }
 
-  function calculateTotalFood(): number {
-    let totalFood = 0
-    const foodItems = inventory.value.filter(item => item.category === 'nourriture')
+  function calculateWaterConsumption(): number {
+    let totalConsumption = population.value // Consommation de base par habitant
+
+    levels.value.forEach(level => {
+      const allRooms = [...level.leftRooms, ...level.rightRooms]
+      allRooms.forEach(room => {
+        if (room.isBuilt && room.type === 'serre') {
+          const gridSize = room.gridSize || 1
+          const waterConsumption = 2 * gridSize // 2 unités d'eau par cellule de serre
+          totalConsumption += waterConsumption
+        }
+      })
+    })
     
-    for (const item of foodItems) {
-      const itemConfig = ITEMS_CONFIG[item.type as keyof typeof ITEMS_CONFIG]
-      if (itemConfig && isFoodItem(itemConfig)) {
-        totalFood += item.quantity / itemConfig.ratio
-      }
-    }
-    
-    return totalFood
-  }
-
-  const WATER_TANK_RATIO = 2 // 1% de fuelLevel = 2 unités d'eau
-
-  function calculateTotalWaterStorage(): number {
-    let totalCapacity = 0
-
-    // Calculer la capacité des cuves d'eau
-    const tanks = findWaterTanks()
-    totalCapacity += tanks.reduce((total, tank) => {
-      const gridSize = tank.gridSize || 1
-      return total + (200 * gridSize) // 200 unités par cuve (100% = 200 unités) * taille de la cuve
-    }, 0)
-
-    return totalCapacity
+    return totalConsumption
   }
 
   function calculateWaterProduction(): number {
@@ -764,21 +779,13 @@ export const useGameStore = defineStore('game', () => {
             : 1
 
           // Calculer le bonus de production basé sur les tests de compétences
-          const testsBonus = room.occupants.reduce((bonus, habitantId) => {
-            const recentTests = competenceTests.value
-              .filter(t => t.habitantId === habitantId && t.salle === room.type)
-              .slice(-3) // Prendre les 3 derniers tests
-            
-            if (recentTests.length === 0) return bonus
-            
-            const avgSuccess = recentTests.reduce((sum, test) => {
-              return sum + (test.type === 'succes' ? 1 : test.type === 'critique' ? 1.5 : 0)
-            }, 0) / recentTests.length
-            
-            return bonus + avgSuccess
-          }, 1)
+          const recentTests = competenceTests.value
+            .filter(t => t.habitantId && room.occupants.includes(t.habitantId) && t.salle === room.type)
+            .slice(-3) // Prendre les 3 derniers tests par habitant
+          
+          const productionBonus = calculateProductionBonus(recentTests)
 
-          const production = config.productionPerWorker.eau! * nbWorkers * gridSize * mergeMultiplier * testsBonus
+          const production = config.productionPerWorker.eau! * nbWorkers * gridSize * mergeMultiplier * productionBonus
           if (production > 0) {
             totalProduction += production
           }
@@ -789,30 +796,13 @@ export const useGameStore = defineStore('game', () => {
     return totalProduction
   }
 
-  function calculateWaterConsumption(): number {
-    let totalConsumption = population.value // Consommation de base par habitant
-
-    levels.value.forEach(level => {
-      const allRooms = [...level.leftRooms, ...level.rightRooms]
-      allRooms.forEach(room => {
-        if (room.isBuilt && room.type === 'serre') {
-          const gridSize = room.gridSize || 1
-          const waterConsumption = 2 * gridSize // 2 unités d'eau par cellule de serre
-          totalConsumption += waterConsumption
-        }
-      })
-    })
-    
-    return totalConsumption
-  }
-
   function calculateEnergyProduction(): number {
     let totalProduction = 0
     
     levels.value.forEach(level => {
       const allRooms = [...level.leftRooms, ...level.rightRooms]
       allRooms.forEach(room => {
-        if (room.isBuilt && room.type === 'generateur' && room.fuelLevel && room.fuelLevel > 0 && !room.isDisabled) {
+        if (room.isBuilt && room.type === 'generateur' && !room.isDisabled) {
           const config = ROOMS_CONFIG[room.type]
           if (!config || !('productionPerWorker' in config)) return
 
@@ -824,21 +814,13 @@ export const useGameStore = defineStore('game', () => {
             : 1
 
           // Calculer le bonus de production basé sur les tests de compétences
-          const testsBonus = room.occupants.reduce((bonus, habitantId) => {
-            const recentTests = competenceTests.value
-              .filter(t => t.habitantId === habitantId && t.salle === room.type)
-              .slice(-3) // Prendre les 3 derniers tests
-            
-            if (recentTests.length === 0) return bonus
-            
-            const avgSuccess = recentTests.reduce((sum, test) => {
-              return sum + (test.type === 'succes' ? 1 : test.type === 'critique' ? 1.5 : 0)
-            }, 0) / recentTests.length
-            
-            return bonus + avgSuccess
-          }, 1)
+          const recentTests = competenceTests.value
+            .filter(t => t.habitantId && room.occupants.includes(t.habitantId) && t.salle === room.type)
+            .slice(-3) // Prendre les 3 derniers tests par habitant
+          
+          const productionBonus = calculateProductionBonus(recentTests)
 
-          const production = config.productionPerWorker.energie! * nbWorkers * gridSize * mergeMultiplier * testsBonus
+          const production = config.productionPerWorker.energie! * nbWorkers * gridSize * mergeMultiplier * productionBonus
           if (production > 0) {
             totalProduction += production
           }
@@ -2126,7 +2108,7 @@ export const useGameStore = defineStore('game', () => {
                     age: 0,
                     sante: 100, // Santé initiale à 100%
                     affectation: { type: null },
-                    competences: generateRandomCompetences(),
+                    ...generateRandomCompetences(),
                     bonheur: 50, // Score de bonheur par défaut
                     logement: null
                   }
@@ -2504,98 +2486,39 @@ export const useGameStore = defineStore('game', () => {
   }
 
   function optimizeStacks() {
-    // Créer un Map pour regrouper les items par type
-    const itemsByType = new Map<ItemType, Item[]>()
+    const newInventory: Item[] = []
     
-    // Regrouper tous les items par type
-    const currentItems = [...inventory.value]
-    currentItems.forEach(item => {
-      if (isItemType(item.type) && !itemsByType.has(item.type)) {
-        itemsByType.set(item.type, [])
-      }
-      if (isItemType(item.type)) {
-        itemsByType.get(item.type)?.push(item)
-      }
+    // Regrouper les items par type
+    const itemsByType = new Map<string, Item[]>()
+    inventory.value.forEach(item => {
+      const items = itemsByType.get(item.type) || []
+      items.push(item)
+      itemsByType.set(item.type, items)
     })
     
     // Pour chaque type d'item
-    let newInventory: Item[] = []
-    
     itemsByType.forEach((items, type) => {
       // Trier les items par quantité décroissante
       items.sort((a, b) => b.quantity - a.quantity)
       
-      // Calculer la quantité totale
-      const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0)
+      let totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0)
+      const stackSize = items[0].stackSize
       
-      // Si on n'a qu'un seul stack ou pas d'items, pas besoin d'optimiser
-      if (items.length <= 1 || totalQuantity === 0) {
-        newInventory = [...newInventory, ...items]
-        return
-      }
-      
-      // Récupérer la taille maximale d'un stack pour ce type d'item
-      const stackSize = ITEMS_CONFIG[type].stackSize
-      
-      // Calculer le nombre de stacks complets et le reste
-      const fullStacks = Math.floor(totalQuantity / stackSize)
-      const remainder = totalQuantity % stackSize
-      
-      // Créer les nouveaux stacks optimisés
-      const optimizedStacks: Item[] = []
-      
-      // Créer les stacks complets
-      for (let i = 0; i < fullStacks; i++) {
-        optimizedStacks.push({
-          id: items[i]?.id || crypto.randomUUID(),
-          type,
-          quantity: stackSize,
-          stackSize,
-          description: ITEMS_CONFIG[type].description,
-          category: ITEMS_CONFIG[type].category
+      // Créer des stacks complets
+      while (totalQuantity > 0) {
+        const quantity = Math.min(totalQuantity, stackSize)
+        newInventory.push({
+          ...items[0],
+          id: `${type}-${Date.now()}-${Math.random()}`,
+          quantity
         })
+        totalQuantity -= quantity
       }
-      
-      // Ajouter le stack partiel s'il y a un reste
-      if (remainder > 0) {
-        optimizedStacks.push({
-          id: items[fullStacks]?.id || crypto.randomUUID(),
-          type,
-          quantity: remainder,
-          stackSize,
-          description: ITEMS_CONFIG[type].description,
-          category: ITEMS_CONFIG[type].category
-        })
-      }
-      
-      newInventory = [...newInventory, ...optimizedStacks]
     })
-    
-    // Ajouter les items qui ne sont pas des ItemType
-    const otherItems = currentItems.filter(item => !isItemType(item.type))
-    newInventory = [...newInventory, ...otherItems]
     
     // Mettre à jour l'inventaire
     inventory.value = newInventory
   }
-
-  // Utilitaires pour la génération de personnages
-  const PRENOMS = [
-    'Jean', 'Pierre', 'Luc', 'Louis', 'Thomas', 'Paul', 'Nicolas', 'Antoine',
-    'Michel', 'François', 'Henri', 'Marcel', 'André', 'Philippe', 'Jacques', 'Robert',
-    'Daniel', 'Joseph', 'Claude', 'Georges', 'Roger', 'Bernard', 'Alain', 'René', // Prénoms masculins
-    'Marie', 'Sophie', 'Emma', 'Julie', 'Claire', 'Alice', 'Laura', 'Léa',
-    'Anne', 'Catherine', 'Isabelle', 'Jeanne', 'Marguerite', 'Françoise', 'Hélène', 'Louise',
-    'Madeleine', 'Thérèse', 'Suzanne', 'Monique', 'Simone', 'Yvette', 'Nicole', 'Denise' // Prénoms féminins
-  ]
-
-  const NOMS = [
-    'Martin', 'Bernard', 'Dubois', 'Thomas', 'Robert', 'Richard', 'Petit', 'Durand',
-    'Leroy', 'Moreau', 'Simon', 'Laurent', 'Lefebvre', 'Michel', 'Garcia', 'David',
-    'Bertrand', 'Roux', 'Vincent', 'Fournier', 'Morel', 'Girard', 'Andre', 'Lefevre',
-    'Mercier', 'Dupont', 'Lambert', 'Bonnet', 'Francois', 'Martinez', 'Legrand', 'Garnier',
-    'Faure', 'Rousseau', 'Blanc', 'Guerin', 'Muller', 'Henry', 'Roussel', 'Nicolas'
-  ]
 
   function generateRandomName(): { nom: string, genre: 'H' | 'F', age: number } {
     const genre = Math.random() > 0.5 ? 'H' : 'F'
@@ -2608,7 +2531,7 @@ export const useGameStore = defineStore('game', () => {
     return { nom: `${prenom} ${nom}`, genre, age: ageEnSemaines }
   }
 
-  function generateRandomCompetences(): Competences {
+  function generateRandomCompetences(): { competences: Competences, experience: { [key in keyof Competences]: number } } {
     const competences = ['force', 'dexterite', 'charme', 'relations', 'instinct', 'savoir']
     const points = Array(6).fill(1) // Chaque compétence commence à 1
     let remainingPoints = 13
@@ -2623,12 +2546,22 @@ export const useGameStore = defineStore('game', () => {
     }
 
     return {
-      force: points[0],
-      dexterite: points[1],
-      charme: points[2],
-      relations: points[3],
-      instinct: points[4],
-      savoir: points[5]
+      competences: {
+        force: points[0],
+        dexterite: points[1],
+        charme: points[2],
+        relations: points[3],
+        instinct: points[4],
+        savoir: points[5]
+      },
+      experience: {
+        force: 0,
+        dexterite: 0,
+        charme: 0,
+        relations: 0,
+        instinct: 0,
+        savoir: 0
+      }
     }
   }
 
@@ -2668,6 +2601,31 @@ export const useGameStore = defineStore('game', () => {
       })
     })
 
+    return totalCapacity
+  }
+
+  function calculateTotalWaterStorage(): number {
+    let totalCapacity = 0
+    
+    levels.value.forEach(level => {
+      const allRooms = [...level.leftRooms, ...level.rightRooms]
+      allRooms.forEach(room => {
+        if (!room.isBuilt) return
+        
+        const config = ROOMS_CONFIG[room.type]
+        const gridSize = room.gridSize || 1
+        const nbWorkers = room.occupants.length
+        
+        if (room.type === 'cuve') {
+          // Une cuve peut stocker 200 unités d'eau par cellule
+          totalCapacity += 200 * gridSize
+        } else if (room.type === 'entrepot' && 'capacityPerWorker' in config) {
+          const mergeMultiplier = GAME_CONFIG.MERGE_MULTIPLIERS[Math.min(gridSize, 6) as keyof typeof GAME_CONFIG.MERGE_MULTIPLIERS] || 1
+          totalCapacity += (config.capacityPerWorker.eau || 0) * nbWorkers * gridSize * mergeMultiplier
+        }
+      })
+    })
+    
     return totalCapacity
   }
 
@@ -2742,6 +2700,7 @@ export const useGameStore = defineStore('game', () => {
     checkMortality,
     toggleRoomDisabled,
     calculateTotalFoodStorage,
+    calculateTotalWaterStorage,
     competenceTests: computed(() => competenceTests.value),
     calculateProductionBonus
   }

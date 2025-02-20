@@ -116,7 +116,15 @@ function calculateRoomProduction(room: Room): number {
   if ('productionPerWorker' in config && config.productionPerWorker.vetements) {
     const gridSize = room.gridSize || 1
     const mergeMultiplier = store.GAME_CONFIG.MERGE_MULTIPLIERS[Math.min(gridSize, 6) as keyof typeof store.GAME_CONFIG.MERGE_MULTIPLIERS] || 1
-    const productionBonus = store.calculateProductionBonus(room)
+    
+    // Récupérer les tests de compétence récents pour cette salle
+    const recentTests = store.competenceTests.filter(t => 
+      t.salle === room.type && 
+      room.occupants.includes(t.habitantId)
+    ).slice(-3)
+    
+    const productionBonus = store.calculateProductionBonus(recentTests)
+    
     return config.productionPerWorker.vetements * room.occupants.length * gridSize * mergeMultiplier * productionBonus
   }
   return 0
