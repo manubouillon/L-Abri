@@ -4,7 +4,22 @@
     <div class="modal-content" @click.stop>
       <h2>Sauvegardes</h2>
       
-      <div class="save-actions">
+      <div class="tabs">
+        <button 
+          :class="['tab-button', { active: activeTab === 'manual' }]" 
+          @click="activeTab = 'manual'"
+        >
+          Sauvegardes manuelles
+        </button>
+        <button 
+          :class="['tab-button', { active: activeTab === 'auto' }]" 
+          @click="activeTab = 'auto'"
+        >
+          Sauvegardes Auto
+        </button>
+      </div>
+
+      <div class="save-actions" v-if="activeTab === 'manual'">
         <button @click="createNewSave" class="save-button">
           Sauvegarder l'état actuel
         </button>
@@ -14,7 +29,12 @@
       </div>
 
       <div class="saves-list">
-        <div v-for="save in sortedSaves" :key="save.timestamp" class="save-item" @click="loadSave(save)">
+        <div 
+          v-for="save in filteredSaves" 
+          :key="save.timestamp" 
+          class="save-item" 
+          @click="loadSave(save)"
+        >
           <div class="save-info">
             <div class="save-date">{{ formatDate(save.timestamp) }}</div>
             <div class="save-details">
@@ -41,18 +61,42 @@ interface SaveGame {
   timestamp: number
   gameState: any
   population: number
+  isAuto: boolean
+  isMonthly?: boolean
+  gameWeek?: number
 }
 
 const saves = ref<SaveGame[]>([])
+
+const activeTab = ref('manual')
+const lastAutoSaveWeek = ref(0)
 
 const sortedSaves = computed(() => {
   return [...saves.value].sort((a, b) => b.timestamp - a.timestamp)
 })
 
+const filteredSaves = computed(() => {
+  return sortedSaves.value.filter(save => 
+    activeTab.value === 'manual' ? !save.isAuto : save.isAuto
+  )
+})
+
 const emit = defineEmits(['close'])
+
+// Exposer la fonction checkMonthlyAutoSave pour qu'elle soit accessible depuis le store
+defineExpose({
+  checkMonthlyAutoSave
+})
 
 onMounted(() => {
   loadSaves()
+  
+  // Initialiser lastAutoSaveWeek avec la dernière sauvegarde mensuelle
+  const monthlySaves = saves.value.filter(s => s.isMonthly)
+  if (monthlySaves.length > 0) {
+    const lastSave = monthlySaves.sort((a, b) => b.gameWeek! - a.gameWeek!)[0]
+    lastAutoSaveWeek.value = lastSave.gameWeek || 0
+  }
 })
 
 function loadSaves() {
@@ -66,7 +110,8 @@ function createNewSave() {
   const newSave: SaveGame = {
     timestamp: Date.now(),
     gameState: gameStore.getCurrentState(),
-    population: gameStore.population
+    population: gameStore.population,
+    isAuto: false
   }
   
   saves.value.push(newSave)
@@ -76,6 +121,47 @@ function createNewSave() {
     'Votre partie a été sauvegardée avec succès',
     'success'
   )
+}
+
+function createAutoSave(isMonthly = false) {
+  const currentGameWeek = Math.floor(gameStore.gameTime)
+  const newSave: SaveGame = {
+    timestamp: Date.now(),
+    gameState: gameStore.getCurrentState(),
+    population: gameStore.population,
+    isAuto: true,
+    isMonthly,
+    gameWeek: currentGameWeek
+  }
+  
+  // Si c'est une sauvegarde mensuelle, on garde que les 120 dernières
+  if (isMonthly) {
+    const monthlySaves = saves.value.filter(s => s.isMonthly)
+    if (monthlySaves.length >= 120) {
+      // Supprime les plus anciennes sauvegardes mensuelles
+      const oldestSaves = monthlySaves
+        .sort((a, b) => a.timestamp - b.timestamp)
+        .slice(0, monthlySaves.length - 119)
+      
+      saves.value = saves.value.filter(save => 
+        !oldestSaves.some(oldSave => oldSave.timestamp === save.timestamp)
+      )
+    }
+  }
+  
+  saves.value.push(newSave)
+  localStorage.setItem('abriSavedGames', JSON.stringify(saves.value))
+}
+
+// Fonction pour vérifier si une sauvegarde mensuelle est nécessaire
+function checkMonthlyAutoSave() {
+  const currentGameWeek = Math.floor(gameStore.gameTime)
+  
+  // Sauvegarde tous les 4 semaines (1 mois)
+  if (currentGameWeek >= lastAutoSaveWeek.value + 4) {
+    createAutoSave(true)
+    lastAutoSaveWeek.value = currentGameWeek
+  }
 }
 
 function loadSave(save: SaveGame) {
@@ -99,6 +185,14 @@ function deleteSave(save: SaveGame) {
 
 function resetGame() {
   if (confirm('Êtes-vous sûr de vouloir réinitialiser le jeu ? Toute progression sera perdue.')) {
+    // Supprimer toutes les sauvegardes automatiques
+    saves.value = saves.value.filter(save => !save.isAuto)
+    localStorage.setItem('abriSavedGames', JSON.stringify(saves.value))
+    
+    // Réinitialiser le compteur de sauvegarde automatique
+    lastAutoSaveWeek.value = 0
+    
+    // Réinitialiser le jeu
     gameStore.resetGame()
     emit('close')
   }
@@ -146,6 +240,37 @@ function getMaxLevel(save: SaveGame): number {
 
 h2 {
   margin-bottom: 1.5rem;
+  color: #ecf0f1;
+}
+
+.tabs {
+  display: flex;
+  margin-bottom: 2rem;
+  border-bottom: 2px solid #2c3e50;
+  position: relative;
+}
+
+.tab-button {
+  flex: 1;
+  padding: 1rem 2rem;
+  background-color: transparent;
+  color: #bdc3c7;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  border-radius: 8px 8px 0 0;
+  margin-bottom: -2px;
+}
+
+.tab-button.active {
+  background-color: #2c3e50;
+  color: #3498db;
+  border-bottom: 2px solid #3498db;
+}
+
+.tab-button:hover:not(.active) {
+  background-color: rgba(44, 62, 80, 0.5);
   color: #ecf0f1;
 }
 

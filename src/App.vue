@@ -73,7 +73,11 @@
       :initial-tab="activeTab"
     />
     <InventoryModal v-if="showInventory" @close="showInventory = false" />
-    <SaveModal v-if="showSaveModal" @close="showSaveModal = false" />
+    <SaveModal 
+      v-if="showSaveModal" 
+      @close="showSaveModal = false" 
+      ref="saveModalRef"
+    />
     <DeathModal 
       v-if="showDeathModal" 
       :habitant="deceasedHabitant!"
@@ -118,6 +122,7 @@ const showHabitantsList = ref(false)
 const showInventory = ref(false)
 const showSaveModal = ref(false)
 const activeTab = ref('habitants')
+const saveModalRef = ref<InstanceType<typeof SaveModal> | null>(null)
 
 // Niveaux affichables (excavés ou excavables)
 const displayableLevels = computed(() => {
@@ -159,6 +164,8 @@ let gameLoop: number
 const updateGame = () => {
   if (!isPaused.value) {
     gameStore.update(gameSpeed.value)
+    // Vérifier les sauvegardes automatiques
+    saveModalRef.value?.checkMonthlyAutoSave()
   }
   gameLoop = requestAnimationFrame(updateGame)
 }
