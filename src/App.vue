@@ -18,9 +18,13 @@
         </div>
         <div class="population">
           Population:<br>{{ habitants.length }} 🧑
-          <span v-if="habitants.filter(h => !h.logement).length > 0" class="warning">
+          <button 
+            v-if="habitants.filter(h => !h.logement).length > 0" 
+            class="warning-button"
+            @click="showHabitantsList = true; activeTab = 'logements'"
+          >
             ({{ habitants.filter(h => !h.logement).length }} sans abri 🏠❌)
-          </span>
+          </button>
         </div>
 
         <div class="food-quality">
@@ -66,6 +70,7 @@
     <HabitantsList 
       v-if="showHabitantsList"
       @close="showHabitantsList = false"
+      :initial-tab="activeTab"
     />
     <InventoryModal v-if="showInventory" @close="showInventory = false" />
     <SaveModal v-if="showSaveModal" @close="showSaveModal = false" />
@@ -110,6 +115,7 @@ const scrollPosition = ref(0)
 const showHabitantsList = ref(false)
 const showInventory = ref(false)
 const showSaveModal = ref(false)
+const activeTab = ref('habitants')
 
 // Niveaux affichables (excavés ou excavables)
 const displayableLevels = computed(() => {
@@ -411,6 +417,21 @@ button {
   &:disabled {
     background-color: #95a5a6;
     cursor: not-allowed;
+  }
+}
+
+.warning-button {
+  background: none;
+  border: none;
+  color: #e74c3c;
+  font-size: 0.9em;
+  padding: 0.2rem 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background-color: rgba(231, 76, 60, 0.1);
+    border-radius: 4px;
   }
 }
 </style>
