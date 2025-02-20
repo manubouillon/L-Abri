@@ -5,7 +5,7 @@
       <h1>L'Abri</h1>
       <div class="game-info">
         <div class="happiness">
-          Bonheur: {{ globalHappiness }}% 
+          Bonheur:<br> {{ globalHappiness }}% 
           {{ globalHappiness >= 90 ? '🥰' : 
              globalHappiness >= 80 ? '😊' :
              globalHappiness >= 70 ? '😌' :
@@ -17,25 +17,25 @@
              globalHappiness >= 10 ? '😭' : '😡' }}
         </div>
         <div class="population">
-          Population: {{ habitants.length }} 🧑
+          Population:<br>{{ habitants.length }} 🧑
           <span v-if="habitants.filter(h => !h.logement).length > 0" class="warning">
             ({{ habitants.filter(h => !h.logement).length }} sans abri 🏠❌)
           </span>
         </div>
 
         <div class="food-quality">
-          Qualité nourriture: {{ averageFoodQuality }}/10 {{ foodQualityEmoji }}
+          Qualité nourriture:<br> {{ averageFoodQuality }}/10 {{ foodQualityEmoji }}
         </div>
         <div class="energy-status" :class="{ 'energy-surplus': energyNet > 0, 'energy-deficit': energyNet < 0 }">
-          Énergie: {{ energyNet > 0 ? '+' : '' }}{{ energyNet }} ⚡
+          {{ energyNet > 0 ? '+' : '' }}{{ energyNet }} ⚡
         </div>
       </div>
       <div class="game-controls">
-        <button @click="showSaveModal = true">Sauvegarde</button>
+        <button @click="showSaveModal = true">💾</button>
         <button @click="showInventory = true">
           Inventaire ({{ Math.floor(inventorySpace.used) }}/{{ Math.floor(inventorySpace.total) }})
         </button>
-        <button @click="togglePause">{{ isPaused ? 'Reprendre' : 'Pause' }}</button>
+        <button @click="togglePause">{{ isPaused ? '▶️' : '⏸️' }}</button>
         <div class="game-speed">
           <button @click="decreaseSpeed" :disabled="gameSpeed === 1">-</button>
           <span>x{{ gameSpeed }}</span>
@@ -296,6 +296,13 @@ body {
   h1 {
     margin: 0;
     font-size: 1.5rem;
+    width: 270px;
+  }
+
+  .game-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
   }
 
   .game-info {
@@ -304,10 +311,16 @@ body {
     gap: 1rem;
     color: #ecf0f1;
     font-size: 1.1em;
+    flex: 1;
+    justify-content: space-around;
 
-    .happiness, .population, .food-quality {
+    .happiness, .food-quality {
       display: flex;
       align-items: center;
+      gap: 0.5rem;
+    }
+
+    .population {
       gap: 0.5rem;
     }
 

@@ -9,6 +9,25 @@
     </div>
     
     <div v-if="!isMinimized" class="panel-content">
+      <div class="filter-section">
+        <select v-model="selectedRoom" class="filter-select">
+          <option value="">Toutes les salles</option>
+          <option v-for="room in availableRooms" 
+                  :key="room.id" 
+                  :value="room.id">
+            {{ room.name }}
+          </option>
+        </select>
+        
+        <select v-model="selectedHabitant" class="filter-select">
+          <option value="">Tous les habitants</option>
+          <option v-for="habitant in availableHabitants" 
+                  :key="habitant" 
+                  :value="habitant">
+            {{ habitant }}
+          </option>
+        </select>
+      </div>
       <div class="test-list" ref="testList">
         <div v-for="test in displayedTests" 
              :key="test.id" 
@@ -47,10 +66,36 @@ const props = defineProps<{
 const gameStore = useGameStore()
 const isMinimized = ref(false)
 const testList = ref<HTMLElement | null>(null)
+const selectedRoom = ref('')
+const selectedHabitant = ref('')
 
-// Limiter l'affichage aux 10 derniers tests
+const availableRooms = computed(() => {
+  return [...new Set(props.tests.map(test => test.salle))]
+    .map(roomId => ({
+      id: roomId,
+      name: getRoomName(roomId)
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name))
+})
+
+const availableHabitants = computed(() => {
+  return [...new Set(props.tests.map(test => test.habitantNom))]
+    .sort((a, b) => a.localeCompare(b))
+})
+
+// Modifier le computed property displayedTests
 const displayedTests = computed(() => {
-  return [...props.tests].reverse().slice(0, 10)
+  let filteredTests = [...props.tests]
+  
+  if (selectedRoom.value) {
+    filteredTests = filteredTests.filter(test => test.salle === selectedRoom.value)
+  }
+  
+  if (selectedHabitant.value) {
+    filteredTests = filteredTests.filter(test => test.habitantNom === selectedHabitant.value)
+  }
+  
+  return filteredTests.reverse().slice(0, 10)
 })
 
 function toggleMinimize() {
@@ -129,6 +174,31 @@ function formatCompetence(competence: string): string {
   max-height: 400px;
   overflow-y: auto;
   padding: 10px;
+}
+
+.filter-section {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.filter-select {
+  flex: 1;
+  padding: 6px;
+  border-radius: 4px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ecf0f1;
+  font-size: 0.9em;
+  
+  &:focus {
+    outline: none;
+    border-color: rgba(255, 255, 255, 0.4);
+  }
+  
+  option {
+    background-color: #2c3e50;
+  }
 }
 
 .test-list {
