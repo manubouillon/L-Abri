@@ -1570,31 +1570,18 @@ export const useGameStore = defineStore('game', () => {
   }
 
   function resetGame() {
-    // Supprimer la sauvegarde
-    localStorage.removeItem('abriGameState')
+    // Réinitialiser tous les états du jeu
+    this.habitants = []
+    this.levels = initializeLevels()
+    this.inventory = initializeInventory()
+    this.gameSpeed = 1
+    this.isPaused = false
+    this.showDeathModal = false
+    this.deceasedHabitant = null
+    this.competenceTests = []
     
-    // Réinitialiser toutes les variables d'état
-    resources.value = {
-      energie: { amount: 0, capacity: 200, production: 0, consumption: 0 },
-      eau: { amount: 0, capacity: 200, production: 0, consumption: 0 },
-      nourriture: { amount: 0, capacity: 200, production: 0, consumption: 0 },
-      vetements: { amount: 0, capacity: 200, production: 0, consumption: 0 },
-      medicaments: { amount: 0, capacity: 200, production: 0, consumption: 0 }
-    }
-    levels.value = []
-    gameTime.value = 0
-    population.value = 0
-    happiness.value = 100
-    lastUpdateTime.value = Date.now()
-    excavations.value = []
-    habitants.value = []
-    inventory.value = [] // Vider complètement l'inventaire
-    inventoryCapacity.value = 1000
-    gameSpeed.value = 1
-    competenceTests.value = [] // Réinitialiser les tests de compétence
-    
-    // Réinitialiser le jeu avec les valeurs par défaut
-    initGame()
+    // Ajouter les premiers habitants
+    this.addInitialHabitants()
   }
 
   // Ajouter la fonction utilitaire
@@ -2629,6 +2616,58 @@ export const useGameStore = defineStore('game', () => {
     return totalCapacity
   }
 
+  function addInitialHabitants() {
+    // Ajouter 3 habitants initiaux
+    const initialHabitants = [
+      {
+        nom: 'Jean',
+        genre: 'H',
+        age: 30 * 52, // 30 ans en semaines
+        bonheur: 100,
+        competences: {
+          force: 5,
+          dexterite: 5,
+          charme: 5,
+          relations: 5,
+          instinct: 5,
+          savoir: 5
+        }
+      },
+      {
+        nom: 'Marie',
+        genre: 'F',
+        age: 28 * 52,
+        bonheur: 100,
+        competences: {
+          force: 5,
+          dexterite: 5,
+          charme: 5,
+          relations: 5,
+          instinct: 5,
+          savoir: 5
+        }
+      },
+      {
+        nom: 'Pierre',
+        genre: 'H',
+        age: 25 * 52,
+        bonheur: 100,
+        competences: {
+          force: 5,
+          dexterite: 5,
+          charme: 5,
+          relations: 5,
+          instinct: 5,
+          savoir: 5
+        }
+      }
+    ]
+
+    initialHabitants.forEach(habitant => {
+      this.addHabitant(habitant)
+    })
+  }
+
   return {
     // État
     resources,
@@ -2702,6 +2741,7 @@ export const useGameStore = defineStore('game', () => {
     calculateTotalFoodStorage,
     calculateTotalWaterStorage,
     competenceTests: computed(() => competenceTests.value),
-    calculateProductionBonus
+    calculateProductionBonus,
+    addInitialHabitants
   }
 }) 

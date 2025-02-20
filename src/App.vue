@@ -80,6 +80,7 @@
       @close="showDeathModal = false" 
     />
     <CompetenceTestPanel :tests="competenceTests" />
+    <GameOverModal v-if="isGameOver" />
   </div>
 </template>
 
@@ -95,6 +96,7 @@ import SaveModal from './components/SaveModal.vue'
 import NotificationSystem from './components/NotificationSystem.vue'
 import DeathModal from './components/DeathModal.vue'
 import CompetenceTestPanel from './components/CompetenceTestPanel.vue'
+import GameOverModal from './components/GameOverModal.vue'
 
 // État du jeu
 const gameStore = useGameStore()
@@ -125,6 +127,9 @@ const displayableLevels = computed(() => {
     return previousLevel && previousLevel.isStairsExcavated
   })
 })
+
+// Computed pour détecter le game over
+const isGameOver = computed(() => habitants.value.length === 0)
 
 // Contrôles du jeu
 const togglePause = () => {
