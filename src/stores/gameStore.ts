@@ -505,6 +505,9 @@ export const useGameStore = defineStore('game', () => {
     // Réinitialiser l'inventaire
     inventory.value = []
     
+    // Réinitialiser les tests de compétences
+    competenceTests.value = []
+    
     // Ajouter les items initiaux avec leur configuration complète
     const embryons: Item = {
       id: `embryon-humain-${Date.now()}-1`,

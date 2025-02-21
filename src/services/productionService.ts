@@ -69,20 +69,25 @@ export function handleRoomProduction(
 
   // Gestion de la raffinerie
   if (room.type === 'raffinerie' && room.nextMineralsToProcess && 'mineralsProcessingPerWorker' in config) {
-    const processingCapacity = (config.mineralsProcessingPerWorker || 0) * nbWorkers * gridSize * mergeMultiplier
+    const processingCapacity = (config.mineralsProcessingPerWorker || 0) * nbWorkers * gridSize * mergeMultiplier * productionBonus * weeksElapsed
     const canProcess = room.nextMineralsToProcess.input.every(({ type, amount }) => 
       getItemQuantity(type) >= amount
     )
 
     if (canProcess) {
-      // Consommer les ressources d'entrée
-      room.nextMineralsToProcess.input.forEach(({ type, amount }) => {
-        removeItem(type, amount)
-      })
-      // Produire la ressource de sortie
-      addItem(room.nextMineralsToProcess.output.type, room.nextMineralsToProcess.output.amount)
-      // Ne pas réinitialiser la recette pour qu'elle continue
-      // room.nextMineralsToProcess = undefined
+      // Calculer combien de fois on peut effectuer la recette en fonction de la capacité
+      const recipeInputTotal = room.nextMineralsToProcess.input.reduce((sum, { amount }) => sum + amount, 0)
+      const maxBatches = Math.floor(processingCapacity / recipeInputTotal)
+      
+      if (maxBatches > 0) {
+        // Consommer les ressources d'entrée
+        room.nextMineralsToProcess.input.forEach(({ type, amount }) => {
+          removeItem(type, amount * maxBatches)
+        })
+        // Produire la ressource de sortie avec le bonus de production
+        const outputAmount = room.nextMineralsToProcess.output.amount * maxBatches
+        addItem(room.nextMineralsToProcess.output.type, outputAmount)
+      }
     }
   }
 
