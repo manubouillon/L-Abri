@@ -94,18 +94,23 @@ export function handleRoomProduction(
   // Gestion du derrick
   if (room.type === 'derrick') {
     if (room.fuelLevel === undefined) room.fuelLevel = 0
-    room.fuelLevel += (100 / 7) * weeksElapsed
+    
+    // Ne fonctionne que s'il y a des travailleurs
+    if (nbWorkers > 0) {
+      // Le remplissage est influencé par le nombre de travailleurs, la taille et le bonus de production
+      const remplissageParSemaine = (100 / 7) * nbWorkers * gridSize * mergeMultiplier * productionBonus
+      room.fuelLevel += remplissageParSemaine * weeksElapsed
+      room.fuelLevel = Math.min(room.fuelLevel, 100)
 
-    if (room.fuelLevel >= 100) {
-      const nbBarilsVides = getItemQuantity('baril-vide')
-      if (nbBarilsVides > 0 && 'resourceProduction' in config && config.resourceProduction?.['baril-petrole']) {
-        const productionPetrole = config.resourceProduction['baril-petrole'] * nbWorkers * gridSize * mergeMultiplier * productionBonus
-        const nbBarilsAProduire = Math.min(nbBarilsVides, Math.floor(productionPetrole))
-
-        if (nbBarilsAProduire > 0) {
-          removeItem('baril-vide', nbBarilsAProduire)
-          addItem('baril-petrole', nbBarilsAProduire)
-          room.fuelLevel = 0
+      // Quand on atteint 100%, on produit un baril si on a un baril vide
+      while (room.fuelLevel >= 100) {
+        const nbBarilsVides = getItemQuantity('baril-vide')
+        if (nbBarilsVides > 0) {
+          removeItem('baril-vide', 1)
+          addItem('baril-petrole', 1)
+          room.fuelLevel -= 100
+        } else {
+          break // On sort de la boucle si pas de baril vide
         }
       }
     }
