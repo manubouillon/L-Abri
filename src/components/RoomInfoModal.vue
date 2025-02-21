@@ -29,6 +29,50 @@
       <div v-if="activeTab === 'info'">
         <div class="error-message" v-if="errorMessage">{{ errorMessage }}</div>
         
+        <!-- Section spéciale pour le laboratoire -->
+        <div v-if="room.type === 'laboratoire'" class="research-section">
+          <template v-if="!room.researchState">
+            <h3>Salles à rechercher</h3>
+            <div class="research-rooms">
+              <div 
+                v-for="roomType in ROOM_TYPES.filter(r => r.unlockedByDefault === false && !store.unlockedRooms.includes(r.id))" 
+                :key="roomType.id"
+                class="research-room-item"
+              >
+                <div class="research-room-info">
+                  <h4>{{ roomType.name }} {{ roomType.icon }}</h4>
+                  <p>{{ roomType.description }}</p>
+                  <p class="development-time">
+                    Temps de recherche: {{ roomType.developmentTime }} semaines
+                  </p>
+                </div>
+                <button 
+                  @click="startResearch(roomType.id)"
+                  :disabled="room.occupants.length === 0"
+                >
+                  Commencer la recherche
+                </button>
+              </div>
+            </div>
+          </template>
+          <template v-else>
+            <h3>Recherche en cours</h3>
+            <div class="research-progress">
+              <h4>{{ getRoomTitle(room.researchState.roomType) }}</h4>
+              <div class="progress-bar">
+                <div 
+                  class="progress"
+                  :style="{ width: `${room.fuelLevel || 0}%` }"
+                ></div>
+                <span class="progress-text">
+                  {{ Math.floor(room.fuelLevel || 0) }}%
+                </span>
+              </div>
+              <p>Temps restant: {{ getRemainingResearchTime() }} semaines</p>
+            </div>
+          </template>
+        </div>
+
         <div class="production-details">
           <h3>Détails de la salle</h3>
           <div class="production-formula">
@@ -49,7 +93,7 @@
             </div>
             <div class="formula-row" v-if="room.type === 'raffinerie'">
               <span class="label">Capacité de traitement:</span>
-              <span>{{ getProcessingCapacity() }} minerais par semaine</span>
+              <span>{{ getProcessingCapacity(room) }} minerais par semaine</span>
             </div>
             <div class="formula-row">
               <span class="label">Taille de la salle:</span>
@@ -312,14 +356,13 @@ import { storeToRefs } from 'pinia'
 import { useGameStore } from '../stores/gameStore'
 import { ROOM_MERGE_CONFIG, ROOMS_CONFIG, ROOM_TYPES } from '../config/roomsConfig'
 import { ITEMS_CONFIG, type ItemType } from '../config/itemsConfig'
-import type { Room, Equipment } from '../stores/gameStore'
+import type { Room as GameRoom, Equipment } from '../stores/gameStore'
 import NurserieInterface from './NurserieInterface.vue'
 import type { ProductionRoomConfig, StorageRoomConfig, DortoryRoomConfig } from '../config/roomsConfig'
 
 const props = defineProps<{
-  room: Room
   levelId: number
-  position: 'left' | 'right'
+  room: GameRoom
 }>()
 
 const emit = defineEmits<{
@@ -630,12 +673,10 @@ function toggleRoom() {
   store.toggleRoomDisabled(props.levelId, props.room.position, props.room.index)
 }
 
-function getProcessingCapacity(): number {
-  const config = ROOMS_CONFIG['raffinerie'] as ProductionRoomConfig
-  if (!config || !config.mineralsProcessingPerWorker) return 0
-  const nbWorkers = props.room.occupants.length
-  const gridSize = props.room.gridSize || 1
-  return Math.floor(config.mineralsProcessingPerWorker * nbWorkers * gridSize * getMergeMultiplier.value * store.gameSpeed)
+function getProcessingCapacity(room: GameRoom): number {
+  const config = ROOMS_CONFIG[room.type] as ProductionRoomConfig
+  if (!config.mineralsProcessingPerWorker) return 0
+  return config.mineralsProcessingPerWorker * (room.occupants?.length || 0)
 }
 
 function getItemName(type: ItemType | string): string {
@@ -643,15 +684,14 @@ function getItemName(type: ItemType | string): string {
   return itemConfig?.name || String(type)
 }
 
-function getRoomTitle(type: string): string {
-  const titles: Record<string, string> = {
-    'raffinerie': 'Détails de la Raffinerie',
-    'generateur': 'Générateur',
-    'derrick': 'Derrick',
-    'cuve': 'Cuve de stockage',
-    'logement': 'Logement'
-  }
-  return titles[type] || type.charAt(0).toUpperCase() + type.slice(1)
+function getRoomTitle(roomType: string): string {
+  const roomTypeConfig = ROOM_TYPES.find(r => r.id === roomType)
+  return roomTypeConfig?.name || roomType
+}
+
+function getRoomCompetence(roomType: string): string {
+  const roomTypeConfig = ROOM_TYPES.find(r => r.id === roomType)
+  return roomTypeConfig?.competence || ''
 }
 
 const conversionRules = computed(() => {
@@ -782,20 +822,25 @@ watch([() => props.room.isDisabled, () => store.gameTime], () => {
   }
 }, { deep: true })
 
-function getRoomCompetence(type: string): string {
-  const roomType = ROOM_TYPES.find(room => room.id === type)
-  if (!roomType) return 'Inconnue'
-  
-  const competenceNames: Record<string, string> = {
-    force: 'Force',
-    dexterite: 'Dextérité',
-    charme: 'Charme',
-    relations: 'Relations',
-    instinct: 'Instinct',
-    savoir: 'Savoir'
+function startResearch(roomType: string) {
+  const roomTypeConfig = ROOM_TYPES.find(r => r.id === roomType)
+  if (!roomTypeConfig?.developmentTime) return
+
+  props.room.researchState = {
+    roomType,
+    startTime: store.gameTime,
+    duration: roomTypeConfig.developmentTime
   }
-  
-  return competenceNames[roomType.competence] || 'Inconnue'
+  props.room.fuelLevel = 0
+}
+
+function getRemainingResearchTime(): number {
+  if (!props.room?.researchState) return 0
+  const roomTypeConfig = ROOM_TYPES.find(r => r.id === props.room.researchState?.roomType)
+  if (!roomTypeConfig?.developmentTime) return 0
+
+  const progressPercent = props.room.fuelLevel || 0
+  return Math.ceil((roomTypeConfig.developmentTime * (100 - progressPercent)) / 100)
 }
 </script>
 
@@ -1322,6 +1367,114 @@ function getRoomCompetence(type: string): string {
         }
       }
     }
+  }
+}
+
+.research-section {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background-color: #2c3e50;
+  border-radius: 4px;
+
+  h3 {
+    margin: 0 0 1rem;
+    color: #ecf0f1;
+  }
+}
+
+.research-rooms {
+  display: grid;
+  gap: 1rem;
+}
+
+.research-room-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background-color: #34495e;
+  border-radius: 4px;
+  border: 1px solid #3498db;
+
+  .research-room-info {
+    flex: 1;
+
+    h4 {
+      margin: 0 0 0.5rem;
+      color: #ecf0f1;
+    }
+
+    p {
+      margin: 0;
+      color: #bdc3c7;
+      font-size: 0.9rem;
+    }
+
+    .development-time {
+      margin-top: 0.5rem;
+      color: #f1c40f;
+    }
+  }
+
+  button {
+    padding: 0.5rem 1rem;
+    background-color: #3498db;
+    border: none;
+    border-radius: 4px;
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background-color: #2980b9;
+    }
+
+    &:disabled {
+      background-color: #95a5a6;
+      cursor: not-allowed;
+    }
+  }
+}
+
+.research-progress {
+  padding: 1rem;
+  background-color: #34495e;
+  border-radius: 4px;
+  border: 1px solid #3498db;
+
+  h4 {
+    margin: 0 0 1rem;
+    color: #ecf0f1;
+  }
+
+  .progress-bar {
+    height: 20px;
+    background-color: #2c3e50;
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+    margin-bottom: 0.5rem;
+
+    .progress {
+      height: 100%;
+      background-color: #3498db;
+      transition: width 0.3s ease;
+    }
+
+    .progress-text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: white;
+      font-size: 0.8rem;
+    }
+  }
+
+  p {
+    margin: 0;
+    color: #bdc3c7;
+    font-size: 0.9rem;
   }
 }
 </style> 

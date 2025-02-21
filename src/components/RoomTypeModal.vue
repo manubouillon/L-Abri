@@ -72,7 +72,10 @@ const selectedCategory = ref<string | null>(null)
 const categories = ROOM_CATEGORIES
 
 function getRoomsByCategory(categoryId: string) {
-  return ROOM_TYPES.filter(room => room.category === categoryId)
+  return ROOM_TYPES.filter(room => 
+    room.category === categoryId && 
+    (room.unlockedByDefault !== false || store.unlockedRooms.includes(room.id))
+  )
 }
 
 function getRoomColor(roomId: string): string {

@@ -5,6 +5,8 @@ export type ResourceKey = 'energie' | 'eau' | 'nourriture' | 'vetements' | 'medi
 export interface RoomConfigBase {
   maxWorkers: number
   energyConsumption: number // Consommation d'énergie par semaine
+  unlockedByDefault?: boolean
+  developmentTime?: number
 }
 
 export interface StorageRoomConfig extends RoomConfigBase {
@@ -17,6 +19,12 @@ export interface StorageRoomConfig extends RoomConfigBase {
 export interface DortoryRoomConfig extends RoomConfigBase {
   type: 'dortory'
   capacityPerResident: number
+}
+
+export interface ResearchState {
+  roomType: string
+  startTime: number
+  duration: number
 }
 
 export interface ProductionRoomConfig extends RoomConfigBase {
@@ -42,6 +50,7 @@ export interface ProductionRoomConfig extends RoomConfigBase {
       }
     }
   }
+  researchState?: ResearchState
 }
 
 export interface StorageTankConfig extends RoomConfigBase {
@@ -83,19 +92,25 @@ export const ROOMS_CONFIG: { [key: string]: RoomConfig } = {
     type: 'dortory',
     maxWorkers: 0,
     energyConsumption: 2,
-    capacityPerResident: 2
+    capacityPerResident: 2,
+    unlockedByDefault: false,
+    developmentTime: 3
   },
   'appartement': {
     type: 'dortory',
     maxWorkers: 0,
     energyConsumption: 3,
-    capacityPerResident: 1
+    capacityPerResident: 1,
+    unlockedByDefault: false,
+    developmentTime: 4
   },
   'suite': {
     type: 'dortory',
     maxWorkers: 0,
     energyConsumption: 4,
-    capacityPerResident: 1
+    capacityPerResident: 1,
+    unlockedByDefault: false,
+    developmentTime: 6
   },
   'entrepot': {
     type: 'storage',
@@ -192,19 +207,30 @@ export const ROOMS_CONFIG: { [key: string]: RoomConfig } = {
     productionPerWorker: {},
     resourceProduction: {
       'baril-petrole': 2
-    }
+    },
+    unlockedByDefault: false,
+    developmentTime: 8
   },
   'salle-controle': {
     type: 'production',
     maxWorkers: 2,
     energyConsumption: 5,
-    productionPerWorker: {}
+    productionPerWorker: {},
+    unlockedByDefault: false,
+    developmentTime: 8
   },
   'atelier': {
     type: 'production',
     maxWorkers: 3,
     energyConsumption: 2,
     productionPerWorker: {}
+  },
+  'laboratoire': {
+    type: 'production',
+    maxWorkers: 3,
+    energyConsumption: 4,
+    productionPerWorker: {
+    }
   }
 }
 
@@ -222,6 +248,8 @@ export interface RoomType {
   category: string
   competence: 'force' | 'dexterite' | 'charme' | 'relations' | 'instinct' | 'savoir'
   classes?: string[]
+  unlockedByDefault?: boolean
+  developmentTime?: number
 }
 
 export const ROOM_TYPES: RoomType[] = [
@@ -263,7 +291,9 @@ export const ROOM_TYPES: RoomType[] = [
     icon: '🏘️',
     description: 'Héberge jusqu\'à 6 habitants avec plus de confort',
     category: 'logements',
-    competence: 'charme'
+    competence: 'charme',
+    unlockedByDefault: false,
+    developmentTime: 3
   },
   {
     id: 'appartement',
@@ -271,7 +301,9 @@ export const ROOM_TYPES: RoomType[] = [
     icon: '🏢',
     description: 'Héberge jusqu\'à 4 habitants avec un grand confort',
     category: 'logements',
-    competence: 'charme'
+    competence: 'charme',
+    unlockedByDefault: false,
+    developmentTime: 4
   },
   {
     id: 'suite',
@@ -279,7 +311,9 @@ export const ROOM_TYPES: RoomType[] = [
     icon: '🏰',
     description: 'Héberge jusqu\'à 2 habitants dans un luxe absolu',
     category: 'logements',
-    competence: 'charme'
+    competence: 'charme',
+    unlockedByDefault: false,
+    developmentTime: 6
   },
   {
     id: 'cuisine',
@@ -335,7 +369,9 @@ export const ROOM_TYPES: RoomType[] = [
     icon: '🛢️',
     description: 'Extrait du pétrole pour alimenter les générateurs',
     category: 'production',
-    competence: 'force'
+    competence: 'force',
+    unlockedByDefault: false,
+    developmentTime: 8
   },
   {
     id: 'atelier',
@@ -352,6 +388,14 @@ export const ROOM_TYPES: RoomType[] = [
     description: 'Permet de contrôler et surveiller l\'ensemble de l\'abri',
     category: 'production',
     competence: 'relations'
+  },
+  {
+    id: 'laboratoire',
+    name: 'Laboratoire',
+    icon: '🔬',
+    description: 'Développe de nouvelles salles',
+    category: 'sante',
+    competence: 'savoir'
   }
 ]
 
@@ -383,8 +427,8 @@ export const ROOM_CATEGORIES: RoomCategory[] = [
   },
   {
     id: 'sante',
-    name: 'Santé',
-    rooms: ['infirmerie']
+    name: 'Santé et recherche',
+    rooms: ['infirmerie', 'laboratoire']
   },
   {
     id: 'production',
@@ -410,7 +454,8 @@ export const ROOM_MERGE_CONFIG: { [key: string]: { useMultiplier: boolean } } = 
   derrick: { useMultiplier: true },
   'salle-controle': { useMultiplier: false },
   cuve: { useMultiplier: false },
-  atelier: { useMultiplier: true }
+  atelier: { useMultiplier: true },
+  laboratoire: { useMultiplier: true }
 }
 
 // Configuration des coûts de construction par type de salle
@@ -511,6 +556,12 @@ export const ROOM_CONSTRUCTION_COSTS: { [key: string]: { [key in ItemType]?: num
     'lingot-acier': 20,
     'lingot-cuivre': 15,
     'lingot-silicium': 10
+  },
+  laboratoire: {
+    'lingot-fer': 30,
+    'lingot-acier': 15,
+    'lingot-cuivre': 12,
+    'lingot-silicium': 8
   }
 } as const
 
@@ -543,7 +594,8 @@ export const ROOM_COLORS = {
     'raffinerie': '#9b59b6',
     'derrick': '#9b59b6',
     'atelier': '#9b59b6',
-    'salle-controle': '#9b59b6'
+    'salle-controle': '#9b59b6',
+    'laboratoire': '#2ecc71'
   }
 } as const 
 

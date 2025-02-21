@@ -12,7 +12,8 @@ import {
   type StorageRoomConfig,
   type DortoryRoomConfig,
   type ProductionRoomConfig,
-  type RoomConfigBase
+  type RoomConfigBase,
+  type ResearchState
 } from '../config/roomsConfig'
 import {
   GAME_CONFIG,
@@ -120,11 +121,12 @@ export interface Room {
   equipments: Equipment[]
   fuelLevel?: number
   isDisabled?: boolean
-  isManuallyDisabled?: boolean  // Nouvelle propriété
+  isManuallyDisabled?: boolean
   nextMineralsToProcess?: {
     input: { type: ItemType, amount: number }[]
     output: { type: ItemType, amount: number }
   }
+  researchState?: ResearchState
 }
 
 export interface Level {
@@ -248,6 +250,7 @@ export const useGameStore = defineStore('game', () => {
   const gameTime = ref(0)
   const population = ref(0)
   const happiness = ref(100)
+  const unlockedRooms = ref<string[]>([])
   const lastUpdateTime = ref(Date.now())
   const excavations = ref<ExcavationProgress[]>([])
   const habitants = ref<Habitant[]>([])
@@ -458,6 +461,10 @@ export const useGameStore = defineStore('game', () => {
 
   // Actions
   function initGame() {
+    unlockedRooms.value = ROOM_TYPES
+      .filter(room => room.unlockedByDefault !== false)
+      .map(room => room.id)
+    levels.value = []
     // Créer les niveaux avec un niveau 0 supplémentaire
     levels.value = Array(INITIAL_LEVELS + 1).fill(null).map((_, index) => ({
       id: index,
@@ -662,6 +669,9 @@ export const useGameStore = defineStore('game', () => {
     happiness.value = 100
     lastUpdateTime.value = Date.now()
     excavations.value = []
+    unlockedRooms.value = ROOM_TYPES
+      .filter(room => room.unlockedByDefault !== false)
+      .map(room => room.id)
 
     // Affecter automatiquement les habitants aux salles pré-construites
     if (firstLevel) {
@@ -1031,7 +1041,7 @@ export const useGameStore = defineStore('game', () => {
     }
 
     const currentTime = Date.now()
-    const deltaTime = currentTime - lastUpdateTime.value
+    const deltaTime = Math.min(currentTime - lastUpdateTime.value, 1000) // Limiter à 1 seconde maximum
     lastUpdateTime.value = currentTime
     
     // Mettre à jour le temps de jeu
@@ -1041,7 +1051,7 @@ export const useGameStore = defineStore('game', () => {
     // Calculer le nombre de semaines écoulées
     const previousWeek = Math.floor(gameTime.value - weekIncrease)
     const currentWeek = Math.floor(gameTime.value)
-    const elapsedWeeks = currentWeek - previousWeek
+    const elapsedWeeks = Math.min(currentWeek - previousWeek, 1) // Limiter à 1 semaine maximum
     
     // Si une semaine s'est écoulée
     if (elapsedWeeks > 0) {
@@ -1547,7 +1557,8 @@ export const useGameStore = defineStore('game', () => {
       habitants: habitants.value,
       inventory: inventory.value,
       inventoryCapacity: inventoryCapacity.value,
-      gameSpeed: gameSpeed.value // Ajout de la sauvegarde de la vitesse
+      gameSpeed: gameSpeed.value,
+      unlockedRooms: unlockedRooms.value // Ajout de unlockedRooms
     }
     localStorage.setItem('abriGameState', JSON.stringify(gameState))
   }
@@ -1555,6 +1566,9 @@ export const useGameStore = defineStore('game', () => {
   function loadGame(): boolean {
     const savedState = localStorage.getItem('abriGameState')
     if (savedState) {
+      // Initialiser le jeu avant de charger la sauvegarde
+      initGame()
+      
       const state = JSON.parse(savedState)
       resources.value = state.resources
       levels.value = state.levels
@@ -1566,7 +1580,8 @@ export const useGameStore = defineStore('game', () => {
       habitants.value = state.habitants || []
       inventory.value = state.inventory || []
       inventoryCapacity.value = state.inventoryCapacity || 1000
-      gameSpeed.value = state.gameSpeed || 1 // Chargement de la vitesse
+      gameSpeed.value = state.gameSpeed || 1
+      unlockedRooms.value = state.unlockedRooms || [] // Ajout de unlockedRooms
       return true
     }
     return false
@@ -2289,17 +2304,23 @@ export const useGameStore = defineStore('game', () => {
   }
 
   function loadState(state: any) {
+    // Initialiser le jeu avant de charger l'état
+    initGame()
+    
+    // Charger l'état sauvegardé
     resources.value = state.resources
     levels.value = state.levels
-    gameTime.value = state.gameTime
-    population.value = state.population
-    happiness.value = state.happiness
-    lastUpdateTime.value = state.lastUpdateTime || Date.now()
+    habitants.value = state.habitants
+    inventory.value = state.inventory
+    inventoryCapacity.value = state.inventoryCapacity
+    unlockedRooms.value = state.unlockedRooms || []
     excavations.value = state.excavations || []
-    habitants.value = state.habitants || []
-    inventory.value = state.inventory || []
-    inventoryCapacity.value = state.inventoryCapacity || 1000
-    gameSpeed.value = state.gameSpeed || 1
+    competenceTests.value = state.competenceTests || []
+    
+    // Définir le temps de jeu au moment de la sauvegarde
+    gameTime.value = state.gameTime || 0
+    lastUpdateTime.value = Date.now() // Réinitialiser le temps de la dernière mise à jour
+    isPaused.value = true // Mettre le jeu en pause lors du chargement
   }
 
   function addStairs(levelIndex: number, position: 'left' | 'right') {
@@ -2687,6 +2708,19 @@ export const useGameStore = defineStore('game', () => {
     })
   }
 
+  // Fonction pour débloquer une nouvelle salle
+  function unlockRoom(roomType: string) {
+    if (!unlockedRooms.value.includes(roomType)) {
+      unlockedRooms.value.push(roomType)
+      window.dispatchEvent(new CustomEvent('room-unlocked', {
+        detail: {
+          roomType,
+          name: ROOM_TYPES.find(r => r.id === roomType)?.name
+        }
+      }))
+    }
+  }
+
   return {
     // État
     resources,
@@ -2694,6 +2728,8 @@ export const useGameStore = defineStore('game', () => {
     gameTime,
     population,
     happiness,
+    unlockedRooms,
+    unlockRoom,
     formattedTime,
     excavations,
     habitants,

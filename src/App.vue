@@ -185,6 +185,16 @@ onMounted(() => {
     notificationSystem.value?.addNotification(title, message, type)
   }) as EventListener)
 
+  // Écouter les événements de déblocage de salle
+  window.addEventListener('room-unlocked', ((event: CustomEvent) => {
+    const { roomType, name } = event.detail
+    notificationSystem.value?.addNotification(
+      "Nouvelle salle débloquée !",
+      `La recherche est terminée. Vous pouvez maintenant construire : ${name}`,
+      "success"
+    )
+  }) as EventListener)
+
   // Ajouter l'écouteur pour la touche Espace
   window.addEventListener('keydown', (event) => {
     if (event.code === 'Space') {
@@ -207,6 +217,16 @@ onUnmounted(() => {
   window.removeEventListener('notification', ((event: CustomEvent) => {
     const { title, message, type } = event.detail
     notificationSystem.value?.addNotification(title, message, type)
+  }) as EventListener)
+
+  // Supprimer l'écouteur de déblocage de salle
+  window.removeEventListener('room-unlocked', ((event: CustomEvent) => {
+    const { roomType, name } = event.detail
+    notificationSystem.value?.addNotification(
+      "Nouvelle salle débloquée !",
+      `La recherche est terminée. Vous pouvez maintenant construire : ${name}`,
+      "success"
+    )
   }) as EventListener)
 
   // Supprimer l'écouteur de la touche Espace

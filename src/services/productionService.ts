@@ -25,6 +25,9 @@ export function handleRoomProduction(
   const gameStore = useGameStore()
   const currentWeek = Math.floor(gameStore.gameTime)
   
+  // Limiter weeksElapsed à 1 pour éviter les calculs en masse lors du chargement
+  weeksElapsed = Math.min(weeksElapsed, 1)
+  
   // Effectuer les tests de compétences pour chaque travailleur
   const tests: CompetenceTest[] = []
   const travailleurs = habitants.filter(h => room.occupants.includes(h.id))
@@ -112,6 +115,64 @@ export function handleRoomProduction(
         } else {
           break // On sort de la boucle si pas de baril vide
         }
+      }
+    }
+  }
+
+  // Gestion du laboratoire
+  if (room.type === 'laboratoire' && room.researchState) {
+    if (room.fuelLevel === undefined) room.fuelLevel = 0
+    
+    // Ne fonctionne que s'il y a des travailleurs
+    if (nbWorkers > 0) {
+      // La progression est influencée par le nombre de travailleurs, la taille et le bonus de production
+      const elapsedTime = gameStore.gameTime - room.researchState.startTime
+      const progressionParSemaine = (100 / room.researchState.duration) * nbWorkers * gridSize * mergeMultiplier * productionBonus
+      room.fuelLevel = Math.min(100, progressionParSemaine * elapsedTime)
+      
+      // Quand on atteint 100%, on débloque la salle et on transforme le laboratoire
+      if (room.fuelLevel >= 100) {
+        const gameStore = useGameStore()
+        const newRoomType = room.researchState.roomType
+        
+        // Désaffecter tous les travailleurs
+        room.occupants.forEach(habitantId => {
+          const habitant = habitants.find(h => h.id === habitantId)
+          if (habitant) {
+            habitant.affectation = { type: null }
+          }
+        })
+        room.occupants = []
+        
+        // Conserver les propriétés importantes
+        const gridSize = room.gridSize
+        const position = room.position
+        const index = room.index
+        const isExcavated = room.isExcavated
+        
+        // Transformer la salle
+        room.type = newRoomType
+        room.gridSize = gridSize
+        room.position = position
+        room.index = index
+        room.isExcavated = isExcavated
+        room.isBuilt = true
+        room.isUnderConstruction = false
+        room.equipments = []
+        room.fuelLevel = undefined
+        room.researchState = undefined
+        
+        // Débloquer la salle dans le store
+        gameStore.unlockRoom(newRoomType)
+        
+        // Notifier le changement
+        window.dispatchEvent(new CustomEvent('notification', {
+          detail: {
+            title: 'Transformation du laboratoire',
+            message: `Le laboratoire s'est transformé en ${newRoomType}`,
+            type: 'success'
+          }
+        }))
       }
     }
   }
