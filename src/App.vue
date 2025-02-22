@@ -40,6 +40,7 @@
           Inventaire ({{ Math.floor(inventorySpace.used) }}/{{ Math.floor(inventorySpace.total) }})
         </button>
         <button @click="togglePause">{{ isPaused ? '▶️' : '⏸️' }}</button>
+        <button @click="showResearchModal = true">🔬</button>
         <div class="game-speed">
           <button @click="decreaseSpeed" :disabled="gameSpeed === 1">-</button>
           <span>x{{ gameSpeed }}</span>
@@ -78,6 +79,7 @@
       @close="showSaveModal = false" 
       ref="saveModalRef"
     />
+    <ResearchModal v-if="showResearchModal" @close="showResearchModal = false" />
     <DeathModal 
       v-if="showDeathModal" 
       :habitant="deceasedHabitant!"
@@ -101,6 +103,7 @@ import NotificationSystem from './components/NotificationSystem.vue'
 import DeathModal from './components/DeathModal.vue'
 import CompetenceTestPanel from './components/CompetenceTestPanel.vue'
 import GameOverModal from './components/GameOverModal.vue'
+import ResearchModal from './components/ResearchModal.vue'
 
 // État du jeu
 const gameStore = useGameStore()
@@ -121,6 +124,7 @@ const scrollPosition = ref(0)
 const showHabitantsList = ref(false)
 const showInventory = ref(false)
 const showSaveModal = ref(false)
+const showResearchModal = ref(false)
 const activeTab = ref('habitants')
 const saveModalRef = ref<InstanceType<typeof SaveModal> | null>(null)
 

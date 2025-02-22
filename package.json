@@ -9,9 +9,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@balkangraph/orgchart.js": "^8.16.14",
     "@vueuse/core": "^12.5.0",
+    "jquery": "^3.7.1",
     "pinia": "^2.3.1",
+    "raphael": "^2.3.0",
     "sass": "^1.84.0",
+    "treant-js": "^1.0.1",
     "vue": "^3.5.13"
   },
   "devDependencies": {
