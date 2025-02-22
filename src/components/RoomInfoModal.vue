@@ -354,7 +354,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useGameStore } from '../stores/gameStore'
-import { ROOM_MERGE_CONFIG, ROOMS_CONFIG, ROOM_TYPES } from '../config/roomsConfig'
+import { ROOM_MERGE_CONFIG, ROOMS_CONFIG, ROOM_TYPES, ROOM_DEPENDENCIES } from '../config/roomsConfig'
 import { ITEMS_CONFIG, type ItemType } from '../config/itemsConfig'
 import type { Room as GameRoom, Equipment } from '../stores/gameStore'
 import NurserieInterface from './NurserieInterface.vue'
@@ -825,6 +825,16 @@ watch([() => props.room.isDisabled, () => store.gameTime], () => {
 function startResearch(roomType: string) {
   const roomTypeConfig = ROOM_TYPES.find(r => r.id === roomType)
   if (!roomTypeConfig?.developmentTime) return
+
+  // Vérifier que toutes les dépendances sont débloquées
+  const dependencies = ROOM_DEPENDENCIES[roomType as keyof typeof ROOM_DEPENDENCIES] || []
+  const allDependenciesUnlocked = dependencies.every((dep: string) => store.unlockedRooms.includes(dep))
+  
+  if (!allDependenciesUnlocked) {
+    // TODO: Ajouter une notification pour informer l'utilisateur
+    console.error('Toutes les dépendances ne sont pas débloquées')
+    return
+  }
 
   props.room.researchState = {
     roomType,

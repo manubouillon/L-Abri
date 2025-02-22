@@ -387,7 +387,9 @@ export const ROOM_TYPES: RoomType[] = [
     icon: '🎮',
     description: 'Permet de contrôler et surveiller l\'ensemble de l\'abri',
     category: 'production',
-    competence: 'relations'
+    competence: 'relations',
+    unlockedByDefault: false,
+    developmentTime: 8
   },
   {
     id: 'laboratoire',
@@ -613,4 +615,12 @@ export interface CapacityPerWorker {
   nourriture?: number
   vetements?: number
   medicaments?: number
+}
+
+// Configuration des dépendances entre les salles
+export const ROOM_DEPENDENCIES: { [key: string]: string[] } = {
+  'quartiers': ['dortoir'],
+  'appartement': ['quartiers'],
+  'suite': ['appartement'],
+  'salle-controle': ['laboratoire']
 } 
