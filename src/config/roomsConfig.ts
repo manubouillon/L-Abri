@@ -123,7 +123,7 @@ export const ROOMS_CONFIG: { [key: string]: RoomConfig } = {
       'medicaments': 20
     }
   },
-  'raffinerie': {
+  'fonderie': {
     type: 'production',
     maxWorkers: 4,
     energyConsumption: 5,
@@ -210,6 +210,14 @@ export const ROOMS_CONFIG: { [key: string]: RoomConfig } = {
     },
     unlockedByDefault: false,
     developmentTime: 8
+  },
+  'raffinerie': {
+    type: 'production',
+    maxWorkers: 3,
+    energyConsumption: 6,
+    productionPerWorker: {},
+    unlockedByDefault: false,
+    developmentTime: 6
   },
   'salle-controle': {
     type: 'production',
@@ -356,8 +364,8 @@ export const ROOM_TYPES: RoomType[] = [
     competence: 'instinct'
   },
   {
-    id: 'raffinerie',
-    name: 'Raffinerie',
+    id: 'fonderie',
+    name: 'Fonderie',
     icon: '⚒️',
     description: 'Raffine les minerais en lingots',
     category: 'production',
@@ -372,6 +380,16 @@ export const ROOM_TYPES: RoomType[] = [
     competence: 'force',
     unlockedByDefault: false,
     developmentTime: 8
+  },
+  {
+    id: 'raffinerie',
+    name: 'Raffinerie',
+    icon: '⚗️',
+    description: 'Raffine le pétrole brut en carburant',
+    category: 'production',
+    competence: 'savoir',
+    unlockedByDefault: false,
+    developmentTime: 6
   },
   {
     id: 'atelier',
@@ -435,7 +453,7 @@ export const ROOM_CATEGORIES: RoomCategory[] = [
   {
     id: 'production',
     name: 'Production',
-    rooms: ['raffinerie', 'derrick', 'atelier']
+    rooms: ['fonderie', 'derrick', 'raffinerie', 'atelier']
   }
 ]
 
@@ -452,8 +470,9 @@ export const ROOM_MERGE_CONFIG: { [key: string]: { useMultiplier: boolean } } = 
   generateur: { useMultiplier: true },
   infirmerie: { useMultiplier: true },
   serre: { useMultiplier: true },
-  raffinerie: { useMultiplier: true },
+  fonderie: { useMultiplier: true },
   derrick: { useMultiplier: true },
+  raffinerie: { useMultiplier: true },
   'salle-controle': { useMultiplier: false },
   cuve: { useMultiplier: false },
   atelier: { useMultiplier: true },
@@ -527,7 +546,7 @@ export const ROOM_CONSTRUCTION_COSTS: { [key: string]: { [key in ItemType]?: num
     'lingot-cuivre': 8,
     'lingot-silicium': 5
   },
-  raffinerie: {
+  fonderie: {
     'lingot-fer': 50,
     'lingot-acier': 30,
     'lingot-cuivre': 25,
@@ -539,6 +558,12 @@ export const ROOM_CONSTRUCTION_COSTS: { [key: string]: { [key in ItemType]?: num
     'lingot-acier': 25,
     'lingot-cuivre': 20,
     'lingot-silicium': 15
+  },
+  raffinerie: {
+    'lingot-fer': 40,
+    'lingot-acier': 30,
+    'lingot-cuivre': 15,
+    'lingot-silicium': 10
   },
   'salle-controle': {
     'lingot-fer': 60,
@@ -593,8 +618,9 @@ export const ROOM_COLORS = {
     'generateur': '#f1c40f',
     'infirmerie': '#2ecc71',
     'serre': '#e67e22',
-    'raffinerie': '#9b59b6',
+    'fonderie': '#9b59b6',
     'derrick': '#9b59b6',
+    'raffinerie': '#9b59b6',
     'atelier': '#9b59b6',
     'salle-controle': '#9b59b6',
     'laboratoire': '#2ecc71'
@@ -622,5 +648,6 @@ export const ROOM_DEPENDENCIES: { [key: string]: string[] } = {
   'quartiers': ['dortoir'],
   'appartement': ['quartiers'],
   'suite': ['appartement'],
-  'salle-controle': ['laboratoire']
+  'salle-controle': ['laboratoire'],
+  'raffinerie': ['derrick']
 } 

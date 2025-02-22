@@ -308,6 +308,7 @@ const energyNet = computed(() => {
   --room-type-derrick-color: var(--category-production-color);
   --room-type-atelier-color: var(--category-production-color);
   --room-type-salle-controle-color: var(--category-production-color);
+  --room-type-fonderie-color: var(--category-production-color);
 }
 
 * {

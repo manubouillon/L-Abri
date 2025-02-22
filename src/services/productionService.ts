@@ -70,8 +70,8 @@ export function handleRoomProduction(
     resources.eau.consumption += waterConsumptionValue
   }
 
-  // Gestion de la raffinerie
-  if (room.type === 'raffinerie' && room.nextMineralsToProcess && 'mineralsProcessingPerWorker' in config) {
+  // Gestion de la fonderie
+  if (room.type === 'fonderie' && room.nextMineralsToProcess && 'mineralsProcessingPerWorker' in config) {
     const processingCapacity = (config.mineralsProcessingPerWorker || 0) * nbWorkers * gridSize * mergeMultiplier * productionBonus * weeksElapsed
     const canProcess = room.nextMineralsToProcess.input.every(({ type, amount }) => 
       getItemQuantity(type) >= amount
@@ -115,6 +115,32 @@ export function handleRoomProduction(
         } else {
           break // On sort de la boucle si pas de baril vide
         }
+      }
+    }
+  }
+
+  // Gestion de la raffinerie
+  if (room.type === 'raffinerie') {
+    if (room.fuelLevel === undefined) room.fuelLevel = 0
+    
+    // Ne fonctionne que s'il y a des travailleurs
+    if (nbWorkers > 0) {
+      const nbBarilsPetrole = getItemQuantity('baril-petrole')
+      
+      // Capacité de raffinage par semaine
+      const capaciteRaffinage = 2 * nbWorkers * gridSize * mergeMultiplier * productionBonus * weeksElapsed
+      
+      // Nombre de barils qu'on peut raffiner
+      const nbBarilsARaffiner = Math.min(nbBarilsPetrole, Math.floor(capaciteRaffinage))
+      
+      if (nbBarilsARaffiner > 0) {
+        // Consommer les barils de pétrole
+        removeItem('baril-petrole', nbBarilsARaffiner)
+        // Produire des barils vides
+        addItem('baril-vide', nbBarilsARaffiner)
+        // Produire du carburant raffiné (1 baril = 100 unités de carburant)
+        const carburantProduit = nbBarilsARaffiner * 100
+        addItem('carburant', carburantProduit)
       }
     }
   }
@@ -191,17 +217,16 @@ export function handleRoomProduction(
     
     // Si le niveau est bas, essayer d'ajouter du carburant
     if (room.fuelLevel < 20) { // Seuil de 20%
-      const nbBarilsPetrole = getItemQuantity('baril-petrole')
-      if (nbBarilsPetrole > 0) {
-        const nbBarilsNecessaires = Math.min(
-          Math.ceil((100 - room.fuelLevel) / 50), // Chaque baril donne 50% de carburant
-          nbBarilsPetrole
+      const carburantDisponible = getItemQuantity('carburant')
+      if (carburantDisponible > 0) {
+        const carburantNecessaire = Math.min(
+          100 - room.fuelLevel, // Quantité nécessaire pour remplir
+          carburantDisponible // Quantité disponible
         )
         
-        if (nbBarilsNecessaires > 0) {
-          removeItem('baril-petrole', nbBarilsNecessaires)
-          addItem('baril-vide', nbBarilsNecessaires)
-          room.fuelLevel = Math.min(100, room.fuelLevel + (nbBarilsNecessaires * 50))
+        if (carburantNecessaire > 0) {
+          removeItem('carburant', carburantNecessaire)
+          room.fuelLevel = Math.min(100, room.fuelLevel + carburantNecessaire)
         }
       }
     }

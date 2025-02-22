@@ -11,14 +11,14 @@
           Informations
         </button>
         <button 
-          v-if="room.type !== 'raffinerie'"
+          v-if="room.type !== 'fonderie'"
           :class="{ active: activeTab === 'equipment' }" 
           @click="activeTab = 'equipment'"
         >
           Équipements
         </button>
         <button 
-          v-if="room.type === 'raffinerie'"
+          v-if="room.type === 'fonderie'"
           :class="{ active: activeTab === 'production' }" 
           @click="activeTab = 'production'"
         >
@@ -35,7 +35,11 @@
             <h3>Salles à rechercher</h3>
             <div class="research-rooms">
               <div 
-                v-for="roomType in ROOM_TYPES.filter(r => r.unlockedByDefault === false && !store.unlockedRooms.includes(r.id))" 
+                v-for="roomType in ROOM_TYPES.filter(r => 
+                  r.unlockedByDefault === false && 
+                  !store.unlockedRooms.includes(r.id) && 
+                  canResearchRoom(r.id)
+                )" 
                 :key="roomType.id"
                 class="research-room-item"
               >
@@ -83,15 +87,15 @@
                 <span class="fuel-text">{{ Math.floor(room.fuelLevel || 0) }}%</span>
               </div>
             </div>
-            <div class="formula-row" v-if="room.type === 'raffinerie'">
+            <div class="formula-row" v-if="room.type === 'fonderie'">
               <span class="label">Consommation d'énergie:</span>
-              <span>{{ ROOMS_CONFIG['raffinerie'].energyConsumption }} par semaine</span>
+              <span>{{ ROOMS_CONFIG['fonderie'].energyConsumption }} par semaine</span>
             </div>
             <div class="formula-row">
               <span class="label">Nombre de travailleurs:</span>
               <span>{{ room.occupants.length }}/{{ roomConfig?.maxWorkers ?? 0 }}👥</span>
             </div>
-            <div class="formula-row" v-if="room.type === 'raffinerie'">
+            <div class="formula-row" v-if="room.type === 'fonderie'">
               <span class="label">Capacité de traitement:</span>
               <span>{{ getProcessingCapacity(room) }} minerais par semaine</span>
             </div>
@@ -107,14 +111,14 @@
               <span class="label">Compétence requise:</span>
               <span>{{ getRoomCompetence(room.type) }}</span>
             </div>
-            <div class="formula-row total" v-if="isProductionRoom && room.type !== 'raffinerie'">
+            <div class="formula-row total" v-if="isProductionRoom && room.type !== 'fonderie'">
               <span class="label">Production totale:</span>
               <span>{{ getTotalProduction }}</span>
             </div>
           </div>
         </div>
 
-        <div v-if="room.type === 'raffinerie'" class="details-section">
+        <div v-if="room.type === 'fonderie'" class="details-section">
           <h3>Production en cours</h3>
           <div class="room-item">
             <div v-if="room.nextMineralsToProcess" class="next-process">
@@ -299,7 +303,7 @@
         </div>
       </div>
 
-      <div v-else-if="activeTab === 'production' && room.type === 'raffinerie'" class="production-tab">
+      <div v-else-if="activeTab === 'production' && room.type === 'fonderie'" class="production-tab">
         <div class="details-section">
           <h3>Conversions disponibles</h3>
           <div class="resources-grid">
@@ -664,7 +668,7 @@ function updateRefineryRecipe(recipe: {
   input: { type: ItemType, amount: number }[],
   output: { type: ItemType, amount: number }
 } | null) {
-  if (props.room.type === 'raffinerie') {
+  if (props.room.type === 'fonderie') {
     props.room.nextMineralsToProcess = recipe || undefined
   }
 }
@@ -695,7 +699,7 @@ function getRoomCompetence(roomType: string): string {
 }
 
 const conversionRules = computed(() => {
-  const config = ROOMS_CONFIG['raffinerie'] as ProductionRoomConfig
+  const config = ROOMS_CONFIG['fonderie'] as ProductionRoomConfig
   if (!config || !config.conversionRules) return {}
   return Object.entries(config.conversionRules).reduce((acc, [inputType, rule]) => {
     acc[inputType] = {
@@ -783,7 +787,7 @@ watch(() => props.room.nextMineralsToProcess, (newValue) => {
 
 // Surveiller les changements qui pourraient affecter la recette
 watch([() => props.room.isDisabled, () => store.gameTime], () => {
-  if (props.room.type === 'raffinerie') {
+  if (props.room.type === 'fonderie') {
     const currentRecipe = props.room.nextMineralsToProcess
     
     if (currentRecipe) {
@@ -831,8 +835,15 @@ function startResearch(roomType: string) {
   const allDependenciesUnlocked = dependencies.every((dep: string) => store.unlockedRooms.includes(dep))
   
   if (!allDependenciesUnlocked) {
-    // TODO: Ajouter une notification pour informer l'utilisateur
-    console.error('Toutes les dépendances ne sont pas débloquées')
+    const missingDeps = dependencies.filter(dep => !store.unlockedRooms.includes(dep))
+    const missingRooms = missingDeps.map(dep => ROOM_TYPES.find(r => r.id === dep)?.name).join(', ')
+    window.dispatchEvent(new CustomEvent('notification', {
+      detail: {
+        title: 'Recherche impossible',
+        message: `Il faut d'abord débloquer : ${missingRooms}`,
+        type: 'error'
+      }
+    }))
     return
   }
 
@@ -844,6 +855,11 @@ function startResearch(roomType: string) {
   props.room.fuelLevel = 0
 }
 
+function canResearchRoom(roomType: string): boolean {
+  const dependencies = ROOM_DEPENDENCIES[roomType as keyof typeof ROOM_DEPENDENCIES] || []
+  return dependencies.every(dep => store.unlockedRooms.includes(dep))
+}
+
 function getRemainingResearchTime(): number {
   if (!props.room?.researchState) return 0
   const roomTypeConfig = ROOM_TYPES.find(r => r.id === props.room.researchState?.roomType)
@@ -851,6 +867,14 @@ function getRemainingResearchTime(): number {
 
   const progressPercent = props.room.fuelLevel || 0
   return Math.ceil((roomTypeConfig.developmentTime * (100 - progressPercent)) / 100)
+}
+
+function getDependenciesNames(roomType: string): string {
+  const dependencies = ROOM_DEPENDENCIES[roomType as keyof typeof ROOM_DEPENDENCIES] || []
+  return dependencies
+    .map(dep => ROOM_TYPES.find(r => r.id === dep)?.name)
+    .filter(Boolean)
+    .join(', ')
 }
 </script>
 

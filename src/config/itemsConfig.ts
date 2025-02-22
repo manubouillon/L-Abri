@@ -2,7 +2,7 @@ export type ItemType =
   | 'minerai-fer' | 'minerai-cuivre' | 'minerai-silicium' | 'minerai-or'
   | 'minerai-charbon' | 'minerai-calcaire'
   | 'lingot-fer' | 'lingot-cuivre' | 'lingot-silicium' | 'lingot-or' | 'lingot-acier'
-  | 'baril-petrole' | 'baril-vide'
+  | 'baril-petrole' | 'baril-vide' | 'carburant'
   | 'laitue' | 'tomates' | 'avoine' | 'nourriture-conserve'
   | 'soie' | 'vetements' | 'embryon-humain'
 
@@ -167,6 +167,12 @@ export const ITEMS_CONFIG: { [key in ItemType]: ItemConfig } = {
     name: 'Vêtements',
     stackSize: 100,
     description: 'Des vêtements confectionnés dans l\'atelier.',
+    category: 'ressource'
+  } as ResourceItemConfig,
+  'carburant': {
+    name: 'Carburant raffiné',
+    stackSize: 1000,
+    description: 'Du carburant raffiné prêt à l\'emploi.',
     category: 'ressource'
   } as ResourceItemConfig
 } as const 

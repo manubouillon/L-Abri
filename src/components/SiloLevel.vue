@@ -1114,7 +1114,7 @@ onMounted(() => {
 }
 
 // Styles spécifiques pour chaque type de salle
-@each $type in (entrepot, cuve, dortoir, cuisine, station-traitement, generateur, infirmerie, serre, raffinerie, derrick, salle-controle, quartiers, appartement, suite, atelier) {
+@each $type in (entrepot, cuve, dortoir, cuisine, station-traitement, generateur, infirmerie, serre, fonderie, derrick, salle-controle, quartiers, appartement, suite, atelier) {
   .room-type-#{$type} {
     --room-color: var(--room-#{$type}-color);
   }
