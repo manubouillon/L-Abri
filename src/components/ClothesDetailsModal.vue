@@ -75,7 +75,7 @@ import { ROOMS_CONFIG } from '../config/roomsConfig'
 import type { Room } from '../stores/gameStore'
 
 const props = defineProps<{
-  room: Room
+  room?: Room
 }>()
 
 const emit = defineEmits<{

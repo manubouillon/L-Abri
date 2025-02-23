@@ -1,117 +1,119 @@
 <template>
-  <button 
-    class="toggle-panel-button"
-    @click="isPanelVisible = !isPanelVisible"
-  >
-    {{ isPanelVisible ? '❌' : '📊' }}
-  </button>
-  <div class="resource-panel" :class="{ 'hidden': !isPanelVisible }">
-    <h2>Ressources</h2>
-    
-    <div class="resources-grid">
-      <div 
-        v-for="[name, resource] in resourcesList" 
-        :key="name"
-        class="resource-item"
-        :class="{ 
-          'resource-surplus': resource.production > resource.consumption,
-          'resource-deficit': resource.production < resource.consumption
-        }"
-      >
-        <div class="resource-header">
-          <span class="resource-name">
-            {{ name }}
-            <span v-if="name === 'nourriture'" class="food-quality">
-              {{ foodQualityEmoji }}
+  <div class="resources-panel">
+    <button 
+      class="toggle-panel-button"
+      @click="isPanelVisible = !isPanelVisible"
+    >
+      {{ isPanelVisible ? '❌' : '📊' }}
+    </button>
+    <div class="resource-panel" :class="{ 'hidden': !isPanelVisible }">
+      <h2>Ressources</h2>
+      
+      <div class="resources-grid">
+        <div 
+          v-for="[name, resource] in resourcesList" 
+          :key="name"
+          class="resource-item"
+          :class="{ 
+            'resource-surplus': resource.production > resource.consumption,
+            'resource-deficit': resource.production < resource.consumption
+          }"
+        >
+          <div class="resource-header">
+            <span class="resource-name">
+              {{ name }}
+              <span v-if="name === 'nourriture'" class="food-quality">
+                {{ foodQualityEmoji }}
+              </span>
             </span>
-          </span>
-          <span v-if="name === 'energie'" class="resource-amount">
-            {{ (resource.production - resource.consumption) > 0 ? '+' : '' }}{{ Math.floor(resource.production - resource.consumption) }} ⚡
-          </span>
-          <span v-else class="resource-amount">{{ Math.floor(resource.amount) }}/{{ resource.capacity }}</span>
-          <button v-if="name === 'energie'" 
-                  class="details-button"
-                  @click="showEnergyDetails = true">
-            Détails
-          </button>
-          <button v-if="name === 'eau'" 
-                  class="details-button"
-                  @click="showWaterDetails = true">
-            Détails
-          </button>
-          <button v-if="name === 'nourriture'" 
-                  class="details-button"
-                  @click="showFoodDetails = true">
-            Détails
-          </button>
-          <button v-if="name === 'vetements'" 
-                  class="details-button"
-                  @click="showClothesDetails = true">
-            Détails
-          </button>
-          <button v-if="name === 'medicaments'" 
-                  class="details-button"
-                  @click="showMedicineDetails = true">
-            Détails
-          </button>
-        </div>
-        
-        <div v-if="name !== 'energie'" class="resource-progress">
-          <div 
-            class="progress-bar"
-            :style="{ width: `${(resource.amount / resource.capacity) * 100}%` }"
-            :class="{ 'low-level': resource.amount < resource.capacity * 0.2 }"
-          ></div>
-        </div>
-        
-        <div class="resource-details">
-          <div class="production">
-            +{{ (resource.production ?? 0).toFixed(1) }}/semaine
+            <span v-if="name === 'energie'" class="resource-amount">
+              {{ (resource.production - resource.consumption) > 0 ? '+' : '' }}{{ Math.floor(resource.production - resource.consumption) }} ⚡
+            </span>
+            <span v-else class="resource-amount">{{ Math.floor(resource.amount) }}/{{ resource.capacity }}</span>
+            <button v-if="name === 'energie'" 
+                    class="details-button"
+                    @click="showEnergyDetails = true">
+              Détails
+            </button>
+            <button v-if="name === 'eau'" 
+                    class="details-button"
+                    @click="showWaterDetails = true">
+              Détails
+            </button>
+            <button v-if="name === 'nourriture'" 
+                    class="details-button"
+                    @click="showFoodDetails = true">
+              Détails
+            </button>
+            <button v-if="name === 'vetements'" 
+                    class="details-button"
+                    @click="showClothesDetails = true">
+              Détails
+            </button>
+            <button v-if="name === 'medicaments'" 
+                    class="details-button"
+                    @click="showMedicineDetails = true">
+              Détails
+            </button>
           </div>
-          <div class="consumption">
-            -{{ (resource.consumption ?? 0).toFixed(1) }}/semaine
+          
+          <div v-if="name !== 'energie'" class="resource-progress">
+            <div 
+              class="progress-bar"
+              :style="{ width: `${(resource.amount / resource.capacity) * 100}%` }"
+              :class="{ 'low-level': resource.amount < resource.capacity * 0.2 }"
+            ></div>
+          </div>
+          
+          <div class="resource-details">
+            <div class="production">
+              +{{ (resource.production ?? 0).toFixed(1) }}/semaine
+            </div>
+            <div class="consumption">
+              -{{ (resource.consumption ?? 0).toFixed(1) }}/semaine
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <div class="stats">
-      <div class="stat-item">
-        <span class="stat-label">Population:</span>
-        <span class="stat-value">{{ population }}</span>
+      <div class="stats">
+        <div class="stat-item">
+          <span class="stat-label">Population:</span>
+          <span class="stat-value">{{ population }}</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Habitants libres:</span>
+          <span class="stat-value">{{ habitantsLibres.length }}</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Habitants occupés:</span>
+          <span class="stat-value">{{ habitantsOccupes.length }}</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Enfants:</span>
+          <span class="stat-value">{{ enfants.length }}</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Bonheur:</span>
+          <span class="stat-value">{{ globalHappiness }}%</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Date:</span>
+          <span class="stat-value">
+            <template v-if="formattedTime.years > 0">{{ formattedTime.years }}A </template>
+            <template v-if="formattedTime.months > 0">{{ formattedTime.months }}M </template>
+            <template v-if="formattedTime.weeks > 0">{{ Math.floor(formattedTime.weeks) }}S </template>
+            <template>{{ formattedTime.days }}J </template>
+          </span>
+        </div>
       </div>
-      <div class="stat-item">
-        <span class="stat-label">Habitants libres:</span>
-        <span class="stat-value">{{ habitantsLibres.length }}</span>
-      </div>
-      <div class="stat-item">
-        <span class="stat-label">Habitants occupés:</span>
-        <span class="stat-value">{{ habitantsOccupes.length }}</span>
-      </div>
-      <div class="stat-item">
-        <span class="stat-label">Enfants:</span>
-        <span class="stat-value">{{ enfants.length }}</span>
-      </div>
-      <div class="stat-item">
-        <span class="stat-label">Bonheur:</span>
-        <span class="stat-value">{{ globalHappiness }}%</span>
-      </div>
-      <div class="stat-item">
-        <span class="stat-label">Date:</span>
-        <span class="stat-value">
-          <template v-if="formattedTime.years > 0">{{ formattedTime.years }}A </template>
-          <template v-if="formattedTime.months > 0">{{ formattedTime.months }}M </template>
-          <template v-if="formattedTime.weeks > 0">{{ Math.floor(formattedTime.weeks) }}S </template>
-          <template>{{ formattedTime.days }}J </template>
-        </span>
-      </div>
-    </div>
 
-    <EnergyDetailsModal v-if="showEnergyDetails" @close="showEnergyDetails = false" />
-    <WaterDetailsModal v-if="showWaterDetails" @close="showWaterDetails = false" />
-    <FoodDetailsModal v-if="showFoodDetails" @close="showFoodDetails = false" />
-    <ClothesDetailsModal v-if="showClothesDetails" @close="showClothesDetails = false" />
-    <MedicineDetailsModal v-if="showMedicineDetails" @close="showMedicineDetails = false" />
+      <EnergyDetailsModal v-if="showEnergyDetails" @close="showEnergyDetails = false" />
+      <WaterDetailsModal v-if="showWaterDetails" @close="showWaterDetails = false" />
+      <FoodDetailsModal v-if="showFoodDetails" @close="showFoodDetails = false" />
+      <ClothesDetailsModal v-if="showClothesDetails" @close="showClothesDetails = false" />
+      <MedicineDetailsModal v-if="showMedicineDetails" @close="showMedicineDetails = false" />
+    </div>
   </div>
 </template>
 

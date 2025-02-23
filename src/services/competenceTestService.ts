@@ -60,7 +60,7 @@ export function effectuerTest(habitant: Habitant, room: Room): CompetenceTest {
   ajouterExperience(habitant, competence, pointsXP);
 
   return {
-    id: `${gameStore.gameTime}-${habitant.id}`,
+    id: `${gameStore.gameTime}-${habitant.id}-${Math.random().toString(36).substring(2, 15)}`,
     timestamp: gameStore.gameTime,
     habitantId: habitant.id,
     habitantNom: habitant.nom,

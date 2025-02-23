@@ -99,7 +99,7 @@ import { ITEMS_CONFIG, type ItemType, type FoodItemConfig } from '../config/item
 import type { Room, Item } from '../stores/gameStore'
 
 const props = defineProps<{
-  room: Room
+  room?: Room
 }>()
 
 const emit = defineEmits<{
