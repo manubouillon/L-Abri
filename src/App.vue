@@ -1,5 +1,5 @@
 <template>
-  <div class="game-container">
+  <div class="game-container" :style="roomTypeColors">
     <NotificationSystem ref="notificationSystem" />
     <header class="game-header">
       <h1>L'Abri</h1>
@@ -104,6 +104,7 @@ import DeathModal from './components/DeathModal.vue'
 import CompetenceTestPanel from './components/CompetenceTestPanel.vue'
 import GameOverModal from './components/GameOverModal.vue'
 import ResearchModal from './components/ResearchModal.vue'
+import { ROOM_TYPES, type RoomType } from './config/roomsConfig'
 
 // État du jeu
 const gameStore = useGameStore()
@@ -256,6 +257,24 @@ const energyNet = computed(() => {
   const energie = gameStore.resourcesList.find(([name]: [string, any]) => name === 'energie')?.[1]
   return energie ? Math.floor(energie.production - energie.consumption) : 0
 })
+
+// Fonction pour générer les couleurs des pièces
+function generateRoomTypeColors() {
+  const colors: Record<string, string> = {}
+  ROOM_TYPES.forEach((room: RoomType) => {
+    colors[`--room-type-${room.id}-color`] = `var(--category-${room.category}-color)`
+  })
+  return colors
+}
+
+// Computed pour les couleurs des pièces
+const roomTypeColors = computed(() => {
+  const colors: Record<string, string> = {}
+  ROOM_TYPES.forEach((room: RoomType) => {
+    colors[`--room-type-${room.id}-color`] = `var(--category-${room.category}-color)`
+  })
+  return colors
+})
 </script>
 
 <style lang="scss">
@@ -290,25 +309,6 @@ const energyNet = computed(() => {
   --room-energie-color: var(--category-energie-color);
   --room-sante-color: var(--category-sante-color);
   --room-production-color: var(--category-production-color);
-
-  /* Couleurs des pièces spécifiques */
-  --room-type-chambre-froide-color: var(--category-stockage-color);
-  --room-type-entrepot-color: var(--category-stockage-color);
-  --room-type-cuve-color: var(--category-eau-color);
-  --room-type-dortoir-color: var(--category-logements-color);
-  --room-type-quartiers-color: var(--category-logements-color);
-  --room-type-appartement-color: var(--category-logements-color);
-  --room-type-suite-color: var(--category-logements-color);
-  --room-type-cuisine-color: var(--category-alimentation-color);
-  --room-type-station-traitement-color: var(--category-eau-color);
-  --room-type-generateur-color: var(--category-energie-color);
-  --room-type-infirmerie-color: var(--category-sante-color);
-  --room-type-serre-color: var(--category-alimentation-color);
-  --room-type-raffinerie-color: var(--category-production-color);
-  --room-type-derrick-color: var(--category-production-color);
-  --room-type-atelier-color: var(--category-production-color);
-  --room-type-salle-controle-color: var(--category-production-color);
-  --room-type-fonderie-color: var(--category-production-color);
 }
 
 * {

@@ -213,10 +213,27 @@ export function handleRoomProduction(
     
     if (room.fuelLevel > 0) {
       room.fuelLevel = Math.max(0, room.fuelLevel - consommation)
+      
+      // Production d'énergie seulement si le générateur a du carburant
+      if ('productionPerWorker' in config && config.productionPerWorker.energie) {
+        const production = config.productionPerWorker.energie * nbWorkers * gridSize * mergeMultiplier * productionBonus * weeksElapsed
+        if (production > 0) {
+          resources.energie.production += production
+        }
+      }
     }
     
-    // Si le niveau est bas, essayer d'ajouter du carburant
-    if (room.fuelLevel < 20) { // Seuil de 20%
+    // Si le niveau est à zéro, essayer de consommer un baril de pétrole
+    if (room.fuelLevel === 0) {
+      const nbBarilsPetrole = getItemQuantity('baril-petrole')
+      if (nbBarilsPetrole > 0) {
+        removeItem('baril-petrole', 1)
+        addItem('baril-vide', 1)
+        room.fuelLevel = 100
+      }
+    }
+    // Si le niveau est bas mais pas à zéro, essayer d'ajouter du carburant
+    else if (room.fuelLevel < 20) { // Seuil de 20%
       const carburantDisponible = getItemQuantity('carburant')
       if (carburantDisponible > 0) {
         const carburantNecessaire = Math.min(
@@ -253,14 +270,12 @@ export function handleRoomProduction(
   }
 
   // Gestion des productions et consommations standards
-  if ('productionPerWorker' in config) {
-
-
+  if ('productionPerWorker' in config && room.type !== 'generateur') {
     Object.entries(config.productionPerWorker).forEach(([resource, amount]) => {
       if (amount && resource in resources) {
         if (amount > 0) {
           const production = amount * nbWorkers * gridSize * mergeMultiplier * productionBonus * weeksElapsed
-            console.log('productionPerWorker', room.type, 'bonus:'+productionBonus, 'nbWorkers:'+nbWorkers, 'gridSize:'+gridSize, 'mergeMultiplier:'+mergeMultiplier, 'weeksElapsed:'+weeksElapsed, 'production:'+production)
+          console.log('productionPerWorker', room.type, 'bonus:'+productionBonus, 'nbWorkers:'+nbWorkers, 'gridSize:'+gridSize, 'mergeMultiplier:'+mergeMultiplier, 'weeksElapsed:'+weeksElapsed, 'production:'+production)
           resources[resource as ResourceKey].production += production
         } else {
           const consumption = Math.abs(amount) * nbWorkers * gridSize * mergeMultiplier * weeksElapsed

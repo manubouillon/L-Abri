@@ -819,6 +819,9 @@ export const useGameStore = defineStore('game', () => {
           const config = ROOMS_CONFIG[room.type]
           if (!config || !('productionPerWorker' in config)) return
 
+          // Ne produire de l'énergie que si le générateur a du carburant
+          if (!room.fuelLevel || room.fuelLevel <= 0) return
+
           const nbWorkers = room.occupants.length
           const gridSize = room.gridSize || 1
           const mergeConfig = ROOM_MERGE_CONFIG[room.type]
