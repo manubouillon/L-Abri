@@ -295,6 +295,9 @@ import { useGameStore } from '../stores/gameStore'
 import type { Habitant, Room, Level } from '../stores/gameStore'
 import { onMounted, onUnmounted, ref, computed } from 'vue'
 import { ROOMS_CONFIG, ROOM_TYPES } from '../config/roomsConfig'
+import { useModal } from '../composables/useModal'
+
+useModal()
 
 const store = useGameStore()
 const { habitants, globalHappiness, levels } = storeToRefs(store)

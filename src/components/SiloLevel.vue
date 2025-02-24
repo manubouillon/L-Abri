@@ -28,7 +28,7 @@
             @click="handleRoomClick('left', room)"
           >
             <template v-if="room.isBuilt">
-              <div class="room-info" @click="openRoomInfo(room)">
+              <div class="room-info" @click="handleRoomInfo(room)">
                 <div class="room-header">
                   <span class="room-type">{{ room.type }}</span>
                   <span class="room-size" v-if="room.gridSize && room.gridSize > 1">x{{ room.gridSize }}</span>
@@ -165,7 +165,7 @@
             @click="handleRoomClick('right', room)"
           >
             <template v-if="room.isBuilt">
-              <div class="room-info" @click="openRoomInfo(room)">
+              <div class="room-info" @click="handleRoomInfo(room)">
                 <div class="room-header">
                   <span class="room-type">{{ room.type }}</span>
                   <span class="room-size" v-if="room.gridSize && room.gridSize > 1">x{{ room.gridSize }}</span>
@@ -285,24 +285,15 @@
       @close="closeRoomTypeModal"
       @select="selectRoomType"
     />
-
-    <RoomInfoModal 
-      v-if="showRoomInfoModal && selectedRoomForInfo"
-      :room="selectedRoomForInfo"
-      :levelId="level.id"
-      :position="selectedRoomForInfo.position"
-      @close="closeRoomInfoModal"
-    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, inject } from 'vue'
 import { useGameStore, ROOMS_PER_SIDE } from '../stores/gameStore'
 import { ROOMS_CONFIG, type DortoryRoomConfig, ROOM_TYPES, ROOM_COLORS, type RoomType } from '../config/roomsConfig'
 import type { Level, Room } from '../stores/gameStore'
 import RoomTypeModal from './RoomTypeModal.vue'
-import RoomInfoModal from './RoomInfoModal.vue'
 import { storeToRefs } from 'pinia'
 import { ROOM_MERGE_CONFIG } from '../config/roomsConfig'
 
@@ -315,8 +306,8 @@ const { habitantsLibres } = storeToRefs(store)
 
 const showRoomTypeModal = ref(false)
 const selectedRoom = ref<{ position: 'left' | 'right', index: number } | null>(null)
-const showRoomInfoModal = ref(false)
-const selectedRoomForInfo = ref<Room | null>(null)
+
+const openRoomInfo = inject<(room: Room, levelId: number, position: 'left' | 'right') => void>('openRoomInfo')
 
 const availableRoomTypes = [
   'stockage',
@@ -602,15 +593,12 @@ function getRoomProductionSimple(room: Room): string {
     .join(' ')
 }
 
-function openRoomInfo(room: Room) {
-  selectedRoomForInfo.value = room
-  showRoomInfoModal.value = true
+function handleRoomInfo(room: Room) {
+  if (openRoomInfo) {
+    openRoomInfo(room, props.level.id, room.position)
+  }
 }
 
-function closeRoomInfoModal() {
-  showRoomInfoModal.value = false
-  selectedRoomForInfo.value = null
-}
 function getRoomStyle(room: Room) {
   if (!room.isBuilt) return {}
   

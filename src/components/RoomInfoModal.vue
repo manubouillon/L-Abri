@@ -1,5 +1,5 @@
 <template>
-  <div class="modal-overlay" @click="$emit('close')">
+  <div class="modal-overlay" @click.self="$emit('close')">
     <div class="modal-content" @click.stop>
       <h2>{{ getRoomTitle(room.type) }}</h2>
       
@@ -32,32 +32,39 @@
         <!-- Section spéciale pour le laboratoire -->
         <div v-if="room.type === 'laboratoire'" class="research-section">
           <template v-if="!room.researchState">
-            <h3>Salles à rechercher</h3>
-            <div class="research-rooms">
-              <div 
-                v-for="roomType in ROOM_TYPES.filter(r => 
-                  r.unlockedByDefault === false && 
-                  !store.unlockedRooms.includes(r.id) && 
-                  canResearchRoom(r.id)
-                )" 
-                :key="roomType.id"
-                class="research-room-item"
-              >
-                <div class="research-room-info">
-                  <h4>{{ roomType.name }} {{ roomType.icon }}</h4>
-                  <p>{{ roomType.description }}</p>
-                  <p class="development-time">
-                    Temps de recherche: {{ roomType.developmentTime }} semaines
-                  </p>
-                </div>
-                <button 
-                  @click="startResearch(roomType.id)"
-                  :disabled="room.occupants.length === 0"
-                >
-                  Commencer la recherche
-                </button>
+            <template v-if="room.occupants.length === 0">
+              <div class="alert-message">
+                <h3>⚠️ Attention</h3>
+                <p>Vous devez affecter au moins un travailleur au laboratoire pour commencer la recherche.</p>
               </div>
-            </div>
+            </template>
+            <template v-else>
+              <h3>Salles à rechercher</h3>
+              <div class="research-rooms">
+                <div 
+                  v-for="roomType in ROOM_TYPES.filter(r => 
+                    r.unlockedByDefault === false && 
+                    !store.unlockedRooms.includes(r.id) && 
+                    canResearchRoom(r.id)
+                  )" 
+                  :key="roomType.id"
+                  class="research-room-item"
+                >
+                  <div class="research-room-info">
+                    <h4>{{ roomType.name }} {{ roomType.icon }}</h4>
+                    <p>{{ roomType.description }}</p>
+                    <p class="development-time">
+                      Temps de recherche: {{ roomType.developmentTime }} semaines
+                    </p>
+                  </div>
+                  <button 
+                    @click="startResearch(roomType.id)"
+                  >
+                    Commencer la recherche
+                  </button>
+                </div>
+              </div>
+            </template>
           </template>
           <template v-else>
             <h3>Recherche en cours</h3>
@@ -363,6 +370,9 @@ import { ITEMS_CONFIG, type ItemType } from '../config/itemsConfig'
 import type { Room as GameRoom, Equipment } from '../stores/gameStore'
 import NurserieInterface from './NurserieInterface.vue'
 import type { ProductionRoomConfig, StorageRoomConfig, DortoryRoomConfig } from '../config/roomsConfig'
+import { useModal } from '../composables/useModal'
+
+useModal()
 
 const props = defineProps<{
   levelId: number
@@ -1509,6 +1519,25 @@ function getDependenciesNames(roomType: string): string {
     margin: 0;
     color: #bdc3c7;
     font-size: 0.9rem;
+  }
+}
+
+.alert-message {
+  background-color: rgba(231, 76, 60, 0.1);
+  border: 2px solid #e74c3c;
+  border-radius: 8px;
+  padding: 1rem;
+  text-align: center;
+  margin-bottom: 1rem;
+
+  h3 {
+    color: #e74c3c;
+    margin: 0 0 0.5rem;
+  }
+
+  p {
+    color: #e74c3c;
+    margin: 0;
   }
 }
 </style> 

@@ -11,6 +11,9 @@
 import { onMounted } from 'vue'
 import { ROOM_TYPES, ROOM_DEPENDENCIES } from '../config/roomsConfig'
 import { useGameStore } from '../stores/gameStore'
+import { useModal } from '../composables/useModal'
+
+useModal()
 
 const store = useGameStore()
 

@@ -97,6 +97,9 @@ import { useGameStore } from '../stores/gameStore'
 import { ROOMS_CONFIG } from '../config/roomsConfig'
 import { ITEMS_CONFIG, type ItemType, type FoodItemConfig } from '../config/itemsConfig'
 import type { Room, Item } from '../stores/gameStore'
+import { useModal } from '../composables/useModal'
+
+useModal()
 
 const props = defineProps<{
   room?: Room

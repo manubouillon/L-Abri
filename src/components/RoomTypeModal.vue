@@ -64,6 +64,9 @@ import { storeToRefs } from 'pinia'
 import { ROOM_CATEGORIES, ROOM_CONSTRUCTION_COSTS, ROOM_TYPES, ROOM_COLORS } from '../config/roomsConfig'
 import { useGameStore } from '../stores/gameStore'
 import { ITEMS_CONFIG, type ItemType } from '../config/itemsConfig'
+import { useModal } from '../composables/useModal'
+
+useModal()
 
 const store = useGameStore()
 

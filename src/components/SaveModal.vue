@@ -53,6 +53,9 @@
 import { ref, onMounted, computed } from 'vue'
 import { useGameStore } from '../stores/gameStore'
 import NotificationSystem from './NotificationSystem.vue'
+import { useModal } from '../composables/useModal'
+
+useModal()
 
 const gameStore = useGameStore()
 const notificationSystem = ref<InstanceType<typeof NotificationSystem> | null>(null)

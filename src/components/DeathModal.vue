@@ -17,6 +17,9 @@
 <script setup lang="ts">
 import { defineProps } from 'vue'
 import type { Habitant } from '../stores/gameStore'
+import { useModal } from '../composables/useModal'
+
+useModal()
 
 const props = defineProps<{
   habitant: Habitant

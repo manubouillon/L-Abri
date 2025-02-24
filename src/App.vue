@@ -87,6 +87,13 @@
     />
     <CompetenceTestPanel :tests="competenceTests" />
     <GameOverModal v-if="isGameOver" />
+    <RoomInfoModal 
+      v-if="showRoomInfoModal && selectedRoomForInfo"
+      :room="selectedRoomForInfo.room"
+      :levelId="selectedRoomForInfo.levelId"
+      :position="selectedRoomForInfo.position"
+      @close="closeRoomInfo"
+    />
   </div>
 </template>
 
@@ -104,7 +111,9 @@ import DeathModal from './components/DeathModal.vue'
 import CompetenceTestPanel from './components/CompetenceTestPanel.vue'
 import GameOverModal from './components/GameOverModal.vue'
 import ResearchModal from './components/ResearchModal.vue'
+import RoomInfoModal from './components/RoomInfoModal.vue'
 import { ROOM_TYPES, type RoomType } from './config/roomsConfig'
+import type { Room } from './stores/gameStore'
 
 // État du jeu
 const gameStore = useGameStore()
@@ -128,6 +137,25 @@ const showSaveModal = ref(false)
 const showResearchModal = ref(false)
 const activeTab = ref('habitants')
 const saveModalRef = ref<InstanceType<typeof SaveModal> | null>(null)
+
+// État pour RoomInfoModal
+const showRoomInfoModal = ref(false)
+const selectedRoomForInfo = ref<{ room: Room, levelId: number, position: 'left' | 'right' } | null>(null)
+
+// Fonction pour ouvrir RoomInfoModal
+function openRoomInfo(room: Room, levelId: number, position: 'left' | 'right') {
+  selectedRoomForInfo.value = { room, levelId, position }
+  showRoomInfoModal.value = true
+}
+
+// Fonction pour fermer RoomInfoModal
+function closeRoomInfo() {
+  showRoomInfoModal.value = false
+  selectedRoomForInfo.value = null
+}
+
+// Fournir la fonction openRoomInfo aux composants enfants
+provide('openRoomInfo', openRoomInfo)
 
 // Niveaux affichables (excavés ou excavables)
 const displayableLevels = computed(() => {
@@ -244,13 +272,6 @@ onUnmounted(() => {
 })
 
 const notificationSystem = ref()
-
-// Fournir le système de notification à tous les composants enfants
-provide('notifications', {
-  addNotification: (title: string, message: string, type: 'info' | 'success' | 'warning' | 'error' = 'info') => {
-    notificationSystem.value?.addNotification(title, message, type)
-  }
-})
 
 // Ajouter le calcul du bilan énergétique
 const energyNet = computed(() => {

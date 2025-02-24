@@ -38,6 +38,9 @@ import { ref, computed } from 'vue'
 import { useGameStore } from '../stores/gameStore'
 import { ROOMS_CONFIG } from '../config/roomsConfig'
 import type { Room } from '../stores/gameStore'
+import { useModal } from '../composables/useModal'
+
+useModal()
 
 const props = defineProps<{
   room?: Room
